@@ -284,18 +284,17 @@
       throw_.shovelY = throw_.originY - (throw_.launchVY * t - 0.5 * G * t * t);
 
       // Wall bounce
-      if (!throw_.bounced
-          && throw_.shovelX >= wallX
-          && throw_.shovelY >= wallTopY
-          && throw_.shovelY < groundY) {
-        const vy = throw_.launchVY - G * throw_.flightTime;
-        throw_.shovelX    = wallX;
-        throw_.originX    = throw_.shovelX;
-        throw_.originY    = throw_.shovelY;
-        throw_.launchVX   = -Math.abs(throw_.launchVX) * BOUNCE_DAMPING;
-        throw_.launchVY   = vy;
-        throw_.flightTime = 0;
-        throw_.bounced    = true;
+      if (!throw_.bounced && throw_.shovelX >= wallX) {
+        if (throw_.shovelY >= wallTopY && throw_.shovelY < groundY) {
+          const vy = throw_.launchVY - G * throw_.flightTime;
+          throw_.shovelX    = wallX;
+          throw_.originX    = throw_.shovelX;
+          throw_.originY    = throw_.shovelY;
+          throw_.launchVX   = -Math.abs(throw_.launchVX) * BOUNCE_DAMPING;
+          throw_.launchVY   = vy;
+          throw_.flightTime = 0;
+        }
+        throw_.bounced = true;
       }
 
       // Landing detection
