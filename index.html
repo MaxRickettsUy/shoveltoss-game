@@ -105,8 +105,8 @@
   // --- Difficulty ---
   function updateDifficulty() {
     const t = THROWS_PER_RUN <= 1 ? 0 : throwCount / (THROWS_PER_RUN - 1);
-    currentMeterCycleTime = METER_CYCLE_TIME + t * (METER_CYCLE_TIME_END - METER_CYCLE_TIME);
-    currentPitWidth       = PIT_WIDTH_START  + t * (PIT_WIDTH_END  - PIT_WIDTH_START);
+    currentMeterCycleTime = Math.max(0.4,  METER_CYCLE_TIME + t * (METER_CYCLE_TIME_END - METER_CYCLE_TIME));
+    currentPitWidth       = Math.max(0.10, PIT_WIDTH_START  + t * (PIT_WIDTH_END  - PIT_WIDTH_START));
     const halfWidth = canvas.width * currentPitWidth / 2;
     pitLeft  = pitCenterX - halfWidth;
     pitRight = pitCenterX + halfWidth;
