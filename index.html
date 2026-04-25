@@ -25,6 +25,8 @@
   const SWEET_SPOT_MIN = 0.7;
   const SWEET_SPOT_MAX = 0.9;
   const RESET_DELAY = 500;           // ms pause after landing
+  const THROWS_PER_RUN = 5;          // placeholder: throws before game over
+  const GAME_OVER_GUARD = 500;       // ms input guard after game over
 
   // --- Layout (recalculated on resize) ---
   let groundY, playerX, playerY;
@@ -50,7 +52,13 @@
     meterY = canvas.height * 0.20;
   }
 
-  // --- State ---
+  // --- Run state ---
+  const RUN_STATE = { READY: 'ready', PLAYING: 'playing', GAME_OVER: 'game_over' };
+  let runState   = RUN_STATE.READY;
+  let throwCount = 0;
+  let gameOverTime = 0;  // timestamp when GAME_OVER was entered (for input guard)
+
+  // --- Throw state ---
   const STATE = {
     IDLE:      'idle',
     CHARGING:  'charging',
@@ -71,13 +79,44 @@
   let resetEndTime = 0;  // timestamp when reset pause ends
   let lastTimestamp = null;
 
+  // --- Run-level functions ---
+  function endRun(timestamp) {
+    runState     = RUN_STATE.GAME_OVER;
+    gameOverTime = timestamp;
+  }
+
+  function resetRun() {
+    throwCount = 0;
+    meterFill  = 0;
+    meterDir   = 1;
+    power      = 0;
+    state      = STATE.IDLE;
+    runState   = RUN_STATE.READY;
+  }
+
   // --- Result hook ---
-  function onThrowResult(result) {
+  function onThrowResult(result, timestamp) {
     console.log('Throw result:', result);
+    throwCount++;
+    if (throwCount >= THROWS_PER_RUN) {
+      endRun(timestamp);
+    }
   }
 
   // --- Input ---
   function onPressStart() {
+    if (runState === RUN_STATE.READY) {
+      runState   = RUN_STATE.PLAYING;
+      throwCount = 0;
+      state      = STATE.IDLE;
+      return;
+    }
+    if (runState === RUN_STATE.GAME_OVER) {
+      if (lastTimestamp !== null && lastTimestamp - gameOverTime < GAME_OVER_GUARD) return;
+      resetRun();
+      return;
+    }
+    // PLAYING — existing throw logic
     if (state !== STATE.IDLE) return;
     state     = STATE.CHARGING;
     meterFill = 0;
@@ -114,8 +153,15 @@
     const dt = Math.min((timestamp - lastTimestamp) / 1000, 0.05); // cap at 50ms
     lastTimestamp = timestamp;
 
-    update(dt, timestamp);
-    draw();
+    if (runState === RUN_STATE.READY) {
+      drawReadyScreen();
+    } else if (runState === RUN_STATE.PLAYING) {
+      update(dt, timestamp);
+      draw();
+    } else if (runState === RUN_STATE.GAME_OVER) {
+      draw();
+      drawGameOverOverlay();
+    }
   }
 
   function update(dt, timestamp) {
@@ -145,7 +191,7 @@
           distanceFromCenter: shovelX - pitCenterX,
           power:              power
         };
-        onThrowResult(result);
+        onThrowResult(result, timestamp);
 
         state        = STATE.RESETTING;
         resetEndTime = timestamp + RESET_DELAY;
@@ -244,8 +290,40 @@
     ctx.fillText('POWER', meterX + meterWidth / 2, meterY - 8);
   }
 
+  function drawReadyScreen() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `bold ${Math.max(32, Math.floor(canvas.width * 0.10))}px sans-serif`;
+    ctx.fillText('SHOVEL TOSS', canvas.width / 2, canvas.height * 0.42);
+
+    ctx.font = `${Math.max(18, Math.floor(canvas.width * 0.05))}px sans-serif`;
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.fillText('Tap to Start', canvas.width / 2, canvas.height * 0.56);
+  }
+
+  function drawGameOverOverlay() {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `bold ${Math.max(32, Math.floor(canvas.width * 0.10))}px sans-serif`;
+    ctx.fillText('GAME OVER', canvas.width / 2, canvas.height * 0.42);
+
+    ctx.font = `${Math.max(18, Math.floor(canvas.width * 0.05))}px sans-serif`;
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.fillText('Tap to Restart', canvas.width / 2, canvas.height * 0.56);
+  }
+
   // --- Init ---
   window.addEventListener('resize', updateLayout);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) lastTimestamp = null;
+  });
   updateLayout();
   requestAnimationFrame(gameLoop);
 </script>
