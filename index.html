@@ -41,6 +41,8 @@
   const WALL_GAP = 12;               // px between pit edge and wall
   const WALL_THICKNESS = 8;
   const METER_HEIGHT_FRACTION = 0.06;
+  const METER_WIDTH_FRACTION = 0.55;
+  const WALL_HEIGHT_FRACTION = 0.50;
 
   // --- State enums ---
   const RUN_STATE = { READY: 'ready', PLAYING: 'playing', GAME_OVER: 'game_over' };
@@ -95,7 +97,7 @@
 
   // --- Layout (recalculated on resize) ---
   let groundY, playerX, playerY;
-  let pitLeft, pitRight, pitCenterX, wallX;
+  let pitLeft, pitRight, pitCenterX, wallX, wallTopY;
   let meterX, meterY, meterWidth, meterHeight;
   let safeTop;
 
@@ -105,15 +107,16 @@
 
     safeTop  = Math.max(20, canvas.height * 0.04);
     groundY  = canvas.height * 0.82;
+    wallTopY = groundY - canvas.height * WALL_HEIGHT_FRACTION;
     playerX  = canvas.width  * 0.10;
     playerY  = groundY;
 
     pitCenterX = canvas.width * 0.80;  // far end; pitLeft/pitRight set by updateDifficulty
     updateDifficulty();
 
-    // Meter: horizontal bar at top
-    meterX = HUD_PAD;
-    meterWidth = canvas.width - HUD_PAD * 2;
+    // Meter: narrowed and centered at top
+    meterWidth = Math.max(220, canvas.width * METER_WIDTH_FRACTION);
+    meterX = (canvas.width - meterWidth) / 2;
     meterY = safeTop;
     meterHeight = Math.max(36, canvas.height * METER_HEIGHT_FRACTION);
   }
@@ -355,12 +358,12 @@
     ctx.lineWidth = 2;
     ctx.strokeRect(pitLeft, groundY, pitRight - pitLeft, pitDepth);
 
-    // Wall (just past pit right edge)
+    // Wall (just past pit right edge, visual only — 50% canvas height)
     ctx.fillStyle = '#3a3a4a';
-    ctx.fillRect(wallX, 0, WALL_THICKNESS, groundY);
+    ctx.fillRect(wallX, wallTopY, WALL_THICKNESS, groundY - wallTopY);
     ctx.strokeStyle = '#6a6a8a';
     ctx.lineWidth = 2;
-    ctx.strokeRect(wallX, 0, WALL_THICKNESS, groundY);
+    ctx.strokeRect(wallX, wallTopY, WALL_THICKNESS, groundY - wallTopY);
 
     // Player placeholder (rectangle)
     const pW = 28, pH = 50;
@@ -384,16 +387,17 @@
         Math.max(16, Math.floor(canvas.width * 0.042)), 'rgba(255,255,255,0.55)', 'center', false);
     }
 
-    // HUD: score (top-left) and throw counter (top-right), below meter
+    // HUD: left-stacked score → throws → combo
     const hudFontSize = Math.max(24, Math.floor(canvas.width * 0.07));
     const hudY = meterY + meterHeight + HUD_PAD + hudFontSize;
+    const subFontSize = Math.max(16, Math.floor(canvas.width * 0.045));
     drawText(scoring.score, HUD_PAD, hudY, hudFontSize, '#ffffff', 'left', true);
-    drawText(`${run.throwCount} / ${THROWS_PER_RUN}`, canvas.width - HUD_PAD, hudY, hudFontSize, '#ffffff', 'right', true);
+    drawText(`${run.throwCount} / ${THROWS_PER_RUN}`, HUD_PAD, hudY + subFontSize + 6, subFontSize, '#ffffff', 'left', false);
 
-    // Combo badge (below score)
+    // Combo badge (below throw counter)
     if (scoring.combo >= 2) {
       const comboFontSize = Math.max(14, Math.floor(canvas.width * 0.04));
-      drawText(`x${scoring.combo} COMBO`, HUD_PAD, hudY + comboFontSize + 6, comboFontSize, '#ffe600', 'left', false);
+      drawText(`x${scoring.combo} COMBO`, HUD_PAD, hudY + subFontSize + 6 + comboFontSize + 6, comboFontSize, '#ffe600', 'left', false);
     }
 
     // Throw feedback text
