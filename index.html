@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Shovel Toss</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #111; overflow: hidden; touch-action: none; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<script>
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+
+  // --- Constants ---
+  const ANGLE = Math.PI / 4;        // 45 degrees, fixed
+  const V_MIN = 300;                 // px/s, weak lob
+  const V_MAX = 800;                 // px/s, full send
+  const G = 600;                     // px/s², gravity
+  const METER_CYCLE_TIME = 1.2;     // seconds per full oscillation cycle
+  const SWEET_SPOT_MIN = 0.7;
+  const SWEET_SPOT_MAX = 0.9;
+  const RESET_DELAY = 500;           // ms pause after landing
+
+  // --- Layout (recalculated on resize) ---
+  let groundY, playerX, playerY;
+  let pitLeft, pitRight, pitCenterX;
+  let meterX, meterY, meterWidth, meterHeight;
+
+  function updateLayout() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    groundY  = canvas.height * 0.82;
+    playerX  = canvas.width  * 0.10;
+    playerY  = groundY;
+
+    pitLeft    = canvas.width * 0.42;
+    pitRight   = canvas.width * 0.68;
+    pitCenterX = (pitLeft + pitRight) / 2;
+
+    // Meter: right side, thumb-reachable
+    meterWidth  = Math.max(48, canvas.width * 0.10);
+    meterHeight = canvas.height * 0.60;
+    meterX = canvas.width - meterWidth - 20;
+    meterY = canvas.height * 0.20;
+  }
+
+  // --- State ---
+  const STATE = {
+    IDLE:      'idle',
+    CHARGING:  'charging',
+    FLYING:    'flying',
+    RESETTING: 'resetting'
+  };
+  let state = STATE.IDLE;
+
+  let meterFill = 0;   // 0–1, current fill position
+  let meterDir  = 1;   // 1 = filling, -1 = draining
+  let power     = 0;   // captured at release
+
+  let shovelX = 0, shovelY = 0;
+  let flightTime = 0;
+  let launchVX = 0, launchVY = 0;
+  let originX  = 0, originY  = 0;
+
+  let resetEndTime = 0;  // timestamp when reset pause ends
+  let lastTimestamp = null;
+
+  // --- Result hook ---
+  function onThrowResult(result) {
+    console.log('Throw result:', result);
+  }
+
+  // --- Input ---
+  function onPressStart() {
+    if (state !== STATE.IDLE) return;
+    state     = STATE.CHARGING;
+    meterFill = 0;
+    meterDir  = 1;
+  }
+
+  function onPressEnd() {
+    if (state !== STATE.CHARGING) return;
+    power = meterFill;
+    state = STATE.FLYING;
+
+    const V = V_MIN + power * (V_MAX - V_MIN);
+    launchVX = V * Math.cos(ANGLE);
+    launchVY = V * Math.sin(ANGLE);
+
+    // Launch from player's hand height (top of player rect)
+    originX = playerX;
+    originY = playerY - 50;
+    shovelX = originX;
+    shovelY = originY;
+    flightTime = 0;
+  }
+
+  canvas.addEventListener('touchstart', (e) => { e.preventDefault(); onPressStart(); }, { passive: false });
+  canvas.addEventListener('touchend',   (e) => { e.preventDefault(); onPressEnd();   }, { passive: false });
+  canvas.addEventListener('mousedown', onPressStart);
+  canvas.addEventListener('mouseup',   onPressEnd);
+
+  // --- Game loop ---
+  function gameLoop(timestamp) {
+    requestAnimationFrame(gameLoop);
+
+    if (lastTimestamp === null) { lastTimestamp = timestamp; }
+    const dt = Math.min((timestamp - lastTimestamp) / 1000, 0.05); // cap at 50ms
+    lastTimestamp = timestamp;
+
+    update(dt, timestamp);
+    draw();
+  }
+
+  function update(dt, timestamp) {
+    // Step 2: oscillate meter while charging
+    if (state === STATE.CHARGING) {
+      const speed = 2 / METER_CYCLE_TIME; // 0→1→0 = 2 units per cycle
+      meterFill += meterDir * speed * dt;
+      if (meterFill >= 1) { meterFill = 1; meterDir = -1; }
+      if (meterFill <= 0) { meterFill = 0; meterDir =  1; }
+    }
+
+    // Step 3: update projectile position
+    if (state === STATE.FLYING) {
+      flightTime += dt;
+      const t = flightTime;
+      shovelX = originX + launchVX * t;
+      shovelY = originY - (launchVY * t - 0.5 * G * t * t);
+
+      // Step 4: landing detection
+      if (shovelY >= groundY) {
+        shovelY = groundY;
+
+        const result = {
+          landed:             true,
+          x:                  shovelX,
+          inPit:              shovelX >= pitLeft && shovelX <= pitRight,
+          distanceFromCenter: shovelX - pitCenterX,
+          power:              power
+        };
+        onThrowResult(result);
+
+        state        = STATE.RESETTING;
+        resetEndTime = timestamp + RESET_DELAY;
+      }
+    }
+
+    // Step 5: reset after pause
+    if (state === STATE.RESETTING && timestamp >= resetEndTime) {
+      meterFill = 0;
+      meterDir  = 1;
+      power     = 0;
+      state     = STATE.IDLE;
+    }
+  }
+
+  // --- Drawing ---
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Background
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Ground fill
+    ctx.fillStyle = '#4a3728';
+    ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+
+    // Ground line
+    ctx.strokeStyle = '#6b4f3a';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, groundY);
+    ctx.lineTo(canvas.width, groundY);
+    ctx.stroke();
+
+    // Pit zone
+    const pitDepth = 20;
+    ctx.fillStyle = '#2c1810';
+    ctx.fillRect(pitLeft, groundY, pitRight - pitLeft, pitDepth);
+    ctx.strokeStyle = '#8b6914';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(pitLeft, groundY, pitRight - pitLeft, pitDepth);
+
+    // Player placeholder (rectangle)
+    const pW = 28, pH = 50;
+    ctx.fillStyle = '#e07b39';
+    ctx.fillRect(playerX - pW / 2, playerY - pH, pW, pH);
+
+    // Shovel (during flight and brief reset pause)
+    if (state === STATE.FLYING || state === STATE.RESETTING) {
+      ctx.fillStyle = '#c0c0c0';
+      ctx.fillRect(shovelX - 8, shovelY - 5, 16, 10);
+    }
+
+    // Throw meter (visible while charging or after release until flight ends)
+    if (state === STATE.CHARGING || state === STATE.FLYING) {
+      drawMeter();
+    }
+
+    // Idle hint text
+    if (state === STATE.IDLE) {
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      ctx.font = `${Math.max(16, Math.floor(canvas.width * 0.042))}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText('Hold to charge', canvas.width / 2, groundY - 28);
+    }
+  }
+
+  function drawMeter() {
+    // Background track
+    ctx.fillStyle = '#2a2a2a';
+    ctx.fillRect(meterX, meterY, meterWidth, meterHeight);
+
+    // Sweet-spot highlight
+    const sweetTop = meterY + meterHeight * (1 - SWEET_SPOT_MAX);
+    const sweetH   = meterHeight * (SWEET_SPOT_MAX - SWEET_SPOT_MIN);
+    ctx.fillStyle = 'rgba(255, 220, 0, 0.25)';
+    ctx.fillRect(meterX, sweetTop, meterWidth, sweetH);
+
+    // Fill bar
+    const fillH = meterHeight * meterFill;
+    const fillY = meterY + meterHeight - fillH;
+    const inSweet = meterFill >= SWEET_SPOT_MIN && meterFill <= SWEET_SPOT_MAX;
+    ctx.fillStyle = inSweet ? '#ffe600' : '#ff6b35';
+    ctx.fillRect(meterX, fillY, meterWidth, fillH);
+
+    // Border
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(meterX, meterY, meterWidth, meterHeight);
+
+    // Label
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('POWER', meterX + meterWidth / 2, meterY - 8);
+  }
+
+  // --- Init ---
+  window.addEventListener('resize', updateLayout);
+  updateLayout();
+  requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
