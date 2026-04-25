@@ -37,6 +37,10 @@
   const PTS_GOOD     = 50;
   const FEEDBACK_DURATION = 1500;    // ms to show throw feedback
   const HUD_PAD = 20;                // px padding for HUD elements
+  const BOUNCE_DAMPING = 0.6;
+  const WALL_GAP = 12;               // px between pit edge and wall
+  const WALL_THICKNESS = 8;
+  const METER_HEIGHT_FRACTION = 0.06;
 
   // --- State enums ---
   const RUN_STATE = { READY: 'ready', PLAYING: 'playing', GAME_OVER: 'game_over' };
@@ -66,7 +70,8 @@
     launchVY:    0,
     originX:     0,
     originY:     0,
-    resetEndTime: 0
+    resetEndTime: 0,
+    bounced: false
   };
 
   const scoring = {
@@ -88,7 +93,7 @@
 
   // --- Layout (recalculated on resize) ---
   let groundY, playerX, playerY;
-  let pitLeft, pitRight, pitCenterX;
+  let pitLeft, pitRight, pitCenterX, wallX;
   let meterX, meterY, meterWidth, meterHeight;
   let safeTop;
 
@@ -101,14 +106,14 @@
     playerX  = canvas.width  * 0.10;
     playerY  = groundY;
 
-    pitCenterX = canvas.width * 0.55;  // fixed center; pitLeft/pitRight set by updateDifficulty
+    pitCenterX = canvas.width * 0.80;  // far end; pitLeft/pitRight set by updateDifficulty
     updateDifficulty();
 
-    // Meter: right side, thumb-reachable
-    meterWidth  = Math.max(48, canvas.width * 0.10);
-    meterHeight = canvas.height * 0.60;
-    meterX = canvas.width - meterWidth - 20;
-    meterY = canvas.height * 0.20;
+    // Meter: horizontal bar at top
+    meterX = HUD_PAD;
+    meterWidth = canvas.width - HUD_PAD * 2;
+    meterY = safeTop;
+    meterHeight = Math.max(36, canvas.height * METER_HEIGHT_FRACTION);
   }
 
   // --- Difficulty ---
@@ -119,6 +124,7 @@
     const halfWidth = canvas.width * difficulty.pitWidth / 2;
     pitLeft  = pitCenterX - halfWidth;
     pitRight = pitCenterX + halfWidth;
+    wallX = Math.min(pitRight + WALL_GAP, canvas.width - WALL_THICKNESS);
   }
 
   // --- Run-level functions ---
@@ -140,6 +146,7 @@
     scoring.lastThrowPoints = 0;
     scoring.lastThrowZone   = '';
     scoring.feedbackTimer   = 0;
+    throw_.bounced          = false;
     updateDifficulty();
   }
 
@@ -219,6 +226,7 @@
     throw_.shovelX    = throw_.originX;
     throw_.shovelY    = throw_.originY;
     throw_.flightTime = 0;
+    throw_.bounced    = false;
   }
 
   canvas.addEventListener('touchstart', (e) => { e.preventDefault(); onPressStart(); }, { passive: false });
@@ -260,6 +268,18 @@
       const t = throw_.flightTime;
       throw_.shovelX = throw_.originX + throw_.launchVX * t;
       throw_.shovelY = throw_.originY - (throw_.launchVY * t - 0.5 * G * t * t);
+
+      // Wall bounce
+      if (!throw_.bounced && throw_.shovelX >= wallX && throw_.shovelY < groundY) {
+        const vy = throw_.launchVY - G * throw_.flightTime;
+        throw_.shovelX    = wallX;
+        throw_.originX    = throw_.shovelX;
+        throw_.originY    = throw_.shovelY;
+        throw_.launchVX   = -Math.abs(throw_.launchVX) * BOUNCE_DAMPING;
+        throw_.launchVY   = vy;
+        throw_.flightTime = 0;
+        throw_.bounced    = true;
+      }
 
       // Landing detection
       if (throw_.shovelY >= groundY) {
@@ -330,6 +350,13 @@
     ctx.lineWidth = 2;
     ctx.strokeRect(pitLeft, groundY, pitRight - pitLeft, pitDepth);
 
+    // Wall (just past pit right edge)
+    ctx.fillStyle = '#3a3a4a';
+    ctx.fillRect(wallX, 0, WALL_THICKNESS, groundY);
+    ctx.strokeStyle = '#6a6a8a';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(wallX, 0, WALL_THICKNESS, groundY);
+
     // Player placeholder (rectangle)
     const pW = 28, pH = 50;
     ctx.fillStyle = '#e07b39';
@@ -352,9 +379,9 @@
         Math.max(16, Math.floor(canvas.width * 0.042)), 'rgba(255,255,255,0.55)', 'center', false);
     }
 
-    // HUD: score (top-left) and throw counter (top-right)
+    // HUD: score (top-left) and throw counter (top-right), below meter
     const hudFontSize = Math.max(24, Math.floor(canvas.width * 0.07));
-    const hudY = safeTop + hudFontSize;
+    const hudY = meterY + meterHeight + HUD_PAD + hudFontSize;
     drawText(scoring.score, HUD_PAD, hudY, hudFontSize, '#ffffff', 'left', true);
     drawText(`${run.throwCount} / ${THROWS_PER_RUN}`, canvas.width - HUD_PAD, hudY, hudFontSize, '#ffffff', 'right', true);
 
@@ -384,7 +411,7 @@
   }
 
   function drawMeter() {
-    const r = 4; // corner radius
+    const r = 4;
 
     // Background track
     ctx.fillStyle = '#2a2a2a';
@@ -392,21 +419,20 @@
     ctx.roundRect(meterX, meterY, meterWidth, meterHeight, r);
     ctx.fill();
 
-    // Sweet-spot highlight
-    const sweetTop = meterY + meterHeight * (1 - SWEET_SPOT_MAX);
-    const sweetH   = meterHeight * (SWEET_SPOT_MAX - SWEET_SPOT_MIN);
+    // Sweet-spot band
+    const sweetX = meterX + meterWidth * SWEET_SPOT_MIN;
+    const sweetW = meterWidth * (SWEET_SPOT_MAX - SWEET_SPOT_MIN);
     ctx.fillStyle = 'rgba(255, 220, 0, 0.25)';
     ctx.beginPath();
-    ctx.roundRect(meterX, sweetTop, meterWidth, sweetH, r);
+    ctx.roundRect(sweetX, meterY, sweetW, meterHeight, r);
     ctx.fill();
 
-    // Fill bar
-    const fillH = meterHeight * throw_.meterFill;
-    const fillY = meterY + meterHeight - fillH;
+    // Fill bar (left-to-right)
+    const fillW = meterWidth * throw_.meterFill;
     const inSweet = throw_.meterFill >= SWEET_SPOT_MIN && throw_.meterFill <= SWEET_SPOT_MAX;
     ctx.fillStyle = inSweet ? '#ffe600' : '#ff6b35';
     ctx.beginPath();
-    ctx.roundRect(meterX, fillY, meterWidth, fillH, r);
+    ctx.roundRect(meterX, meterY, fillW, meterHeight, r);
     ctx.fill();
 
     // Border
@@ -417,7 +443,7 @@
     ctx.stroke();
 
     // Label
-    drawText('POWER', meterX + meterWidth / 2, meterY - 8, 14, '#ffffff', 'center', false);
+    drawText('POWER', meterX + meterWidth / 2, meterY + meterHeight + 14, 14, '#ffffff', 'center', false);
   }
 
   function drawReadyScreen(timestamp) {
