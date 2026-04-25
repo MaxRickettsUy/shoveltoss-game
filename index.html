@@ -45,7 +45,7 @@
   const WALL_THICKNESS = 8;
   const METER_HEIGHT_FRACTION = 0.06;
   const METER_WIDTH_FRACTION = 0.55;
-  const WALL_HEIGHT_FRACTION = 0.50;
+  const WALL_HEIGHT_FRACTION = 0.30;
 
   // --- State enums ---
   const RUN_STATE = { READY: 'ready', PLAYING: 'playing', GAME_OVER: 'game_over' };
@@ -284,7 +284,10 @@
       throw_.shovelY = throw_.originY - (throw_.launchVY * t - 0.5 * G * t * t);
 
       // Wall bounce
-      if (!throw_.bounced && throw_.shovelX >= wallX && throw_.shovelY < groundY) {
+      if (!throw_.bounced
+          && throw_.shovelX >= wallX
+          && throw_.shovelY >= wallTopY
+          && throw_.shovelY < groundY) {
         const vy = throw_.launchVY - G * throw_.flightTime;
         throw_.shovelX    = wallX;
         throw_.originX    = throw_.shovelX;
