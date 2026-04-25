@@ -22,11 +22,11 @@
   const V_MAX = 800;                 // px/s, full send
   const G = 600;                     // px/s², gravity
   const METER_CYCLE_TIME     = 1.2;  // seconds per cycle at throw 0 (easiest)
-  const METER_CYCLE_TIME_END = 0.6;  // seconds per cycle at final throw (hardest)
-  const PIT_WIDTH_START = 0.26;      // pit width as fraction of canvas at throw 0
-  const PIT_WIDTH_END   = 0.16;      // pit width as fraction of canvas at final throw
-  const SWEET_SPOT_MIN = 0.7;
-  const SWEET_SPOT_MAX = 0.9;
+  const METER_CYCLE_TIME_END = 0.45; // seconds per cycle at final throw (hardest)
+  const PIT_WIDTH = 0.22;            // pit width as fraction of canvas (constant)
+  const SWEET_SPOT_CENTER    = 0.80;
+  const SWEET_SPOT_HALF_START = 0.10;
+  const SWEET_SPOT_HALF_END   = 0.05;
   const RESET_DELAY = 500;           // ms pause after landing
   const THROWS_PER_RUN = 5;          // placeholder: throws before game over
   const GAME_OVER_GUARD = 500;       // ms input guard after game over
@@ -85,7 +85,9 @@
 
   const difficulty = {
     meterCycleTime: METER_CYCLE_TIME,
-    pitWidth:       PIT_WIDTH_START
+    pitWidth:       PIT_WIDTH,
+    sweetMin:       SWEET_SPOT_CENTER - SWEET_SPOT_HALF_START,
+    sweetMax:       SWEET_SPOT_CENTER + SWEET_SPOT_HALF_START
   };
 
   // --- Loop-level (not game state) ---
@@ -119,8 +121,11 @@
   // --- Difficulty ---
   function updateDifficulty() {
     const t = THROWS_PER_RUN <= 1 ? 0 : run.throwCount / (THROWS_PER_RUN - 1);
-    difficulty.meterCycleTime = Math.max(0.4,  METER_CYCLE_TIME + t * (METER_CYCLE_TIME_END - METER_CYCLE_TIME));
-    difficulty.pitWidth       = Math.max(0.10, PIT_WIDTH_START  + t * (PIT_WIDTH_END  - PIT_WIDTH_START));
+    difficulty.meterCycleTime = Math.max(0.4, METER_CYCLE_TIME + t * (METER_CYCLE_TIME_END - METER_CYCLE_TIME));
+    difficulty.pitWidth = PIT_WIDTH;
+    const half = SWEET_SPOT_HALF_START + t * (SWEET_SPOT_HALF_END - SWEET_SPOT_HALF_START);
+    difficulty.sweetMin = SWEET_SPOT_CENTER - half;
+    difficulty.sweetMax = SWEET_SPOT_CENTER + half;
     const halfWidth = canvas.width * difficulty.pitWidth / 2;
     pitLeft  = pitCenterX - halfWidth;
     pitRight = pitCenterX + halfWidth;
@@ -420,8 +425,8 @@
     ctx.fill();
 
     // Sweet-spot band
-    const sweetX = meterX + meterWidth * SWEET_SPOT_MIN;
-    const sweetW = meterWidth * (SWEET_SPOT_MAX - SWEET_SPOT_MIN);
+    const sweetX = meterX + meterWidth * difficulty.sweetMin;
+    const sweetW = meterWidth * (difficulty.sweetMax - difficulty.sweetMin);
     ctx.fillStyle = 'rgba(255, 220, 0, 0.25)';
     ctx.beginPath();
     ctx.roundRect(sweetX, meterY, sweetW, meterHeight, r);
@@ -429,7 +434,7 @@
 
     // Fill bar (left-to-right)
     const fillW = meterWidth * throw_.meterFill;
-    const inSweet = throw_.meterFill >= SWEET_SPOT_MIN && throw_.meterFill <= SWEET_SPOT_MAX;
+    const inSweet = throw_.meterFill >= difficulty.sweetMin && throw_.meterFill <= difficulty.sweetMax;
     ctx.fillStyle = inSweet ? '#ffe600' : '#ff6b35';
     ctx.beginPath();
     ctx.roundRect(meterX, meterY, fillW, meterHeight, r);
