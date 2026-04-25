@@ -38,6 +38,54 @@
   const FEEDBACK_DURATION = 1500;    // ms to show throw feedback
   const HUD_PAD = 20;                // px padding for HUD elements
 
+  // --- State enums ---
+  const RUN_STATE = { READY: 'ready', PLAYING: 'playing', GAME_OVER: 'game_over' };
+  const STATE = {
+    IDLE:      'idle',
+    CHARGING:  'charging',
+    FLYING:    'flying',
+    RESETTING: 'resetting'
+  };
+
+  // --- State objects ---
+  const run = {
+    state:       RUN_STATE.READY,
+    throwCount:  0,
+    gameOverTime: 0
+  };
+
+  const throw_ = {
+    state:       STATE.IDLE,
+    meterFill:   0,
+    meterDir:    1,
+    power:       0,
+    shovelX:     0,
+    shovelY:     0,
+    flightTime:  0,
+    launchVX:    0,
+    launchVY:    0,
+    originX:     0,
+    originY:     0,
+    resetEndTime: 0
+  };
+
+  const scoring = {
+    score:           0,
+    combo:           0,
+    hitsInRun:       0,
+    lastThrowPoints: 0,
+    lastThrowZone:   '',
+    feedbackTimer:   0
+  };
+
+  const difficulty = {
+    meterCycleTime: METER_CYCLE_TIME,
+    pitWidth:       PIT_WIDTH_START
+  };
+
+  // --- Loop-level (not game state) ---
+  let lastTimestamp = null;
+
   // --- Layout (recalculated on resize) ---
   let groundY, playerX, playerY;
   let pitLeft, pitRight, pitCenterX;
@@ -63,74 +111,35 @@
     meterY = canvas.height * 0.20;
   }
 
-  // --- Run state ---
-  const RUN_STATE = { READY: 'ready', PLAYING: 'playing', GAME_OVER: 'game_over' };
-  let runState   = RUN_STATE.READY;
-  let throwCount = 0;
-  let gameOverTime = 0;  // timestamp when GAME_OVER was entered (for input guard)
-
-  // --- Throw state ---
-  const STATE = {
-    IDLE:      'idle',
-    CHARGING:  'charging',
-    FLYING:    'flying',
-    RESETTING: 'resetting'
-  };
-  let state = STATE.IDLE;
-
-  let meterFill = 0;   // 0–1, current fill position
-  let meterDir  = 1;   // 1 = filling, -1 = draining
-  let power     = 0;   // captured at release
-
-  let shovelX = 0, shovelY = 0;
-  let flightTime = 0;
-  let launchVX = 0, launchVY = 0;
-  let originX  = 0, originY  = 0;
-
-  let resetEndTime = 0;  // timestamp when reset pause ends
-  let lastTimestamp = null;
-
-  // --- Difficulty state ---
-  let currentMeterCycleTime = METER_CYCLE_TIME;
-  let currentPitWidth       = PIT_WIDTH_START;
-
-  // --- Scoring state ---
-  let score           = 0;
-  let combo           = 0;
-  let hitsInRun       = 0;
-  let lastThrowPoints = 0;
-  let lastThrowZone   = '';
-  let feedbackTimer   = 0;  // ms remaining to show feedback
-
   // --- Difficulty ---
   function updateDifficulty() {
-    const t = THROWS_PER_RUN <= 1 ? 0 : throwCount / (THROWS_PER_RUN - 1);
-    currentMeterCycleTime = Math.max(0.4,  METER_CYCLE_TIME + t * (METER_CYCLE_TIME_END - METER_CYCLE_TIME));
-    currentPitWidth       = Math.max(0.10, PIT_WIDTH_START  + t * (PIT_WIDTH_END  - PIT_WIDTH_START));
-    const halfWidth = canvas.width * currentPitWidth / 2;
+    const t = THROWS_PER_RUN <= 1 ? 0 : run.throwCount / (THROWS_PER_RUN - 1);
+    difficulty.meterCycleTime = Math.max(0.4,  METER_CYCLE_TIME + t * (METER_CYCLE_TIME_END - METER_CYCLE_TIME));
+    difficulty.pitWidth       = Math.max(0.10, PIT_WIDTH_START  + t * (PIT_WIDTH_END  - PIT_WIDTH_START));
+    const halfWidth = canvas.width * difficulty.pitWidth / 2;
     pitLeft  = pitCenterX - halfWidth;
     pitRight = pitCenterX + halfWidth;
   }
 
   // --- Run-level functions ---
   function endRun(timestamp) {
-    runState     = RUN_STATE.GAME_OVER;
-    gameOverTime = timestamp;
+    run.state       = RUN_STATE.GAME_OVER;
+    run.gameOverTime = timestamp;
   }
 
   function resetRun() {
-    throwCount      = 0;
-    meterFill       = 0;
-    meterDir        = 1;
-    power           = 0;
-    state           = STATE.IDLE;
-    runState        = RUN_STATE.READY;
-    score           = 0;
-    combo           = 0;
-    hitsInRun       = 0;
-    lastThrowPoints = 0;
-    lastThrowZone   = '';
-    feedbackTimer   = 0;
+    run.throwCount       = 0;
+    run.state            = RUN_STATE.READY;
+    throw_.state         = STATE.IDLE;
+    throw_.meterFill     = 0;
+    throw_.meterDir      = 1;
+    throw_.power         = 0;
+    scoring.score           = 0;
+    scoring.combo           = 0;
+    scoring.hitsInRun       = 0;
+    scoring.lastThrowPoints = 0;
+    scoring.lastThrowZone   = '';
+    scoring.feedbackTimer   = 0;
     updateDifficulty();
   }
 
@@ -143,73 +152,73 @@
     const absDist = Math.abs(result.distanceFromCenter);
 
     if (!result.inPit) {
-      combo           = 0;
-      lastThrowPoints = 0;
-      lastThrowZone   = 'miss';
+      scoring.combo           = 0;
+      scoring.lastThrowPoints = 0;
+      scoring.lastThrowZone   = 'miss';
     } else {
-      combo++;
-      hitsInRun++;
-      const comboMultiplier = 1 + (combo - 1) * 0.5;
+      scoring.combo++;
+      scoring.hitsInRun++;
+      const comboMultiplier = 1 + (scoring.combo - 1) * 0.5;
 
       let base;
       if (absDist <= pitHalfWidth * ZONE_PERFECT) {
         base = PTS_PERFECT;
-        lastThrowZone = 'perfect';
+        scoring.lastThrowZone = 'perfect';
       } else if (absDist <= pitHalfWidth * ZONE_GREAT) {
         base = PTS_GREAT;
-        lastThrowZone = 'great';
+        scoring.lastThrowZone = 'great';
       } else {
         base = PTS_GOOD;
-        lastThrowZone = 'good';
+        scoring.lastThrowZone = 'good';
       }
 
-      lastThrowPoints = Math.round(base * comboMultiplier);
-      score += lastThrowPoints;
+      scoring.lastThrowPoints = Math.round(base * comboMultiplier);
+      scoring.score += scoring.lastThrowPoints;
     }
 
-    feedbackTimer = FEEDBACK_DURATION;
+    scoring.feedbackTimer = FEEDBACK_DURATION;
 
-    throwCount++;
-    if (throwCount >= THROWS_PER_RUN) {
+    run.throwCount++;
+    if (run.throwCount >= THROWS_PER_RUN) {
       endRun(timestamp);
     }
   }
 
   // --- Input ---
   function onPressStart() {
-    if (runState === RUN_STATE.READY) {
-      runState   = RUN_STATE.PLAYING;
-      throwCount = 0;
-      state      = STATE.IDLE;
+    if (run.state === RUN_STATE.READY) {
+      run.state      = RUN_STATE.PLAYING;
+      run.throwCount = 0;
+      throw_.state   = STATE.IDLE;
       return;
     }
-    if (runState === RUN_STATE.GAME_OVER) {
-      if (lastTimestamp !== null && lastTimestamp - gameOverTime < GAME_OVER_GUARD) return;
+    if (run.state === RUN_STATE.GAME_OVER) {
+      if (lastTimestamp !== null && lastTimestamp - run.gameOverTime < GAME_OVER_GUARD) return;
       resetRun();
       return;
     }
-    // PLAYING — existing throw logic
-    if (state !== STATE.IDLE) return;
-    state     = STATE.CHARGING;
-    meterFill = 0;
-    meterDir  = 1;
+    // PLAYING — throw logic
+    if (throw_.state !== STATE.IDLE) return;
+    throw_.state     = STATE.CHARGING;
+    throw_.meterFill = 0;
+    throw_.meterDir  = 1;
   }
 
   function onPressEnd() {
-    if (state !== STATE.CHARGING) return;
-    power = meterFill;
-    state = STATE.FLYING;
+    if (throw_.state !== STATE.CHARGING) return;
+    throw_.power = throw_.meterFill;
+    throw_.state = STATE.FLYING;
 
-    const V = V_MIN + power * (V_MAX - V_MIN);
-    launchVX = V * Math.cos(ANGLE);
-    launchVY = V * Math.sin(ANGLE);
+    const V = V_MIN + throw_.power * (V_MAX - V_MIN);
+    throw_.launchVX = V * Math.cos(ANGLE);
+    throw_.launchVY = V * Math.sin(ANGLE);
 
     // Launch from player's hand height (top of player rect)
-    originX = playerX;
-    originY = playerY - 50;
-    shovelX = originX;
-    shovelY = originY;
-    flightTime = 0;
+    throw_.originX    = playerX;
+    throw_.originY    = playerY - 50;
+    throw_.shovelX    = throw_.originX;
+    throw_.shovelY    = throw_.originY;
+    throw_.flightTime = 0;
   }
 
   canvas.addEventListener('touchstart', (e) => { e.preventDefault(); onPressStart(); }, { passive: false });
@@ -225,62 +234,62 @@
     const dt = Math.min((timestamp - lastTimestamp) / 1000, 0.05); // cap at 50ms
     lastTimestamp = timestamp;
 
-    if (runState === RUN_STATE.READY) {
+    if (run.state === RUN_STATE.READY) {
       drawReadyScreen(timestamp);
-    } else if (runState === RUN_STATE.PLAYING) {
+    } else if (run.state === RUN_STATE.PLAYING) {
       update(dt, timestamp);
       draw();
-    } else if (runState === RUN_STATE.GAME_OVER) {
+    } else if (run.state === RUN_STATE.GAME_OVER) {
       draw();
       drawGameOverOverlay();
     }
   }
 
   function update(dt, timestamp) {
-    // Step 2: oscillate meter while charging
-    if (state === STATE.CHARGING) {
-      const speed = 2 / currentMeterCycleTime; // 0→1→0 = 2 units per cycle
-      meterFill += meterDir * speed * dt;
-      if (meterFill >= 1) { meterFill = 1; meterDir = -1; }
-      if (meterFill <= 0) { meterFill = 0; meterDir =  1; }
+    // Oscillate meter while charging
+    if (throw_.state === STATE.CHARGING) {
+      const speed = 2 / difficulty.meterCycleTime; // 0→1→0 = 2 units per cycle
+      throw_.meterFill += throw_.meterDir * speed * dt;
+      if (throw_.meterFill >= 1) { throw_.meterFill = 1; throw_.meterDir = -1; }
+      if (throw_.meterFill <= 0) { throw_.meterFill = 0; throw_.meterDir =  1; }
     }
 
-    // Step 3: update projectile position
-    if (state === STATE.FLYING) {
-      flightTime += dt;
-      const t = flightTime;
-      shovelX = originX + launchVX * t;
-      shovelY = originY - (launchVY * t - 0.5 * G * t * t);
+    // Update projectile position
+    if (throw_.state === STATE.FLYING) {
+      throw_.flightTime += dt;
+      const t = throw_.flightTime;
+      throw_.shovelX = throw_.originX + throw_.launchVX * t;
+      throw_.shovelY = throw_.originY - (throw_.launchVY * t - 0.5 * G * t * t);
 
-      // Step 4: landing detection
-      if (shovelY >= groundY) {
-        shovelY = groundY;
+      // Landing detection
+      if (throw_.shovelY >= groundY) {
+        throw_.shovelY = groundY;
 
         const result = {
           landed:             true,
-          x:                  shovelX,
-          inPit:              shovelX >= pitLeft && shovelX <= pitRight,
-          distanceFromCenter: shovelX - pitCenterX,
-          power:              power
+          x:                  throw_.shovelX,
+          inPit:              throw_.shovelX >= pitLeft && throw_.shovelX <= pitRight,
+          distanceFromCenter: throw_.shovelX - pitCenterX,
+          power:              throw_.power
         };
         onThrowResult(result, timestamp);
 
-        state        = STATE.RESETTING;
-        resetEndTime = timestamp + RESET_DELAY;
+        throw_.state        = STATE.RESETTING;
+        throw_.resetEndTime = timestamp + RESET_DELAY;
       }
     }
 
     // Feedback timer
-    if (feedbackTimer > 0) {
-      feedbackTimer = Math.max(0, feedbackTimer - dt * 1000);
+    if (scoring.feedbackTimer > 0) {
+      scoring.feedbackTimer = Math.max(0, scoring.feedbackTimer - dt * 1000);
     }
 
-    // Step 5: reset after pause
-    if (state === STATE.RESETTING && timestamp >= resetEndTime) {
-      meterFill = 0;
-      meterDir  = 1;
-      power     = 0;
-      state     = STATE.IDLE;
+    // Reset after pause
+    if (throw_.state === STATE.RESETTING && timestamp >= throw_.resetEndTime) {
+      throw_.meterFill = 0;
+      throw_.meterDir  = 1;
+      throw_.power     = 0;
+      throw_.state     = STATE.IDLE;
       updateDifficulty(); // apply difficulty for next throw (throwCount already incremented)
     }
   }
@@ -327,18 +336,18 @@
     ctx.fillRect(playerX - pW / 2, playerY - pH, pW, pH);
 
     // Shovel (during flight and brief reset pause)
-    if (state === STATE.FLYING || state === STATE.RESETTING) {
+    if (throw_.state === STATE.FLYING || throw_.state === STATE.RESETTING) {
       ctx.fillStyle = '#c0c0c0';
-      ctx.fillRect(shovelX - 8, shovelY - 5, 16, 10);
+      ctx.fillRect(throw_.shovelX - 8, throw_.shovelY - 5, 16, 10);
     }
 
-    // Throw meter (visible while charging or after release until flight ends)
-    if (state === STATE.CHARGING || state === STATE.FLYING) {
+    // Throw meter (visible while charging or flying)
+    if (throw_.state === STATE.CHARGING || throw_.state === STATE.FLYING) {
       drawMeter();
     }
 
     // Idle hint
-    if (state === STATE.IDLE) {
+    if (throw_.state === STATE.IDLE) {
       drawText('Hold to charge', canvas.width / 2, groundY - 28,
         Math.max(16, Math.floor(canvas.width * 0.042)), 'rgba(255,255,255,0.55)', 'center', false);
     }
@@ -346,28 +355,28 @@
     // HUD: score (top-left) and throw counter (top-right)
     const hudFontSize = Math.max(24, Math.floor(canvas.width * 0.07));
     const hudY = safeTop + hudFontSize;
-    drawText(score, HUD_PAD, hudY, hudFontSize, '#ffffff', 'left', true);
-    drawText(`${throwCount} / ${THROWS_PER_RUN}`, canvas.width - HUD_PAD, hudY, hudFontSize, '#ffffff', 'right', true);
+    drawText(scoring.score, HUD_PAD, hudY, hudFontSize, '#ffffff', 'left', true);
+    drawText(`${run.throwCount} / ${THROWS_PER_RUN}`, canvas.width - HUD_PAD, hudY, hudFontSize, '#ffffff', 'right', true);
 
     // Combo badge (below score)
-    if (combo >= 2) {
+    if (scoring.combo >= 2) {
       const comboFontSize = Math.max(14, Math.floor(canvas.width * 0.04));
-      drawText(`x${combo} COMBO`, HUD_PAD, hudY + comboFontSize + 6, comboFontSize, '#ffe600', 'left', false);
+      drawText(`x${scoring.combo} COMBO`, HUD_PAD, hudY + comboFontSize + 6, comboFontSize, '#ffe600', 'left', false);
     }
 
     // Throw feedback text
-    if (feedbackTimer > 0) {
-      const alpha = Math.min(1, feedbackTimer / 500);
+    if (scoring.feedbackTimer > 0) {
+      const alpha = Math.min(1, scoring.feedbackTimer / 500);
       ctx.globalAlpha = alpha;
       const fbFontSize = Math.max(18, Math.floor(canvas.width * 0.055));
       let zoneColor;
-      if (lastThrowZone === 'perfect')     zoneColor = '#ffe600';
-      else if (lastThrowZone === 'great')  zoneColor = '#44dd44';
-      else if (lastThrowZone === 'good')   zoneColor = '#ffffff';
-      else                                 zoneColor = '#ff4444';
-      drawText(lastThrowZone.toUpperCase(), canvas.width / 2, groundY - 60, fbFontSize, zoneColor, 'center', true);
-      if (lastThrowPoints > 0) {
-        drawText(`+${lastThrowPoints}`, canvas.width / 2, groundY - 60 + fbFontSize + 4,
+      if (scoring.lastThrowZone === 'perfect')     zoneColor = '#ffe600';
+      else if (scoring.lastThrowZone === 'great')  zoneColor = '#44dd44';
+      else if (scoring.lastThrowZone === 'good')   zoneColor = '#ffffff';
+      else                                         zoneColor = '#ff4444';
+      drawText(scoring.lastThrowZone.toUpperCase(), canvas.width / 2, groundY - 60, fbFontSize, zoneColor, 'center', true);
+      if (scoring.lastThrowPoints > 0) {
+        drawText(`+${scoring.lastThrowPoints}`, canvas.width / 2, groundY - 60 + fbFontSize + 4,
           Math.max(14, Math.floor(canvas.width * 0.04)), '#ffffff', 'center', false);
       }
       ctx.globalAlpha = 1;
@@ -392,9 +401,9 @@
     ctx.fill();
 
     // Fill bar
-    const fillH = meterHeight * meterFill;
+    const fillH = meterHeight * throw_.meterFill;
     const fillY = meterY + meterHeight - fillH;
-    const inSweet = meterFill >= SWEET_SPOT_MIN && meterFill <= SWEET_SPOT_MAX;
+    const inSweet = throw_.meterFill >= SWEET_SPOT_MIN && throw_.meterFill <= SWEET_SPOT_MAX;
     ctx.fillStyle = inSweet ? '#ffe600' : '#ff6b35';
     ctx.beginPath();
     ctx.roundRect(meterX, fillY, meterWidth, fillH, r);
@@ -433,9 +442,9 @@
     const cx = canvas.width / 2;
     drawText('GAME OVER', cx, safeTop + canvas.height * 0.38,
       Math.max(32, Math.floor(canvas.width * 0.10)), '#ffffff', 'center', true);
-    drawText(`Score: ${score}`, cx, safeTop + canvas.height * 0.49,
+    drawText(`Score: ${scoring.score}`, cx, safeTop + canvas.height * 0.49,
       Math.max(22, Math.floor(canvas.width * 0.06)), '#ffe600', 'center', false);
-    drawText(`${hitsInRun} / ${THROWS_PER_RUN} throws landed`, cx, safeTop + canvas.height * 0.58,
+    drawText(`${scoring.hitsInRun} / ${THROWS_PER_RUN} throws landed`, cx, safeTop + canvas.height * 0.58,
       Math.max(16, Math.floor(canvas.width * 0.045)), 'rgba(255,255,255,0.7)', 'center', false);
     drawText('Tap to Restart', cx, safeTop + canvas.height * 0.68,
       Math.max(18, Math.floor(canvas.width * 0.05)), 'rgba(255,255,255,0.7)', 'center', false);
