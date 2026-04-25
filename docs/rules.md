@@ -1,17 +1,3 @@
-
-
-## ui design
-- shorter wall
-- remove the invisible wall above / beyond the wall; the shovel should be able to fly off of the screen
-
-## difficulty system
-- i don't like the faster meter after each throw being the main difficulty
-- let's set a constant slightly fast and difficult meter speed
-
-## integrate rules in game play and physics
-- update gameplay to use actual rules of the game. focus on scoring for now.
-
-here are the rules :
 # Shoveltoss Rules
 
 ## How to Win
@@ -56,25 +42,3 @@ Players receive three alternating throws. The highest score after those three th
 #### Sudden Death
 
 Each player throws a shovel to stick. The first player to stick their shovel in the garden without the other player completing a stick wins.
-
----
-
-## ui design
-- move score and throw count together to the left side of the screen
-- the pit wall height should only be half of the screen
-- make the meter smaller, should not be full screen width
-
-## inconsistent mobile user experience
-- the game should have a similar experience on portrait and landscape mode
-- the shovel arc is too "straight" in portrait mode
-
----
-
-## ui design (prompts/plans/1-ui-wall-physics.md)
-- make meter horizontal, move it to the top of the screen
-- the dirt pit should be location at the end of the screen
-- there should be a wall behind the pit
-- the shovel should be able to deflect off the pit wall into the pit for points
-
-## difficulty system (prompts/plans/2-difficulty-system.md)
-- stop reducing the dirt pit width each throw, instead difficulty should be reflected in the meter

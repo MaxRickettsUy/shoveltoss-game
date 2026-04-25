@@ -2,7 +2,7 @@ You are reviewing a completed feature implementation.
 
 INPUTS:
 1. Feature plan:
-/plans/1-throw-system.md
+/plans/10-orientation-arc-tuning.md
 
 2. Git diff:
 <git diff HEAD~1>
