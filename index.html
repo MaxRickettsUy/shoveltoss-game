@@ -27,6 +27,12 @@
   const RESET_DELAY = 500;           // ms pause after landing
   const THROWS_PER_RUN = 5;          // placeholder: throws before game over
   const GAME_OVER_GUARD = 500;       // ms input guard after game over
+  const ZONE_PERFECT = 0.15;         // fraction of pitHalfWidth
+  const ZONE_GREAT   = 0.45;
+  const PTS_PERFECT  = 100;
+  const PTS_GREAT    = 75;
+  const PTS_GOOD     = 50;
+  const FEEDBACK_DURATION = 1500;    // ms to show throw feedback
 
   // --- Layout (recalculated on resize) ---
   let groundY, playerX, playerY;
@@ -79,6 +85,13 @@
   let resetEndTime = 0;  // timestamp when reset pause ends
   let lastTimestamp = null;
 
+  // --- Scoring state ---
+  let score           = 0;
+  let combo           = 0;
+  let lastThrowPoints = 0;
+  let lastThrowZone   = '';
+  let feedbackTimer   = 0;  // ms remaining to show feedback
+
   // --- Run-level functions ---
   function endRun(timestamp) {
     runState     = RUN_STATE.GAME_OVER;
@@ -86,17 +99,53 @@
   }
 
   function resetRun() {
-    throwCount = 0;
-    meterFill  = 0;
-    meterDir   = 1;
-    power      = 0;
-    state      = STATE.IDLE;
-    runState   = RUN_STATE.READY;
+    throwCount      = 0;
+    meterFill       = 0;
+    meterDir        = 1;
+    power           = 0;
+    state           = STATE.IDLE;
+    runState        = RUN_STATE.READY;
+    score           = 0;
+    combo           = 0;
+    lastThrowPoints = 0;
+    lastThrowZone   = '';
+    feedbackTimer   = 0;
   }
 
   // --- Result hook ---
   function onThrowResult(result, timestamp) {
     console.log('Throw result:', result);
+
+    // Scoring
+    const pitHalfWidth = (pitRight - pitLeft) / 2;
+    const absDist = Math.abs(result.distanceFromCenter);
+
+    if (!result.inPit) {
+      combo           = 0;
+      lastThrowPoints = 0;
+      lastThrowZone   = 'miss';
+    } else {
+      combo++;
+      const comboMultiplier = 1 + (combo - 1) * 0.5;
+
+      let base;
+      if (absDist <= pitHalfWidth * ZONE_PERFECT) {
+        base = PTS_PERFECT;
+        lastThrowZone = 'perfect';
+      } else if (absDist <= pitHalfWidth * ZONE_GREAT) {
+        base = PTS_GREAT;
+        lastThrowZone = 'great';
+      } else {
+        base = PTS_GOOD;
+        lastThrowZone = 'good';
+      }
+
+      lastThrowPoints = Math.round(base * comboMultiplier);
+      score += lastThrowPoints;
+    }
+
+    feedbackTimer = FEEDBACK_DURATION;
+
     throwCount++;
     if (throwCount >= THROWS_PER_RUN) {
       endRun(timestamp);
@@ -198,6 +247,11 @@
       }
     }
 
+    // Feedback timer
+    if (feedbackTimer > 0) {
+      feedbackTimer = Math.max(0, feedbackTimer - dt * 1000);
+    }
+
     // Step 5: reset after pause
     if (state === STATE.RESETTING && timestamp >= resetEndTime) {
       meterFill = 0;
@@ -258,6 +312,43 @@
       ctx.textAlign = 'center';
       ctx.fillText('Hold to charge', canvas.width / 2, groundY - 28);
     }
+
+    // Score display (top-left)
+    const scoreFontSize = Math.max(20, Math.floor(canvas.width * 0.06));
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `bold ${scoreFontSize}px sans-serif`;
+    ctx.fillText(score, 20, scoreFontSize + 16);
+
+    if (combo >= 2) {
+      ctx.font = `${Math.max(14, Math.floor(canvas.width * 0.04))}px sans-serif`;
+      ctx.fillStyle = '#ffe600';
+      ctx.fillText(`x${combo} COMBO`, 20, scoreFontSize + 16 + Math.max(14, Math.floor(canvas.width * 0.04)) + 6);
+    }
+
+    // Throw feedback text
+    if (feedbackTimer > 0) {
+      const alpha = Math.min(1, feedbackTimer / 500);
+      ctx.globalAlpha = alpha;
+      ctx.textAlign = 'center';
+      const fbFontSize = Math.max(18, Math.floor(canvas.width * 0.055));
+      ctx.font = `bold ${fbFontSize}px sans-serif`;
+
+      if (lastThrowZone === 'perfect')     ctx.fillStyle = '#ffe600';
+      else if (lastThrowZone === 'great')  ctx.fillStyle = '#44dd44';
+      else if (lastThrowZone === 'good')   ctx.fillStyle = '#ffffff';
+      else                                 ctx.fillStyle = '#ff4444';
+
+      ctx.fillText(lastThrowZone.toUpperCase(), canvas.width / 2, groundY - 60);
+
+      if (lastThrowPoints > 0) {
+        ctx.font = `${Math.max(14, Math.floor(canvas.width * 0.04))}px sans-serif`;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(`+${lastThrowPoints}`, canvas.width / 2, groundY - 60 + fbFontSize + 4);
+      }
+
+      ctx.globalAlpha = 1;
+    }
   }
 
   function drawMeter() {
@@ -314,9 +405,13 @@
     ctx.font = `bold ${Math.max(32, Math.floor(canvas.width * 0.10))}px sans-serif`;
     ctx.fillText('GAME OVER', canvas.width / 2, canvas.height * 0.42);
 
+    ctx.font = `${Math.max(22, Math.floor(canvas.width * 0.06))}px sans-serif`;
+    ctx.fillStyle = '#ffe600';
+    ctx.fillText(`Score: ${score}`, canvas.width / 2, canvas.height * 0.53);
+
     ctx.font = `${Math.max(18, Math.floor(canvas.width * 0.05))}px sans-serif`;
     ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    ctx.fillText('Tap to Restart', canvas.width / 2, canvas.height * 0.56);
+    ctx.fillText('Tap to Restart', canvas.width / 2, canvas.height * 0.64);
   }
 
   // --- Init ---
