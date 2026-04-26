@@ -29,6 +29,7 @@
   const SWEET_SPOT_CENTER    = 0.80;
   const SWEET_SPOT_HALF_START = 0.10;
   const SWEET_SPOT_HALF_END   = 0.05;
+  const POWER_AT_SWEET = 0.55;
   const RESET_DELAY = 500;           // ms pause after landing
   const THROWS_PER_RUN = 5;          // placeholder: throws before game over
   const GAME_OVER_GUARD = 500;       // ms input guard after game over
@@ -233,7 +234,13 @@
 
   function onPressEnd() {
     if (throw_.state !== STATE.CHARGING) return;
-    throw_.power = throw_.meterFill;
+    const f = throw_.meterFill;
+    if (f < SWEET_SPOT_CENTER) {
+      throw_.power = (f / SWEET_SPOT_CENTER) * POWER_AT_SWEET;
+    } else {
+      throw_.power = POWER_AT_SWEET
+        + ((f - SWEET_SPOT_CENTER) / (1 - SWEET_SPOT_CENTER)) * (1 - POWER_AT_SWEET);
+    }
     throw_.state = STATE.FLYING;
 
     const V = V_MIN + throw_.power * (V_MAX - V_MIN);
