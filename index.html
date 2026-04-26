@@ -24,8 +24,7 @@
   const V_MIN = 300;                 // px/s, weak lob
   const V_MAX = 800;                 // px/s, full send
   const G = 600;                     // px/s², gravity
-  const METER_CYCLE_TIME     = 1.2;  // seconds per cycle at throw 0 (easiest)
-  const METER_CYCLE_TIME_END = 0.45; // seconds per cycle at final throw (hardest)
+  const METER_CYCLE_TIME = 0.85;     // seconds per full meter cycle (fixed)
   const PIT_WIDTH = 0.22;            // pit width as fraction of canvas (constant)
   const SWEET_SPOT_CENTER    = 0.80;
   const SWEET_SPOT_HALF_START = 0.10;
@@ -130,7 +129,7 @@
   // --- Difficulty ---
   function updateDifficulty() {
     const t = THROWS_PER_RUN <= 1 ? 0 : run.throwCount / (THROWS_PER_RUN - 1);
-    difficulty.meterCycleTime = Math.max(0.4, METER_CYCLE_TIME + t * (METER_CYCLE_TIME_END - METER_CYCLE_TIME));
+    difficulty.meterCycleTime = METER_CYCLE_TIME;
     difficulty.pitWidth = PIT_WIDTH;
     const half = SWEET_SPOT_HALF_START + t * (SWEET_SPOT_HALF_END - SWEET_SPOT_HALF_START);
     difficulty.sweetMin = SWEET_SPOT_CENTER - half;
