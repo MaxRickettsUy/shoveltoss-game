@@ -39,9 +39,9 @@
   const PTS_FRONT_WALL      = 0;
   const PTS_MISS            = -2;
   const ZONE_FRONT_WALL_MAX = 0.10;
-  const ZONE_STICK_MIN      = 0.40;
-  const ZONE_STICK_MAX      = 0.60;
   const ZONE_BACK_WALL_MIN  = 0.90;
+  const SHOVEL_ROT_RATE   = 9;
+  const VERTICAL_BAND_DEG = 30;
   const FEEDBACK_DURATION = 1500;    // ms to show throw feedback
   const HUD_PAD = 20;                // px padding for HUD elements
   const BOUNCE_DAMPING = 0.6;
@@ -80,7 +80,8 @@
     originX:     0,
     originY:     0,
     resetEndTime: 0,
-    bounced: false
+    bounced: false,
+    angle: 0
   };
 
   const scoring = {
@@ -165,6 +166,7 @@
     scoring.lastThrowZone   = '';
     scoring.feedbackTimer   = 0;
     throw_.bounced          = false;
+    throw_.angle            = 0;
     updateDifficulty();
   }
 
@@ -180,12 +182,14 @@
       basePoints = PTS_MISS;
     } else {
       const norm = (result.x - pitLeft) / (pitRight - pitLeft);
-      if (norm < ZONE_FRONT_WALL_MAX) {
+      const orientationDeg = ((throw_.angle * 180 / Math.PI) % 180 + 180) % 180;
+      const isVertical = Math.abs(orientationDeg - 90) <= VERTICAL_BAND_DEG;
+      if (isVertical) {
+        zone = 'stick';      basePoints = PTS_STICK;
+      } else if (norm < ZONE_FRONT_WALL_MAX) {
         zone = 'front_wall'; basePoints = PTS_FRONT_WALL;
       } else if (norm > ZONE_BACK_WALL_MIN) {
         zone = 'back_wall';  basePoints = PTS_BACK_WALL;
-      } else if (norm >= ZONE_STICK_MIN && norm <= ZONE_STICK_MAX) {
-        zone = 'stick';      basePoints = PTS_STICK;
       } else {
         zone = 'in_pit';     basePoints = PTS_IN_PIT;
       }
@@ -254,6 +258,7 @@
     throw_.shovelY    = throw_.originY;
     throw_.flightTime = 0;
     throw_.bounced    = false;
+    throw_.angle      = 0;
   }
 
   canvas.addEventListener('touchstart', (e) => { e.preventDefault(); onPressStart(); }, { passive: false });
@@ -309,6 +314,8 @@
         }
         throw_.bounced = true;
       }
+
+      throw_.angle += SHOVEL_ROT_RATE * dt;
 
       // Landing detection
       if (throw_.shovelY >= groundY) {
@@ -393,8 +400,14 @@
 
     // Shovel (during flight and brief reset pause)
     if (throw_.state === STATE.FLYING || throw_.state === STATE.RESETTING) {
+      ctx.save();
+      ctx.translate(throw_.shovelX, throw_.shovelY);
+      ctx.rotate(throw_.angle);
+      ctx.fillStyle = '#8b5a2b';
+      ctx.fillRect(-14, -3, 20, 6);
       ctx.fillStyle = '#c0c0c0';
-      ctx.fillRect(throw_.shovelX - 8, throw_.shovelY - 5, 16, 10);
+      ctx.fillRect(6, -5, 8, 10);
+      ctx.restore();
     }
 
     // Throw meter (visible while charging or flying)
