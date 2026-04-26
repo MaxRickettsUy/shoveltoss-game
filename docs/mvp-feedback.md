@@ -1,4 +1,16 @@
+## meter design
+- the current meter doesn't seem right, there is a "sweet spot" that is usually too powerful, sending the shovel out of bounds
 
+## shovel physics
+- the shovel should slighly rotate as it flies across the screen
+- one end should represent the handle and the other should represent the blade of the shovel
+- if the shovel lands parallel to the wall, in the physical world this would be a "stick" and the blade would cut into the pit
+- if the shovel is perpendicular to the wall, that means it's laying in the pit
+
+## asset replacement
+- replace basic square character with the first sprite
+
+---
 
 ## ui design
 - shorter wall
