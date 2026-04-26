@@ -32,11 +32,15 @@
   const RESET_DELAY = 500;           // ms pause after landing
   const THROWS_PER_RUN = 5;          // placeholder: throws before game over
   const GAME_OVER_GUARD = 500;       // ms input guard after game over
-  const ZONE_PERFECT = 0.15;         // fraction of pitHalfWidth
-  const ZONE_GREAT   = 0.45;
-  const PTS_PERFECT  = 100;
-  const PTS_GREAT    = 75;
-  const PTS_GOOD     = 50;
+  const PTS_STICK           = 3;
+  const PTS_BACK_WALL       = 2;
+  const PTS_IN_PIT          = 1;
+  const PTS_FRONT_WALL      = 0;
+  const PTS_MISS            = -2;
+  const ZONE_FRONT_WALL_MAX = 0.10;
+  const ZONE_STICK_MIN      = 0.40;
+  const ZONE_STICK_MAX      = 0.60;
+  const ZONE_BACK_WALL_MIN  = 0.90;
   const FEEDBACK_DURATION = 1500;    // ms to show throw feedback
   const HUD_PAD = 20;                // px padding for HUD elements
   const BOUNCE_DAMPING = 0.6;
@@ -168,35 +172,38 @@
     console.log('Throw result:', result);
 
     // Scoring
-    const pitHalfWidth = (pitRight - pitLeft) / 2;
-    const absDist = Math.abs(result.distanceFromCenter);
+    let zone, basePoints;
 
     if (!result.inPit) {
-      scoring.combo           = 0;
-      scoring.lastThrowPoints = 0;
-      scoring.lastThrowZone   = 'miss';
+      zone = 'miss';
+      basePoints = PTS_MISS;
     } else {
-      scoring.combo++;
-      scoring.hitsInRun++;
-      const comboMultiplier = 1 + (scoring.combo - 1) * 0.5;
-
-      let base;
-      if (absDist <= pitHalfWidth * ZONE_PERFECT) {
-        base = PTS_PERFECT;
-        scoring.lastThrowZone = 'perfect';
-      } else if (absDist <= pitHalfWidth * ZONE_GREAT) {
-        base = PTS_GREAT;
-        scoring.lastThrowZone = 'great';
+      const norm = (result.x - pitLeft) / (pitRight - pitLeft);
+      if (norm < ZONE_FRONT_WALL_MAX) {
+        zone = 'front_wall'; basePoints = PTS_FRONT_WALL;
+      } else if (norm > ZONE_BACK_WALL_MIN) {
+        zone = 'back_wall';  basePoints = PTS_BACK_WALL;
+      } else if (norm >= ZONE_STICK_MIN && norm <= ZONE_STICK_MAX) {
+        zone = 'stick';      basePoints = PTS_STICK;
       } else {
-        base = PTS_GOOD;
-        scoring.lastThrowZone = 'good';
+        zone = 'in_pit';     basePoints = PTS_IN_PIT;
       }
-
-      scoring.lastThrowPoints = Math.round(base * comboMultiplier);
-      scoring.score += scoring.lastThrowPoints;
     }
 
-    scoring.feedbackTimer = FEEDBACK_DURATION;
+    if (basePoints > 0) {
+      scoring.combo++;
+      scoring.hitsInRun++;
+      const mul = 1 + (scoring.combo - 1) * 0.5;
+      scoring.lastThrowPoints = Math.round(basePoints * mul);
+    } else {
+      scoring.combo = 0;
+      scoring.lastThrowPoints = basePoints;
+      if (zone !== 'miss') scoring.hitsInRun++;
+    }
+
+    scoring.lastThrowZone  = zone;
+    scoring.score         += scoring.lastThrowPoints;
+    scoring.feedbackTimer  = FEEDBACK_DURATION;
 
     run.throwCount++;
     if (run.throwCount >= THROWS_PER_RUN) {
@@ -413,13 +420,14 @@
       ctx.globalAlpha = alpha;
       const fbFontSize = Math.max(18, Math.floor(canvas.width * 0.055));
       let zoneColor;
-      if (scoring.lastThrowZone === 'perfect')     zoneColor = '#ffe600';
-      else if (scoring.lastThrowZone === 'great')  zoneColor = '#44dd44';
-      else if (scoring.lastThrowZone === 'good')   zoneColor = '#ffffff';
-      else                                         zoneColor = '#ff4444';
-      drawText(scoring.lastThrowZone.toUpperCase(), canvas.width / 2, groundY - 60, fbFontSize, zoneColor, 'center', true);
-      if (scoring.lastThrowPoints > 0) {
-        drawText(`+${scoring.lastThrowPoints}`, canvas.width / 2, groundY - 60 + fbFontSize + 4,
+      if      (scoring.lastThrowZone === 'stick')      zoneColor = '#ffe600';
+      else if (scoring.lastThrowZone === 'back_wall')  zoneColor = '#44dd44';
+      else if (scoring.lastThrowZone === 'in_pit')     zoneColor = '#ffffff';
+      else if (scoring.lastThrowZone === 'front_wall') zoneColor = '#aaaaaa';
+      else                                             zoneColor = '#ff4444';
+      drawText(scoring.lastThrowZone.toUpperCase().replace('_', ' '), canvas.width / 2, groundY - 60, fbFontSize, zoneColor, 'center', true);
+      if (scoring.lastThrowPoints !== 0) {
+        drawText(`${scoring.lastThrowPoints > 0 ? '+' : ''}${scoring.lastThrowPoints}`, canvas.width / 2, groundY - 60 + fbFontSize + 4,
           Math.max(14, Math.floor(canvas.width * 0.04)), '#ffffff', 'center', false);
       }
       ctx.globalAlpha = 1;
