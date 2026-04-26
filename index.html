@@ -16,6 +16,11 @@
   const canvas = document.getElementById('gameCanvas');
   const ctx = canvas.getContext('2d');
 
+  const characterImg = new Image();
+  let characterReady = false;
+  characterImg.onload = () => { characterReady = true; };
+  characterImg.src = 'assets/character/chuggo/sprite-sheet.png';
+
   // --- Constants ---
   const ANGLE_LANDSCAPE  = Math.PI * 35 / 180;
   const ANGLE_PORTRAIT   = Math.PI * 65 / 180;
@@ -50,6 +55,10 @@
   const METER_HEIGHT_FRACTION = 0.06;
   const METER_WIDTH_FRACTION = 0.55;
   const WALL_HEIGHT_FRACTION = 0.30;
+  const CHARACTER_FRAME_W = 64;
+  const CHARACTER_FRAME_H = 64;
+  const CHARACTER_RENDER_H = 64;
+  const CHARACTER_RENDER_W = CHARACTER_RENDER_H * (CHARACTER_FRAME_W / CHARACTER_FRAME_H);
 
   // --- State enums ---
   const RUN_STATE = { READY: 'ready', PLAYING: 'playing', GAME_OVER: 'game_over' };
@@ -393,10 +402,22 @@
     ctx.lineWidth = 2;
     ctx.strokeRect(wallX, wallTopY, WALL_THICKNESS, groundY - wallTopY);
 
-    // Player placeholder (rectangle)
-    const pW = 28, pH = 50;
-    ctx.fillStyle = '#e07b39';
-    ctx.fillRect(playerX - pW / 2, playerY - pH, pW, pH);
+    // Player
+    if (characterReady) {
+      const frame = throw_.state === STATE.CHARGING ? 1
+                 : throw_.state === STATE.FLYING   ? 2
+                 : 0;
+      ctx.drawImage(
+        characterImg,
+        frame * CHARACTER_FRAME_W, 0, CHARACTER_FRAME_W, CHARACTER_FRAME_H,
+        playerX - CHARACTER_RENDER_W / 2, playerY - CHARACTER_RENDER_H,
+        CHARACTER_RENDER_W, CHARACTER_RENDER_H
+      );
+    } else {
+      const pW = 28, pH = 50;
+      ctx.fillStyle = '#e07b39';
+      ctx.fillRect(playerX - pW / 2, playerY - pH, pW, pH);
+    }
 
     // Shovel (during flight and brief reset pause)
     if (throw_.state === STATE.FLYING || throw_.state === STATE.RESETTING) {
