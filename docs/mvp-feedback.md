@@ -1,3 +1,9 @@
+## replace shovel with asset image
+- replace the current shovel with the image at asstes/shovel.png
+
+## replace the pit with asset image
+- replace the current pit with the image at assets/pit.png
+
 
 ## character selection
 - replace the current landing / start page with a tiled character selector
