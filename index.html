@@ -26,6 +26,11 @@
     characterReady = true;
   };
 
+  const pitImg = new Image();
+  let pitReady = false;
+  pitImg.onload = () => { pitReady = true; if (canvas.width > 0) updateLayout(); };
+  pitImg.src = 'assets/pit.png';
+
   const shovelImg = new Image();
   let shovelReady = false;
   shovelImg.onload = () => { shovelReady = true; };
@@ -182,8 +187,12 @@
     difficulty.sweetMax = SWEET_SPOT_CENTER + half;
     const halfWidth = canvas.width * difficulty.pitWidth / 2;
     pitLeft  = pitCenterX - halfWidth;
-    pitRight = pitCenterX + halfWidth;
-    wallX = Math.min(pitRight + WALL_GAP, canvas.width - WALL_THICKNESS);
+    wallX    = canvas.width - WALL_THICKNESS;
+    pitRight = wallX;
+    if (pitReady) {
+      const dW = canvas.width - pitLeft;
+      wallTopY = groundY - dW * pitImg.naturalHeight / pitImg.naturalWidth;
+    }
   }
 
   // --- Run-level functions ---
@@ -461,19 +470,18 @@
     ctx.stroke();
 
     // Pit zone
-    const pitDepth = 20;
-    ctx.fillStyle = '#2c1810';
-    ctx.fillRect(pitLeft, groundY, pitRight - pitLeft, pitDepth);
-    ctx.strokeStyle = '#8b6914';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(pitLeft, groundY, pitRight - pitLeft, pitDepth);
-
-    // Wall (just past pit right edge, visual only — 50% canvas height)
-    ctx.fillStyle = '#3a3a4a';
-    ctx.fillRect(wallX, wallTopY, WALL_THICKNESS, groundY - wallTopY);
-    ctx.strokeStyle = '#6a6a8a';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(wallX, wallTopY, WALL_THICKNESS, groundY - wallTopY);
+    if (pitReady) {
+      const dW = canvas.width - pitLeft;
+      const dH = dW * pitImg.naturalHeight / pitImg.naturalWidth;
+      ctx.drawImage(pitImg, pitLeft, groundY - dH, dW, dH);
+    } else {
+      const pitDepth = 20;
+      ctx.fillStyle = '#2c1810';
+      ctx.fillRect(pitLeft, groundY, pitRight - pitLeft, pitDepth);
+      ctx.strokeStyle = '#8b6914';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(pitLeft, groundY, pitRight - pitLeft, pitDepth);
+    }
 
     // Player
     if (characterReady) {
