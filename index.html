@@ -26,6 +26,11 @@
     characterReady = true;
   };
 
+  const backgroundImg = new Image();
+  let backgroundReady = false;
+  backgroundImg.onload = () => { backgroundReady = true; };
+  backgroundImg.src = 'assets/house.png';
+
   const CHARACTERS = [
     { id: 'Wagie',    hero: 'assets/character/wagie/hero.png',    sprite: 'assets/character/wagie/sprite-sheet.png' },
     { id: 'Chef',     hero: 'assets/character/chef/hero.png',     sprite: 'assets/character/chef/sprite-sheet.png' },
@@ -416,13 +421,26 @@
     ctx.fillText(text, x, y);
   }
 
+  function drawBackground() {
+    if (backgroundReady) {
+      const scale = Math.max(canvas.width / backgroundImg.naturalWidth, canvas.height / backgroundImg.naturalHeight);
+      const dW = backgroundImg.naturalWidth * scale;
+      const dH = backgroundImg.naturalHeight * scale;
+      const dx = (canvas.width - dW) / 2;
+      const dy = (canvas.height - dH) / 2;
+      ctx.drawImage(backgroundImg, dx, dy, dW, dH);
+    } else {
+      ctx.fillStyle = '#1a1a2e';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+  }
+
   // --- Drawing ---
   function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Background
-    ctx.fillStyle = '#1a1a2e';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    drawBackground();
 
     // Ground fill
     ctx.fillStyle = '#4a3728';
