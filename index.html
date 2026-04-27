@@ -26,6 +26,11 @@
     characterReady = true;
   };
 
+  const shovelImg = new Image();
+  let shovelReady = false;
+  shovelImg.onload = () => { shovelReady = true; };
+  shovelImg.src = 'assets/shovel.png';
+
   const backgroundImg = new Image();
   let backgroundReady = false;
   backgroundImg.onload = () => { backgroundReady = true; };
@@ -84,6 +89,7 @@
   const METER_WIDTH_FRACTION = 0.55;
   const WALL_HEIGHT_FRACTION = 0.30;
   const CHARACTER_RENDER_H = 150;
+  const SHOVEL_RENDER_W = 40;
 
   // --- State enums ---
   const RUN_STATE = { SELECTING: 'selecting', READY: 'ready', PLAYING: 'playing', GAME_OVER: 'game_over' };
@@ -491,10 +497,15 @@
       ctx.save();
       ctx.translate(throw_.shovelX, throw_.shovelY);
       ctx.rotate(throw_.angle);
-      ctx.fillStyle = '#8b5a2b';
-      ctx.fillRect(-14, -3, 20, 6);
-      ctx.fillStyle = '#c0c0c0';
-      ctx.fillRect(6, -5, 8, 10);
+      if (shovelReady) {
+        const dH = SHOVEL_RENDER_W * shovelImg.naturalHeight / shovelImg.naturalWidth;
+        ctx.drawImage(shovelImg, -SHOVEL_RENDER_W / 2, -dH / 2, SHOVEL_RENDER_W, dH);
+      } else {
+        ctx.fillStyle = '#8b5a2b';
+        ctx.fillRect(-14, -3, 20, 6);
+        ctx.fillStyle = '#c0c0c0';
+        ctx.fillRect(6, -5, 8, 10);
+      }
       ctx.restore();
     }
 
