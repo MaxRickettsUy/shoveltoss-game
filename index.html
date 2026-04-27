@@ -25,7 +25,24 @@
     CHARACTER_FRAME_H = characterImg.naturalHeight;
     characterReady = true;
   };
-  characterImg.src = 'assets/character/wagie/sprite-sheet.png';
+
+  const CHARACTERS = [
+    { id: 'Wagie',    hero: 'assets/character/wagie/hero.png',    sprite: 'assets/character/wagie/sprite-sheet.png' },
+    { id: 'Chef',     hero: 'assets/character/chef/hero.png',     sprite: 'assets/character/chef/sprite-sheet.png' },
+    { id: 'Chuggo',   hero: 'assets/character/chuggo/hero.png',   sprite: 'assets/character/chuggo/sprite-sheet.png' },
+    { id: 'Princess', hero: 'assets/character/princess/hero.png', sprite: 'assets/character/princess/sprite-sheet.png' },
+    { id: 'Shrek',    hero: 'assets/character/shrek/hero.png',    sprite: 'assets/character/shrek/sprite-sheet.png' }
+  ];
+
+  let selectedCharacterId = null;
+  const heroImages = {};
+  CHARACTERS.forEach(c => {
+    const img = new Image();
+    img.src = c.hero;
+    heroImages[c.id] = img;
+  });
+
+  let tileRects = [];
 
   // --- Constants ---
   const ANGLE_LANDSCAPE  = Math.PI * 35 / 180;
@@ -64,7 +81,7 @@
   const CHARACTER_RENDER_H = 150;
 
   // --- State enums ---
-  const RUN_STATE = { READY: 'ready', PLAYING: 'playing', GAME_OVER: 'game_over' };
+  const RUN_STATE = { SELECTING: 'selecting', READY: 'ready', PLAYING: 'playing', GAME_OVER: 'game_over' };
   const STATE = {
     IDLE:      'idle',
     CHARGING:  'charging',
@@ -74,7 +91,7 @@
 
   // --- State objects ---
   const run = {
-    state:       RUN_STATE.READY,
+    state:       RUN_STATE.SELECTING,
     throwCount:  0,
     gameOverTime: 0
   };
@@ -230,6 +247,20 @@
 
   // --- Input ---
   function onPressStart() {
+    if (run.state === RUN_STATE.SELECTING) {
+      for (let i = 0; i < tileRects.length; i++) {
+        const tile = tileRects[i];
+        if (lastPointerX >= tile.x && lastPointerX <= tile.x + tile.w &&
+            lastPointerY >= tile.y && lastPointerY <= tile.y + tile.h) {
+          selectedCharacterId = tile.id;
+          characterReady = false;
+          characterImg.src = CHARACTERS[i].sprite;
+          run.state = RUN_STATE.READY;
+          return;
+        }
+      }
+      return;
+    }
     if (run.state === RUN_STATE.READY) {
       run.state      = RUN_STATE.PLAYING;
       run.throwCount = 0;
@@ -273,9 +304,22 @@
     throw_.angle      = 0;
   }
 
-  canvas.addEventListener('touchstart', (e) => { e.preventDefault(); onPressStart(); }, { passive: false });
-  canvas.addEventListener('touchend',   (e) => { e.preventDefault(); onPressEnd();   }, { passive: false });
-  canvas.addEventListener('mousedown', onPressStart);
+  let lastPointerX = 0;
+  let lastPointerY = 0;
+
+  canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const t = e.touches[0];
+    lastPointerX = t.clientX;
+    lastPointerY = t.clientY;
+    onPressStart();
+  }, { passive: false });
+  canvas.addEventListener('touchend',   (e) => { e.preventDefault(); onPressEnd(); }, { passive: false });
+  canvas.addEventListener('mousedown', (e) => {
+    lastPointerX = e.clientX;
+    lastPointerY = e.clientY;
+    onPressStart();
+  });
   canvas.addEventListener('mouseup',   onPressEnd);
 
   // --- Game loop ---
@@ -286,7 +330,9 @@
     const dt = Math.min((timestamp - lastTimestamp) / 1000, 0.05); // cap at 50ms
     lastTimestamp = timestamp;
 
-    if (run.state === RUN_STATE.READY) {
+    if (run.state === RUN_STATE.SELECTING) {
+      drawCharacterSelect(timestamp);
+    } else if (run.state === RUN_STATE.READY) {
       drawReadyScreen(timestamp);
     } else if (run.state === RUN_STATE.PLAYING) {
       update(dt, timestamp);
@@ -512,6 +558,67 @@
 
     // Label
     drawText('POWER', meterX + meterWidth / 2, meterY + meterHeight + 14, 14, '#ffffff', 'center', false);
+  }
+
+  function drawCharacterSelect(timestamp) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const titleSize = Math.max(24, Math.floor(canvas.width * 0.08));
+    drawText('Choose your character', canvas.width / 2, safeTop + titleSize, titleSize, '#ffffff', 'center', true);
+
+    const isPortrait = canvas.height > canvas.width;
+    const cols = isPortrait ? 2 : 3;
+    const rows = Math.ceil(CHARACTERS.length / cols);
+    const pad = 16;
+    const topOffset = safeTop + titleSize + pad * 2;
+    const availW = canvas.width - pad * (cols + 1);
+    const availH = canvas.height - topOffset - pad * (rows + 1);
+    const tileW = Math.floor(availW / cols);
+    const tileH = Math.floor(availH / rows);
+
+    tileRects = [];
+    for (let i = 0; i < CHARACTERS.length; i++) {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const x = pad + col * (tileW + pad);
+      const y = topOffset + pad + row * (tileH + pad);
+      tileRects.push({ id: CHARACTERS[i].id, x, y, w: tileW, h: tileH });
+
+      ctx.fillStyle = '#2a2a4a';
+      ctx.strokeStyle = '#5555aa';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(x, y, tileW, tileH, 8);
+      ctx.fill();
+      ctx.stroke();
+
+      const heroImg = heroImages[CHARACTERS[i].id];
+      if (heroImg && heroImg.complete && heroImg.naturalWidth > 0) {
+        const imgAspect = heroImg.naturalWidth / heroImg.naturalHeight;
+        const tileAspect = tileW / tileH;
+        let drawW, drawH, drawX, drawY;
+        if (imgAspect > tileAspect) {
+          drawH = tileH - 8;
+          drawW = drawH * imgAspect;
+        } else {
+          drawW = tileW - 8;
+          drawH = drawW / imgAspect;
+        }
+        drawX = x + (tileW - drawW) / 2;
+        drawY = y + 4;
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(x, y, tileW, tileH, 8);
+        ctx.clip();
+        ctx.drawImage(heroImg, drawX, drawY, drawW, drawH);
+        ctx.restore();
+      }
+
+      const labelSize = Math.max(12, Math.floor(canvas.width * 0.03));
+      drawText(CHARACTERS[i].id, x + tileW / 2, y + tileH - 6, labelSize, '#ffffff', 'center', false);
+    }
   }
 
   function drawReadyScreen(timestamp) {

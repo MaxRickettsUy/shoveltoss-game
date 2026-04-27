@@ -1,3 +1,15 @@
+
+## character selection
+- replace the current landing / start page with a tiled character selector
+- each tile should show the hero image for each character in assets/character
+- selecting a character should use the corresponding characters sprite sheet
+- use the same character until a user refreshes the page
+
+## background image
+- apply the image assets/house.png as the background for the game
+
+---
+
 ## meter design
 - the current meter doesn't seem right, there is a "sweet spot" that is usually too powerful, sending the shovel out of bounds
 
