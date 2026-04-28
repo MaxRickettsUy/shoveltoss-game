@@ -1,15 +1,22 @@
+## throwing on portrait to drastic
+- it's too easy to over throw on portrait and not easy enough on landscape
+
 
 ## stamina / endurance bar
 
 ## character stats
+
+---
 
 ## meter redesign
 - smaller meter
 - speed increase on each throw
 - decrease hotspot size only on stick
 
-## stick logic
-- stick should only occur when the blade is pointing down
+## character ui changes
+- fix character selection on mobile landscape
+- allow changing character after game over
+- remove ready screen
 
 
 ---
