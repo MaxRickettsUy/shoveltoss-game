@@ -1,3 +1,29 @@
+## game loop
+- remove the 5 throw limit
+- allow unlimited throws until players has 3 misses
+- keep track of high score until tab is refreshed
+
+## meter redesign
+- "sticks" are too frequent
+- let's make the "hot spot" in the meter small but landing on it should result in a stick
+
+## hud redesign
+- keep score in the top left
+- score overlays characters on phone landscape mode, make sure that doesn't happen
+
+---
+
+## character selection
+- replace the current landing / start page with a tiled character selector
+- each tile should show the hero image for each character in assets/character
+- selecting a character should use the corresponding characters sprite sheet
+- use the same character until a user refreshes the page
+
+## background image
+- apply the image assets/house.png as the background for the game
+
+---
+
 ## replace shovel with asset image
 - replace the current shovel with the image at asstes/shovel.png
 
