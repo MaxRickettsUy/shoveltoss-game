@@ -68,7 +68,8 @@
   const V_MAX = 800;                 // px/s, full send
   const G = 600;                     // px/s², gravity
   const METER_CYCLE_TIME = 0.85;     // seconds per full meter cycle (fixed)
-  const PIT_WIDTH = 0.22;            // pit width as fraction of canvas (constant)
+  const PIT_WIDTH_LANDSCAPE = 0.22;  // pit width as fraction of canvas in landscape
+  const PIT_WIDTH_PORTRAIT  = 0.44;  // pit width as fraction of canvas in portrait
   const SWEET_SPOT_CENTER    = 0.80;
   const SWEET_SPOT_HALF_START = 0.10;
   const SWEET_SPOT_HALF_END   = 0.05;
@@ -140,7 +141,7 @@
 
   const difficulty = {
     meterCycleTime: METER_CYCLE_TIME,
-    pitWidth:       PIT_WIDTH,
+    pitWidth:       PIT_WIDTH_LANDSCAPE,
     sweetMin:       SWEET_SPOT_CENTER - SWEET_SPOT_HALF_START,
     sweetMax:       SWEET_SPOT_CENTER + SWEET_SPOT_HALF_START
   };
@@ -181,7 +182,9 @@
   function updateDifficulty() {
     const t = THROWS_PER_RUN <= 1 ? 0 : run.throwCount / (THROWS_PER_RUN - 1);
     difficulty.meterCycleTime = METER_CYCLE_TIME;
-    difficulty.pitWidth = PIT_WIDTH;
+    const aspect = canvas.height / canvas.width;
+    const tA = Math.max(0, Math.min(1, (aspect - ASPECT_LANDSCAPE) / (ASPECT_PORTRAIT - ASPECT_LANDSCAPE)));
+    difficulty.pitWidth = PIT_WIDTH_LANDSCAPE + tA * (PIT_WIDTH_PORTRAIT - PIT_WIDTH_LANDSCAPE);
     const half = SWEET_SPOT_HALF_START + t * (SWEET_SPOT_HALF_END - SWEET_SPOT_HALF_START);
     difficulty.sweetMin = SWEET_SPOT_CENTER - half;
     difficulty.sweetMax = SWEET_SPOT_CENTER + half;
