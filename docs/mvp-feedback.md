@@ -1,3 +1,19 @@
+
+## stamina / endurance bar
+
+## character stats
+
+## meter redesign
+- smaller meter
+- speed increase on each throw
+- decrease hotspot size only on stick
+
+## stick logic
+- stick should only occur when the blade is pointing down
+
+
+---
+
 ## game loop
 - remove the 5 throw limit
 - allow unlimited throws until players has 3 misses
