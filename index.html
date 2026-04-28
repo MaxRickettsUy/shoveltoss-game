@@ -544,9 +544,16 @@
     }
 
     // HUD: left-stacked score -> lives -> best
-    const hudFontSize = Math.max(24, Math.floor(canvas.width * 0.07));
-    const hudY = meterY + meterHeight + HUD_PAD + hudFontSize;
-    const subFontSize = Math.max(16, Math.floor(canvas.width * 0.045));
+    const isPhoneLandscape = canvas.width > canvas.height && canvas.height <= 500;
+    const hudFontSize = isPhoneLandscape
+      ? Math.max(28, Math.floor(canvas.height * 0.08))
+      : Math.max(24, Math.floor(canvas.width * 0.07));
+    const hudY = isPhoneLandscape
+      ? safeTop + hudFontSize
+      : meterY + meterHeight + HUD_PAD + hudFontSize;
+    const subFontSize = isPhoneLandscape
+      ? Math.max(14, Math.floor(canvas.height * 0.04))
+      : Math.max(16, Math.floor(canvas.width * 0.045));
     drawText(scoring.score, HUD_PAD, hudY, hudFontSize, '#ffffff', 'left', true);
     drawLifeIcons(HUD_PAD, hudY + subFontSize + 8);
     drawText(`Best: ${scoring.highScore}`, HUD_PAD, hudY + (subFontSize + 6) * 2, subFontSize, '#ffffff', 'left', false);
