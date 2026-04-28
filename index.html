@@ -457,18 +457,6 @@
     // Background
     drawBackground();
 
-    // Ground fill
-    ctx.fillStyle = '#4a3728';
-    ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
-
-    // Ground line
-    ctx.strokeStyle = '#6b4f3a';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(0, groundY);
-    ctx.lineTo(canvas.width, groundY);
-    ctx.stroke();
-
     // Pit zone
     if (pitReady) {
       const dW = canvas.width - pitLeft;
