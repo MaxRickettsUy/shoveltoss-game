@@ -50,6 +50,7 @@
   ];
 
   let selectedCharacterId = null;
+  let gameOverChangeRect = null;
   const heroImages = {};
   CHARACTERS.forEach(c => {
     const img = new Image();
@@ -103,7 +104,7 @@
   const LIFE_ICON_W = 24;
 
   // --- State enums ---
-  const RUN_STATE = { SELECTING: 'selecting', READY: 'ready', PLAYING: 'playing', GAME_OVER: 'game_over' };
+  const RUN_STATE = { SELECTING: 'selecting', PLAYING: 'playing', GAME_OVER: 'game_over' };
   const STATE = {
     IDLE:      'idle',
     CHARGING:  'charging',
@@ -221,7 +222,7 @@
   function resetRun() {
     run.throwCount       = 0;
     run.missesRemaining  = MISSES_PER_RUN;
-    run.state            = RUN_STATE.READY;
+    run.state            = RUN_STATE.PLAYING;
     throw_.state         = STATE.IDLE;
     throw_.meterFill     = 0;
     throw_.meterDir      = 1;
@@ -291,31 +292,35 @@
   }
 
   // --- Input ---
+  function chooseCharacter(index) {
+    selectedCharacterId = CHARACTERS[index].id;
+    characterReady = false;
+    characterImg.src = CHARACTERS[index].sprite;
+    resetRun();
+  }
+
   function onPressStart() {
     if (run.state === RUN_STATE.SELECTING) {
       for (let i = 0; i < tileRects.length; i++) {
         const tile = tileRects[i];
         if (lastPointerX >= tile.x && lastPointerX <= tile.x + tile.w &&
             lastPointerY >= tile.y && lastPointerY <= tile.y + tile.h) {
-          selectedCharacterId = tile.id;
-          characterReady = false;
-          characterImg.src = CHARACTERS[i].sprite;
-          run.state = RUN_STATE.READY;
+          chooseCharacter(i);
           return;
         }
       }
       return;
     }
-    if (run.state === RUN_STATE.READY) {
-      run.state      = RUN_STATE.PLAYING;
-      run.throwCount = 0;
-      run.missesRemaining = MISSES_PER_RUN;
-      throw_.state   = STATE.IDLE;
-      resetDifficultyRamp();
-      return;
-    }
     if (run.state === RUN_STATE.GAME_OVER) {
       if (lastTimestamp !== null && lastTimestamp - run.gameOverTime < GAME_OVER_GUARD) return;
+      if (gameOverChangeRect &&
+          lastPointerX >= gameOverChangeRect.x && lastPointerX <= gameOverChangeRect.x + gameOverChangeRect.w &&
+          lastPointerY >= gameOverChangeRect.y && lastPointerY <= gameOverChangeRect.y + gameOverChangeRect.h) {
+        run.state = RUN_STATE.SELECTING;
+        tileRects = [];
+        gameOverChangeRect = null;
+        return;
+      }
       resetRun();
       return;
     }
@@ -381,8 +386,6 @@
 
     if (run.state === RUN_STATE.SELECTING) {
       drawCharacterSelect(timestamp);
-    } else if (run.state === RUN_STATE.READY) {
-      drawReadyScreen(timestamp);
     } else if (run.state === RUN_STATE.PLAYING) {
       update(dt, timestamp);
       draw();
@@ -561,7 +564,7 @@
 
     // Idle hint
     if (throw_.state === STATE.IDLE) {
-      drawText('Hold to charge', canvas.width / 2, groundY - 28,
+      drawText('Hold to charge', canvas.width / 2, canvas.height - Math.max(28, canvas.height * 0.06),
         Math.max(16, Math.floor(canvas.width * 0.042)), 'rgba(255,255,255,0.55)', 'center', false);
     }
 
@@ -642,14 +645,21 @@
     ctx.fillStyle = '#1a1a2e';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    const titleSize = Math.max(24, Math.floor(canvas.width * 0.08));
-    drawText('Choose your character', canvas.width / 2, safeTop + titleSize, titleSize, '#ffffff', 'center', true);
+    const isPhoneLandscape = canvas.width > canvas.height && canvas.height <= 500;
+    const gameTitleSize = isPhoneLandscape
+      ? Math.max(26, Math.floor(canvas.height * 0.10))
+      : Math.max(34, Math.floor(canvas.width * 0.10));
+    const titleSize = isPhoneLandscape
+      ? Math.max(22, Math.floor(canvas.height * 0.08))
+      : Math.max(24, Math.floor(canvas.width * 0.08));
+    drawText('SHOVEL TOSS', canvas.width / 2, safeTop + gameTitleSize, gameTitleSize, '#ffffff', 'center', true);
+    drawText('Choose your character', canvas.width / 2, safeTop + gameTitleSize + titleSize + 8, titleSize, '#ffffff', 'center', true);
 
     const isPortrait = canvas.height > canvas.width;
-    const cols = isPortrait ? 2 : 3;
+    const cols = isPhoneLandscape ? CHARACTERS.length : (isPortrait ? 2 : 3);
     const rows = Math.ceil(CHARACTERS.length / cols);
-    const pad = 16;
-    const topOffset = safeTop + titleSize + pad * 2;
+    const pad = isPhoneLandscape ? 10 : 16;
+    const topOffset = safeTop + gameTitleSize + titleSize + 8 + (isPhoneLandscape ? pad : pad * 2);
     const availW = canvas.width - pad * (cols + 1);
     const availH = canvas.height - topOffset - pad * (rows + 1);
     const tileW = Math.floor(availW / cols);
@@ -693,24 +703,11 @@
         ctx.restore();
       }
 
-      const labelSize = Math.max(12, Math.floor(canvas.width * 0.03));
+      const labelSize = isPhoneLandscape
+        ? Math.max(12, Math.floor(canvas.height * 0.035))
+        : Math.max(12, Math.floor(canvas.width * 0.03));
       drawText(CHARACTERS[i].id, x + tileW / 2, y + tileH - 6, labelSize, '#ffffff', 'center', false);
     }
-  }
-
-  function drawReadyScreen(timestamp) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#1a1a2e';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    const titleSize = Math.max(36, Math.floor(canvas.width * 0.12));
-    drawText('SHOVEL TOSS', canvas.width / 2, safeTop + canvas.height * 0.38, titleSize, '#ffffff', 'center', true);
-
-    const pulseAlpha = 0.75 + 0.25 * Math.sin(timestamp / 700);
-    ctx.globalAlpha = pulseAlpha;
-    drawText('Tap to Start', canvas.width / 2, safeTop + canvas.height * 0.52,
-      Math.max(18, Math.floor(canvas.width * 0.05)), '#ffffff', 'center', false);
-    ctx.globalAlpha = 1;
   }
 
   function drawGameOverOverlay() {
@@ -718,14 +715,41 @@
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const cx = canvas.width / 2;
+    const isPhoneLandscape = canvas.width > canvas.height && canvas.height <= 500;
+    const titleSize = isPhoneLandscape
+      ? Math.max(28, Math.floor(canvas.height * 0.11))
+      : Math.max(32, Math.floor(canvas.width * 0.10));
+    const scoreSize = isPhoneLandscape
+      ? Math.max(18, Math.floor(canvas.height * 0.06))
+      : Math.max(22, Math.floor(canvas.width * 0.06));
+    const statsSize = isPhoneLandscape
+      ? Math.max(14, Math.floor(canvas.height * 0.045))
+      : Math.max(16, Math.floor(canvas.width * 0.045));
+    const restartSize = isPhoneLandscape
+      ? Math.max(16, Math.floor(canvas.height * 0.05))
+      : Math.max(18, Math.floor(canvas.width * 0.05));
     drawText('GAME OVER', cx, safeTop + canvas.height * 0.38,
-      Math.max(32, Math.floor(canvas.width * 0.10)), '#ffffff', 'center', true);
+      titleSize, '#ffffff', 'center', true);
     drawText(`Score: ${scoring.score}`, cx, safeTop + canvas.height * 0.49,
-      Math.max(22, Math.floor(canvas.width * 0.06)), '#ffe600', 'center', false);
+      scoreSize, '#ffe600', 'center', false);
     drawText(`${scoring.hitsInRun} of ${run.throwCount} throws landed`, cx, safeTop + canvas.height * 0.58,
-      Math.max(16, Math.floor(canvas.width * 0.045)), 'rgba(255,255,255,0.7)', 'center', false);
+      statsSize, 'rgba(255,255,255,0.7)', 'center', false);
     drawText('Tap to Restart', cx, safeTop + canvas.height * 0.68,
-      Math.max(18, Math.floor(canvas.width * 0.05)), 'rgba(255,255,255,0.7)', 'center', false);
+      restartSize, 'rgba(255,255,255,0.7)', 'center', false);
+    const buttonW = Math.min(240, canvas.width * 0.62);
+    const buttonH = Math.max(42, canvas.height * 0.07);
+    const buttonX = cx - buttonW / 2;
+    const buttonY = safeTop + canvas.height * 0.74;
+    gameOverChangeRect = { x: buttonX, y: buttonY, w: buttonW, h: buttonH };
+    ctx.fillStyle = '#2a2a4a';
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(buttonX, buttonY, buttonW, buttonH, 6);
+    ctx.fill();
+    ctx.stroke();
+    drawText('Change Character', cx, buttonY + buttonH * 0.64,
+      Math.max(16, Math.min(18, Math.floor(canvas.width * 0.04))), '#ffffff', 'center', false);
   }
 
   // --- Init ---
