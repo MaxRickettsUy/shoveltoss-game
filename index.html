@@ -75,7 +75,7 @@
   const SWEET_SPOT_HALF_END   = 0.05;
   const POWER_AT_SWEET = 0.55;
   const RESET_DELAY = 500;           // ms pause after landing
-  const THROWS_PER_RUN = 5;          // placeholder: throws before game over
+  const MISSES_PER_RUN = 3;
   const GAME_OVER_GUARD = 500;       // ms input guard after game over
   const PTS_STICK           = 3;
   const PTS_BACK_WALL       = 2;
@@ -96,6 +96,7 @@
   const WALL_HEIGHT_FRACTION = 0.30;
   const CHARACTER_RENDER_H = 150;
   const SHOVEL_RENDER_W = 40;
+  const LIFE_ICON_W = 24;
 
   // --- State enums ---
   const RUN_STATE = { SELECTING: 'selecting', READY: 'ready', PLAYING: 'playing', GAME_OVER: 'game_over' };
@@ -110,6 +111,7 @@
   const run = {
     state:       RUN_STATE.SELECTING,
     throwCount:  0,
+    missesRemaining: MISSES_PER_RUN,
     gameOverTime: 0
   };
 
@@ -132,7 +134,7 @@
 
   const scoring = {
     score:           0,
-    combo:           0,
+    highScore:       0,
     hitsInRun:       0,
     lastThrowPoints: 0,
     lastThrowZone:   '',
@@ -180,7 +182,7 @@
 
   // --- Difficulty ---
   function updateDifficulty() {
-    const t = THROWS_PER_RUN <= 1 ? 0 : run.throwCount / (THROWS_PER_RUN - 1);
+    const t = Math.min(run.throwCount, 4) / 4;
     difficulty.meterCycleTime = METER_CYCLE_TIME;
     const aspect = canvas.height / canvas.width;
     const tA = Math.max(0, Math.min(1, (aspect - ASPECT_LANDSCAPE) / (ASPECT_PORTRAIT - ASPECT_LANDSCAPE)));
@@ -206,13 +208,13 @@
 
   function resetRun() {
     run.throwCount       = 0;
+    run.missesRemaining  = MISSES_PER_RUN;
     run.state            = RUN_STATE.READY;
     throw_.state         = STATE.IDLE;
     throw_.meterFill     = 0;
     throw_.meterDir      = 1;
     throw_.power         = 0;
     scoring.score           = 0;
-    scoring.combo           = 0;
     scoring.hitsInRun       = 0;
     scoring.lastThrowPoints = 0;
     scoring.lastThrowZone   = '';
@@ -248,22 +250,23 @@
     }
 
     if (basePoints > 0) {
-      scoring.combo++;
       scoring.hitsInRun++;
-      const mul = 1 + (scoring.combo - 1) * 0.5;
-      scoring.lastThrowPoints = Math.round(basePoints * mul);
+      scoring.lastThrowPoints = basePoints;
     } else {
-      scoring.combo = 0;
       scoring.lastThrowPoints = basePoints;
       if (zone !== 'miss') scoring.hitsInRun++;
     }
 
     scoring.lastThrowZone  = zone;
     scoring.score         += scoring.lastThrowPoints;
+    scoring.highScore      = Math.max(scoring.highScore, scoring.score);
     scoring.feedbackTimer  = FEEDBACK_DURATION;
 
     run.throwCount++;
-    if (run.throwCount >= THROWS_PER_RUN) {
+    if (zone === 'miss') {
+      run.missesRemaining--;
+    }
+    if (run.missesRemaining === 0) {
       endRun(timestamp);
     }
   }
@@ -287,6 +290,7 @@
     if (run.state === RUN_STATE.READY) {
       run.state      = RUN_STATE.PLAYING;
       run.throwCount = 0;
+      run.missesRemaining = MISSES_PER_RUN;
       throw_.state   = STATE.IDLE;
       return;
     }
@@ -439,6 +443,26 @@
     ctx.fillText(text, x, y);
   }
 
+  function drawLifeIcons(x, y) {
+    const iconW = Math.max(20, Math.min(LIFE_ICON_W, canvas.width * 0.06));
+    const iconH = shovelReady
+      ? iconW * shovelImg.naturalHeight / shovelImg.naturalWidth
+      : iconW;
+    const gap = 8;
+
+    for (let i = 0; i < MISSES_PER_RUN; i++) {
+      ctx.save();
+      ctx.globalAlpha = i < run.missesRemaining ? 1 : 0.25;
+      if (shovelReady) {
+        ctx.drawImage(shovelImg, x + i * (iconW + gap), y - iconH, iconW, iconH);
+      } else {
+        ctx.fillStyle = '#c0c0c0';
+        ctx.fillRect(x + i * (iconW + gap), y - iconH, iconW, iconH);
+      }
+      ctx.restore();
+    }
+  }
+
   function drawBackground() {
     if (backgroundReady) {
       const scale = Math.max(canvas.width / backgroundImg.naturalWidth, canvas.height / backgroundImg.naturalHeight);
@@ -519,18 +543,13 @@
         Math.max(16, Math.floor(canvas.width * 0.042)), 'rgba(255,255,255,0.55)', 'center', false);
     }
 
-    // HUD: left-stacked score → throws → combo
+    // HUD: left-stacked score -> lives -> best
     const hudFontSize = Math.max(24, Math.floor(canvas.width * 0.07));
     const hudY = meterY + meterHeight + HUD_PAD + hudFontSize;
     const subFontSize = Math.max(16, Math.floor(canvas.width * 0.045));
     drawText(scoring.score, HUD_PAD, hudY, hudFontSize, '#ffffff', 'left', true);
-    drawText(`${run.throwCount} / ${THROWS_PER_RUN}`, HUD_PAD, hudY + subFontSize + 6, subFontSize, '#ffffff', 'left', false);
-
-    // Combo badge (below throw counter)
-    if (scoring.combo >= 2) {
-      const comboFontSize = Math.max(14, Math.floor(canvas.width * 0.04));
-      drawText(`x${scoring.combo} COMBO`, HUD_PAD, hudY + subFontSize + 6 + comboFontSize + 6, comboFontSize, '#ffe600', 'left', false);
-    }
+    drawLifeIcons(HUD_PAD, hudY + subFontSize + 8);
+    drawText(`Best: ${scoring.highScore}`, HUD_PAD, hudY + (subFontSize + 6) * 2, subFontSize, '#ffffff', 'left', false);
 
     // Throw feedback text
     if (scoring.feedbackTimer > 0) {
@@ -673,7 +692,7 @@
       Math.max(32, Math.floor(canvas.width * 0.10)), '#ffffff', 'center', true);
     drawText(`Score: ${scoring.score}`, cx, safeTop + canvas.height * 0.49,
       Math.max(22, Math.floor(canvas.width * 0.06)), '#ffe600', 'center', false);
-    drawText(`${scoring.hitsInRun} / ${THROWS_PER_RUN} throws landed`, cx, safeTop + canvas.height * 0.58,
+    drawText(`${scoring.hitsInRun} of ${run.throwCount} throws landed`, cx, safeTop + canvas.height * 0.58,
       Math.max(16, Math.floor(canvas.width * 0.045)), 'rgba(255,255,255,0.7)', 'center', false);
     drawText('Tap to Restart', cx, safeTop + canvas.height * 0.68,
       Math.max(18, Math.floor(canvas.width * 0.05)), 'rgba(255,255,255,0.7)', 'center', false);
