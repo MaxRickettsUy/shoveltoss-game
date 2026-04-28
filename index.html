@@ -67,12 +67,13 @@
   const V_MIN = 300;                 // px/s, weak lob
   const V_MAX = 800;                 // px/s, full send
   const G = 600;                     // px/s², gravity
-  const METER_CYCLE_TIME = 0.85;     // seconds per full meter cycle (fixed)
+  const METER_CYCLE_TIME = 0.85;     // seconds per full meter cycle
+  const METER_SPEED = 2 / METER_CYCLE_TIME;
+  const METER_SPEED_INCREMENT_PER_THROW = 0.15;
   const PIT_WIDTH_LANDSCAPE = 0.22;  // pit width as fraction of canvas in landscape
   const PIT_WIDTH_PORTRAIT  = 0.44;  // pit width as fraction of canvas in portrait
   const SWEET_SPOT_CENTER    = 0.80;
   const SWEET_SPOT_HALF_START = 0.10;
-  const SWEET_SPOT_HALF_END   = 0.05;
   const POWER_AT_SWEET_LANDSCAPE = 0.55;
   const POWER_AT_SWEET_PORTRAIT  = 0.33;
   const RESET_DELAY = 500;           // ms pause after landing
@@ -86,14 +87,16 @@
   const ZONE_FRONT_WALL_MAX = 0.10;
   const ZONE_BACK_WALL_MIN  = 0.90;
   const SHOVEL_ROT_RATE   = 9;
-  const VERTICAL_BAND_DEG = 30;
   const FEEDBACK_DURATION = 1500;    // ms to show throw feedback
   const HUD_PAD = 20;                // px padding for HUD elements
   const BOUNCE_DAMPING = 0.6;
   const WALL_GAP = 12;               // px between pit edge and wall
   const WALL_THICKNESS = 8;
   const METER_HEIGHT_FRACTION = 0.06;
-  const METER_WIDTH_FRACTION = 0.55;
+  const METER_WIDTH_FRACTION = 0.385;
+  const HOT_SPOT_WIDTH = (SWEET_SPOT_HALF_START * 2) * 0.35;
+  const HOT_SPOT_SHRINK_PER_STICK = 0.008;
+  const HOT_SPOT_MIN_WIDTH = 0.03;
   const WALL_HEIGHT_FRACTION = 0.30;
   const CHARACTER_RENDER_H = 150;
   const SHOVEL_RENDER_W = 40;
@@ -144,10 +147,11 @@
   };
 
   const difficulty = {
-    meterCycleTime: METER_CYCLE_TIME,
+    meterSpeed:     METER_SPEED,
     pitWidth:       PIT_WIDTH_LANDSCAPE,
-    sweetMin:       SWEET_SPOT_CENTER - SWEET_SPOT_HALF_START,
-    sweetMax:       SWEET_SPOT_CENTER + SWEET_SPOT_HALF_START
+    hotSpotWidth:   HOT_SPOT_WIDTH,
+    sweetMin:       SWEET_SPOT_CENTER - HOT_SPOT_WIDTH / 2,
+    sweetMax:       SWEET_SPOT_CENTER + HOT_SPOT_WIDTH / 2
   };
 
   // --- Loop-level (not game state) ---
@@ -185,12 +189,10 @@
 
   // --- Difficulty ---
   function updateDifficulty() {
-    const t = Math.min(run.throwCount, 4) / 4;
-    difficulty.meterCycleTime = METER_CYCLE_TIME;
     const aspect = canvas.height / canvas.width;
     const tA = Math.max(0, Math.min(1, (aspect - ASPECT_LANDSCAPE) / (ASPECT_PORTRAIT - ASPECT_LANDSCAPE)));
     difficulty.pitWidth = PIT_WIDTH_LANDSCAPE + tA * (PIT_WIDTH_PORTRAIT - PIT_WIDTH_LANDSCAPE);
-    const half = (SWEET_SPOT_HALF_START + t * (SWEET_SPOT_HALF_END - SWEET_SPOT_HALF_START)) * 0.35;
+    const half = difficulty.hotSpotWidth / 2;
     difficulty.sweetMin = SWEET_SPOT_CENTER - half;
     difficulty.sweetMax = SWEET_SPOT_CENTER + half;
     const halfWidth = canvas.width * difficulty.pitWidth / 2;
@@ -203,10 +205,17 @@
     }
   }
 
+  function resetDifficultyRamp() {
+    difficulty.meterSpeed = METER_SPEED;
+    difficulty.hotSpotWidth = HOT_SPOT_WIDTH;
+    updateDifficulty();
+  }
+
   // --- Run-level functions ---
   function endRun(timestamp) {
     run.state       = RUN_STATE.GAME_OVER;
     run.gameOverTime = timestamp;
+    resetDifficultyRamp();
   }
 
   function resetRun() {
@@ -225,7 +234,7 @@
     throw_.perfect          = false;
     throw_.bounced          = false;
     throw_.angle            = 0;
-    updateDifficulty();
+    resetDifficultyRamp();
   }
 
   // --- Result hook ---
@@ -243,11 +252,7 @@
       basePoints = PTS_MISS;
     } else {
       const norm = (result.x - pitLeft) / (pitRight - pitLeft);
-      const orientationDeg = ((throw_.angle * 180 / Math.PI) % 180 + 180) % 180;
-      const isVertical = Math.abs(orientationDeg - 90) <= VERTICAL_BAND_DEG;
-      if (isVertical) {
-        zone = 'stick';      basePoints = PTS_STICK;
-      } else if (norm < ZONE_FRONT_WALL_MAX) {
+      if (norm < ZONE_FRONT_WALL_MAX) {
         zone = 'front_wall'; basePoints = PTS_FRONT_WALL;
       } else if (norm > ZONE_BACK_WALL_MIN) {
         zone = 'back_wall';  basePoints = PTS_BACK_WALL;
@@ -270,6 +275,13 @@
     scoring.feedbackTimer  = FEEDBACK_DURATION;
 
     run.throwCount++;
+    difficulty.meterSpeed += METER_SPEED_INCREMENT_PER_THROW;
+    if (zone === 'stick') {
+      difficulty.hotSpotWidth = Math.max(
+        difficulty.hotSpotWidth - HOT_SPOT_SHRINK_PER_STICK,
+        HOT_SPOT_MIN_WIDTH
+      );
+    }
     if (zone === 'miss') {
       run.missesRemaining--;
     }
@@ -299,6 +311,7 @@
       run.throwCount = 0;
       run.missesRemaining = MISSES_PER_RUN;
       throw_.state   = STATE.IDLE;
+      resetDifficultyRamp();
       return;
     }
     if (run.state === RUN_STATE.GAME_OVER) {
@@ -382,8 +395,7 @@
   function update(dt, timestamp) {
     // Oscillate meter while charging
     if (throw_.state === STATE.CHARGING) {
-      const speed = 2 / difficulty.meterCycleTime; // 0→1→0 = 2 units per cycle
-      throw_.meterFill += throw_.meterDir * speed * dt;
+      throw_.meterFill += throw_.meterDir * difficulty.meterSpeed * dt;
       if (throw_.meterFill >= 1) { throw_.meterFill = 1; throw_.meterDir = -1; }
       if (throw_.meterFill <= 0) { throw_.meterFill = 0; throw_.meterDir =  1; }
     }
@@ -622,6 +634,7 @@
 
     // Label
     drawText('POWER', meterX + meterWidth / 2, meterY + meterHeight + 14, 14, '#ffffff', 'center', false);
+    drawText(`SPEED ${difficulty.meterSpeed.toFixed(2)}`, meterX + meterWidth / 2, meterY + meterHeight + 30, 12, '#ffffff', 'center', false);
   }
 
   function drawCharacterSelect(timestamp) {
