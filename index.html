@@ -47,7 +47,8 @@
     { id: 'Chef',     hero: 'assets/character/chef/hero.png',     sprite: 'assets/character/chef/sprite-sheet.png' },
     { id: 'Chuggo',   hero: 'assets/character/chuggo/hero.png',   sprite: 'assets/character/chuggo/sprite-sheet.png' },
     { id: 'Princess', hero: 'assets/character/princess/hero.png', sprite: 'assets/character/princess/sprite-sheet.png' },
-    { id: 'Shrek',    hero: 'assets/character/shrek/hero.png',    sprite: 'assets/character/shrek/sprite-sheet.png' }
+    { id: 'Shrek',    hero: 'assets/character/shrek/hero.png',    sprite: 'assets/character/shrek/sprite-sheet.png' },
+    { id: 'Luchador',    hero: 'assets/character/luchador/hero.png',    sprite: 'assets/character/luchador/sprite-sheet.png' },
   ];
 
   let selectedCharacterId = null;
@@ -80,8 +81,8 @@
   const PIT_WIDTH_PORTRAIT  = 0.44;  // pit width as fraction of canvas in portrait
   const SWEET_SPOT_CENTER    = 0.80;
   const SWEET_SPOT_HALF_START = 0.10;
-  const POWER_AT_SWEET_LANDSCAPE = 0.55;
-  const POWER_AT_SWEET_PORTRAIT  = 0.33;
+  const POWER_AT_SWEET_SPOT_LANDSCAPE = 0.55;
+  const POWER_AT_SWEET_SPOT_PORTRAIT  = 0.33;
   const RESET_DELAY = 500;           // ms pause after landing
   const MISSES_PER_RUN = 3;
   const GAME_OVER_GUARD = 500;       // ms input guard after game over
@@ -100,9 +101,9 @@
   const WALL_THICKNESS = 8;
   const METER_HEIGHT_FRACTION = 0.06;
   const METER_WIDTH_FRACTION = 0.385;
-  const HOT_SPOT_WIDTH = (SWEET_SPOT_HALF_START * 2) * 0.35;
-  const HOT_SPOT_SHRINK_PER_STICK = 0.008;
-  const HOT_SPOT_MIN_WIDTH = 0.03;
+  const SWEET_SPOT_WIDTH = (SWEET_SPOT_HALF_START * 2) * 0.35;
+  const SWEET_SPOT_SHRINK_PER_STICK = 0.008;
+  const SWEET_SPOT_MIN_WIDTH = 0.03;
   const WALL_HEIGHT_FRACTION = 0.30;
   const CHARACTER_RENDER_H = 150;
   const SHOVEL_RENDER_W = 40;
@@ -133,7 +134,7 @@
     meterFill:   0,
     meterDir:    1,
     power:       0,
-    perfect:     false,
+    inSweetSpot: false,
     shovelX:     0,
     shovelY:     0,
     flightTime:  0,
@@ -148,7 +149,6 @@
 
   const scoring = {
     score:           0,
-    highScore:       0,
     hitsInRun:       0,
     lastThrowPoints: 0,
     lastThrowZone:   '',
@@ -158,9 +158,9 @@
   const difficulty = {
     meterSpeed:     METER_SPEED,
     pitWidth:       PIT_WIDTH_LANDSCAPE,
-    hotSpotWidth:   HOT_SPOT_WIDTH,
-    sweetMin:       SWEET_SPOT_CENTER - HOT_SPOT_WIDTH / 2,
-    sweetMax:       SWEET_SPOT_CENTER + HOT_SPOT_WIDTH / 2
+    sweetSpotWidth: SWEET_SPOT_WIDTH,
+    sweetSpotMin:   SWEET_SPOT_CENTER - SWEET_SPOT_WIDTH / 2,
+    sweetSpotMax:   SWEET_SPOT_CENTER + SWEET_SPOT_WIDTH / 2
   };
 
   const leaderboard = {
@@ -183,7 +183,7 @@
   let groundY, playerX, playerY;
   let pitLeft, pitRight, pitCenterX, wallX, wallTopY;
   let meterX, meterY, meterWidth, meterHeight;
-  let safeTop, throwAngle, powerAtSweet;
+  let safeTop, throwAngle, powerAtSweetSpot;
 
   function updateLayout() {
     canvas.width = window.innerWidth;
@@ -195,7 +195,7 @@
     const aspect = canvas.height / canvas.width;
     const tA = Math.max(0, Math.min(1, (aspect - ASPECT_LANDSCAPE) / (ASPECT_PORTRAIT - ASPECT_LANDSCAPE)));
     throwAngle = ANGLE_LANDSCAPE + tA * (ANGLE_PORTRAIT - ANGLE_LANDSCAPE);
-    powerAtSweet = POWER_AT_SWEET_LANDSCAPE + tA * (POWER_AT_SWEET_PORTRAIT - POWER_AT_SWEET_LANDSCAPE);
+    powerAtSweetSpot = POWER_AT_SWEET_SPOT_LANDSCAPE + tA * (POWER_AT_SWEET_SPOT_PORTRAIT - POWER_AT_SWEET_SPOT_LANDSCAPE);
     playerX  = canvas.width  * 0.10;
     playerY  = groundY;
 
@@ -214,9 +214,9 @@
     const aspect = canvas.height / canvas.width;
     const tA = Math.max(0, Math.min(1, (aspect - ASPECT_LANDSCAPE) / (ASPECT_PORTRAIT - ASPECT_LANDSCAPE)));
     difficulty.pitWidth = PIT_WIDTH_LANDSCAPE + tA * (PIT_WIDTH_PORTRAIT - PIT_WIDTH_LANDSCAPE);
-    const half = difficulty.hotSpotWidth / 2;
-    difficulty.sweetMin = SWEET_SPOT_CENTER - half;
-    difficulty.sweetMax = SWEET_SPOT_CENTER + half;
+    const half = difficulty.sweetSpotWidth / 2;
+    difficulty.sweetSpotMin = SWEET_SPOT_CENTER - half;
+    difficulty.sweetSpotMax = SWEET_SPOT_CENTER + half;
     const halfWidth = canvas.width * difficulty.pitWidth / 2;
     pitLeft  = pitCenterX - halfWidth;
     wallX    = canvas.width - WALL_THICKNESS;
@@ -229,7 +229,7 @@
 
   function resetDifficultyRamp() {
     difficulty.meterSpeed = METER_SPEED;
-    difficulty.hotSpotWidth = HOT_SPOT_WIDTH;
+    difficulty.sweetSpotWidth = SWEET_SPOT_WIDTH;
     updateDifficulty();
   }
 
@@ -322,7 +322,7 @@
     gameOverSave.name          = '';
     gameOverSave.globalStatus  = 'idle';
     gameOverSave.globalMessage = '';
-    throw_.perfect          = false;
+    throw_.inSweetSpot      = false;
     throw_.bounced          = false;
     throw_.angle            = 0;
     resetDifficultyRamp();
@@ -335,16 +335,15 @@
     // Scoring
     let zone, basePoints;
 
-    if (result.perfect) {
-      zone = 'stick';
-      basePoints = PTS_STICK;
-    } else if (!result.inPit) {
+    if (!result.inPit) {
       zone = 'miss';
       basePoints = PTS_MISS;
     } else {
       const norm = (result.x - pitLeft) / (pitRight - pitLeft);
       if (norm < ZONE_FRONT_WALL_MAX) {
         zone = 'front_wall'; basePoints = PTS_FRONT_WALL;
+      } else if (result.inSweetSpot) {
+        zone = 'stick';      basePoints = PTS_STICK;
       } else if (norm > ZONE_BACK_WALL_MIN) {
         zone = 'back_wall';  basePoints = PTS_BACK_WALL;
       } else {
@@ -362,15 +361,14 @@
 
     scoring.lastThrowZone  = zone;
     scoring.score         += scoring.lastThrowPoints;
-    scoring.highScore      = Math.max(scoring.highScore, scoring.score);
     scoring.feedbackTimer  = FEEDBACK_DURATION;
 
     run.throwCount++;
     difficulty.meterSpeed += METER_SPEED_INCREMENT_PER_THROW;
     if (zone === 'stick') {
-      difficulty.hotSpotWidth = Math.max(
-        difficulty.hotSpotWidth - HOT_SPOT_SHRINK_PER_STICK,
-        HOT_SPOT_MIN_WIDTH
+      difficulty.sweetSpotWidth = Math.max(
+        difficulty.sweetSpotWidth - SWEET_SPOT_SHRINK_PER_STICK,
+        SWEET_SPOT_MIN_WIDTH
       );
     }
     if (zone === 'miss') {
@@ -440,18 +438,18 @@
     throw_.state     = STATE.CHARGING;
     throw_.meterFill = 0;
     throw_.meterDir  = 1;
-    throw_.perfect   = false;
+    throw_.inSweetSpot = false;
   }
 
   function onPressEnd() {
     if (throw_.state !== STATE.CHARGING) return;
     const f = throw_.meterFill;
-    throw_.perfect = f >= difficulty.sweetMin && f <= difficulty.sweetMax;
+    throw_.inSweetSpot = f >= difficulty.sweetSpotMin && f <= difficulty.sweetSpotMax;
     if (f < SWEET_SPOT_CENTER) {
-      throw_.power = (f / SWEET_SPOT_CENTER) * powerAtSweet;
+      throw_.power = (f / SWEET_SPOT_CENTER) * powerAtSweetSpot;
     } else {
-      throw_.power = powerAtSweet
-        + ((f - SWEET_SPOT_CENTER) / (1 - SWEET_SPOT_CENTER)) * (1 - powerAtSweet);
+      throw_.power = powerAtSweetSpot
+        + ((f - SWEET_SPOT_CENTER) / (1 - SWEET_SPOT_CENTER)) * (1 - powerAtSweetSpot);
     }
     throw_.state = STATE.FLYING;
 
@@ -549,7 +547,7 @@
           inPit:              throw_.shovelX >= pitLeft && throw_.shovelX <= pitRight,
           distanceFromCenter: throw_.shovelX - pitCenterX,
           power:              throw_.power,
-          perfect:            throw_.perfect
+          inSweetSpot:        throw_.inSweetSpot
         };
         onThrowResult(result, timestamp);
 
@@ -647,7 +645,7 @@
         playerX - (CHARACTER_RENDER_H * (CHARACTER_FRAME_W / CHARACTER_FRAME_H)) / 2, playerY - CHARACTER_RENDER_H,
         CHARACTER_RENDER_H * (CHARACTER_FRAME_W / CHARACTER_FRAME_H), CHARACTER_RENDER_H
       );
-    } else {
+    } else if (!selectedCharacterId) {
       const pW = 28, pH = 50;
       ctx.fillStyle = '#e07b39';
       ctx.fillRect(playerX - pW / 2, playerY - pH, pW, pH);
@@ -681,7 +679,7 @@
         Math.max(16, Math.floor(canvas.width * 0.042)), 'rgba(255,255,255,0.55)', 'center', false);
     }
 
-    // HUD: left-stacked score -> lives -> best
+    // HUD: left-stacked score -> lives
     const isPhoneLandscape = canvas.width > canvas.height && canvas.height <= 500;
     const hudFontSize = isPhoneLandscape
       ? Math.max(28, Math.floor(canvas.height * 0.08))
@@ -694,7 +692,6 @@
       : Math.max(16, Math.floor(canvas.width * 0.045));
     drawText(scoring.score, HUD_PAD, hudY, hudFontSize, '#ffffff', 'left', true);
     drawLifeIcons(HUD_PAD, hudY + subFontSize + 8);
-    drawText(`Best: ${scoring.highScore}`, HUD_PAD, hudY + (subFontSize + 6) * 2, subFontSize, '#ffffff', 'left', false);
 
     // Throw feedback text
     if (scoring.feedbackTimer > 0) {
@@ -726,8 +723,8 @@
     ctx.fill();
 
     // Sweet-spot band
-    const sweetX = meterX + meterWidth * difficulty.sweetMin;
-    const sweetW = meterWidth * (difficulty.sweetMax - difficulty.sweetMin);
+    const sweetX = meterX + meterWidth * difficulty.sweetSpotMin;
+    const sweetW = meterWidth * (difficulty.sweetSpotMax - difficulty.sweetSpotMin);
     ctx.fillStyle = 'rgba(255, 220, 0, 0.25)';
     ctx.beginPath();
     ctx.roundRect(sweetX, meterY, sweetW, meterHeight, r);
@@ -735,8 +732,8 @@
 
     // Fill bar (left-to-right)
     const fillW = meterWidth * throw_.meterFill;
-    const inSweet = throw_.meterFill >= difficulty.sweetMin && throw_.meterFill <= difficulty.sweetMax;
-    ctx.fillStyle = inSweet ? '#ffe600' : '#ff6b35';
+    const inSweetSpot = throw_.meterFill >= difficulty.sweetSpotMin && throw_.meterFill <= difficulty.sweetSpotMax;
+    ctx.fillStyle = inSweetSpot ? '#ffe600' : '#ff6b35';
     ctx.beginPath();
     ctx.roundRect(meterX, meterY, fillW, meterHeight, r);
     ctx.fill();
