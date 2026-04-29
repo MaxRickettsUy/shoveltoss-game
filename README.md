@@ -34,6 +34,19 @@ Right-click `index.html` → Open with Live Server.
 - The meter oscillates automatically. Release when the fill is in the **gold zone** (sweet spot) for the best throw.
 - Watch the console (`F12 → Console`) to see throw result data until the scoring system is implemented.
 
+## Global Leaderboard
+
+Global scores use Supabase. Run `supabase/migrations/20260428000000_create_high_scores.sql` in the Supabase SQL editor, then provide the project URL and anon key through config:
+
+```js
+localStorage.setItem('shoveltoss.supabaseUrl', 'https://YOUR_PROJECT.supabase.co');
+localStorage.setItem('shoveltoss.supabaseAnonKey', 'YOUR_ANON_KEY');
+```
+
+Deployments can set `window.SHOVELTOSS_SUPABASE_URL` and `window.SHOVELTOSS_SUPABASE_ANON_KEY` before the game script runs. If config is missing or the request fails, local scores still save and the global status shows offline.
+
+The weekly keep-alive workflow in `.github/workflows/supabase-keepalive.yml` fetches one score every Monday. Add repository secrets named `SUPABASE_URL` and `SUPABASE_ANON_KEY`.
+
 ## Controls
 
 | Action | Input |
