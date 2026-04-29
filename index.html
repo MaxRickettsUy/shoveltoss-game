@@ -12,7 +12,7 @@
 </head>
 <body>
 <canvas id="gameCanvas"></canvas>
-<script src="node_modules/@supabase/supabase-js/dist/umd/supabase.js"></script>
+<script type="module" src="src/globalScores.js"></script>
 <script>
   const canvas = document.getElementById('gameCanvas');
   const ctx = canvas.getContext('2d');
@@ -107,7 +107,6 @@
   const CHARACTER_RENDER_H = 150;
   const SHOVEL_RENDER_W = 40;
   const LIFE_ICON_W = 24;
-  const LOCAL_SCORES_KEY = 'shoveltoss.highScores';
   const LAST_NAME_KEY = 'shoveltoss.lastName';
   const GLOBAL_SCORE_LIMIT = 100;
 
@@ -165,7 +164,6 @@
   };
 
   const leaderboard = {
-    tab: 'local',
     globalRows: [],
     globalStatus: 'idle',
     globalError: ''
@@ -235,75 +233,6 @@
     updateDifficulty();
   }
 
-  // --- High scores ---
-  const highScores = {
-    list() {
-      try {
-        const rows = JSON.parse(localStorage.getItem(LOCAL_SCORES_KEY) || '[]');
-        return Array.isArray(rows)
-          ? rows
-              .filter(row => row && typeof row.name === 'string' && Number.isFinite(row.score))
-              .sort((a, b) => b.score - a.score || a.createdAt - b.createdAt)
-              .slice(0, 10)
-          : [];
-      } catch {
-        return [];
-      }
-    },
-    add(name, score) {
-      const cleanName = sanitizeName(name);
-      const row = {
-        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        name: cleanName,
-        score,
-        createdAt: Date.now()
-      };
-      let rows = [];
-      try {
-        const stored = JSON.parse(localStorage.getItem(LOCAL_SCORES_KEY) || '[]');
-        rows = Array.isArray(stored) ? stored : [];
-      } catch {
-        rows = [];
-      }
-      rows.push(row);
-      rows.sort((a, b) => b.score - a.score || a.createdAt - b.createdAt);
-      localStorage.setItem(LOCAL_SCORES_KEY, JSON.stringify(rows.slice(0, 50)));
-      localStorage.setItem(LAST_NAME_KEY, cleanName);
-      scoring.highScore = Math.max(scoring.highScore, rows[0]?.score || scoring.highScore);
-      return row;
-    }
-  };
-
-  const globalScores = {
-    client: null,
-    getClient() {
-      if (this.client) return this.client;
-      const url = window.SHOVELTOSS_SUPABASE_URL || localStorage.getItem('shoveltoss.supabaseUrl') || '';
-      const anonKey = window.SHOVELTOSS_SUPABASE_ANON_KEY || localStorage.getItem('shoveltoss.supabaseAnonKey') || '';
-      if (!url || !anonKey || !window.supabase?.createClient) {
-        throw new Error('offline');
-      }
-      this.client = window.supabase.createClient(url, anonKey);
-      return this.client;
-    },
-    async submit(name, score) {
-      const { error } = await this.getClient()
-        .from('high_scores')
-        .insert({ name: sanitizeName(name), score });
-      if (error) throw error;
-    },
-    async topN(n = GLOBAL_SCORE_LIMIT) {
-      const { data, error } = await this.getClient()
-        .from('high_scores')
-        .select('name, score, created_at')
-        .order('score', { ascending: false })
-        .order('created_at', { ascending: true })
-        .limit(n);
-      if (error) throw error;
-      return data || [];
-    }
-  };
-
   function sanitizeName(name) {
     const clean = String(name || '').trim().slice(0, 20);
     return clean || 'Player';
@@ -314,17 +243,12 @@
     return sanitizeName(window.prompt('Name for leaderboard:', lastName));
   }
 
-  function updateHighScoreFromLocal() {
-    scoring.highScore = highScores.list()[0]?.score || 0;
-  }
-
-  function openLeaderboard(tab = leaderboard.tab, fromState = run.state) {
+  function openLeaderboard(fromState = run.state) {
     run.lastStateBeforeLeaderboard = fromState === RUN_STATE.LEADERBOARD
       ? run.lastStateBeforeLeaderboard
       : fromState;
     run.state = RUN_STATE.LEADERBOARD;
-    leaderboard.tab = tab;
-    if (tab === 'global') fetchGlobalLeaderboard();
+    fetchGlobalLeaderboard();
   }
 
   function closeLeaderboard() {
@@ -335,7 +259,7 @@
     leaderboard.globalStatus = 'loading';
     leaderboard.globalError = '';
     try {
-      leaderboard.globalRows = await globalScores.topN(GLOBAL_SCORE_LIMIT);
+      leaderboard.globalRows = await window.globalScores.topN(GLOBAL_SCORE_LIMIT);
       leaderboard.globalStatus = 'ready';
     } catch {
       leaderboard.globalRows = [];
@@ -344,13 +268,13 @@
     }
   }
 
-  async function submitGlobalScore(name, score) {
+  async function submitGlobalScore(name, score, characterName) {
     gameOverSave.globalStatus = 'loading';
-    gameOverSave.globalMessage = 'Global: submitting...';
+    // gameOverSave.globalMessage = 'Global: submitting...';
     try {
       if (score <= 0) throw new Error('score');
-      await globalScores.submit(name, score);
-      const rows = await globalScores.topN(GLOBAL_SCORE_LIMIT);
+      await window.globalScores.submit(name, score, characterName);
+      const rows = await window.globalScores.topN(GLOBAL_SCORE_LIMIT);
       leaderboard.globalRows = rows;
       leaderboard.globalStatus = 'ready';
       const rank = rows.findIndex(row => score >= row.score);
@@ -360,7 +284,7 @@
         : `Global rank: #${rank + 1}`;
     } catch {
       gameOverSave.globalStatus = 'error';
-      gameOverSave.globalMessage = 'Global: offline';
+      // gameOverSave.globalMessage = 'Global: offline';
     }
   }
 
@@ -377,8 +301,8 @@
     const name = promptForScoreName();
     gameOverSave.completed = true;
     gameOverSave.name = name;
-    highScores.add(name, scoring.score);
-    submitGlobalScore(name, scoring.score);
+    localStorage.setItem(LAST_NAME_KEY, name);
+    submitGlobalScore(name, scoring.score, selectedCharacterId);
   }
 
   function resetRun() {
@@ -470,7 +394,7 @@
       if (selectLeaderboardRect &&
           lastPointerX >= selectLeaderboardRect.x && lastPointerX <= selectLeaderboardRect.x + selectLeaderboardRect.w &&
           lastPointerY >= selectLeaderboardRect.y && lastPointerY <= selectLeaderboardRect.y + selectLeaderboardRect.h) {
-        openLeaderboard('local', RUN_STATE.SELECTING);
+        openLeaderboard(RUN_STATE.SELECTING);
         return;
       }
       for (let i = 0; i < tileRects.length; i++) {
@@ -488,7 +412,7 @@
       if (gameOverLeaderboardRect &&
           lastPointerX >= gameOverLeaderboardRect.x && lastPointerX <= gameOverLeaderboardRect.x + gameOverLeaderboardRect.w &&
           lastPointerY >= gameOverLeaderboardRect.y && lastPointerY <= gameOverLeaderboardRect.y + gameOverLeaderboardRect.h) {
-        openLeaderboard('local', RUN_STATE.GAME_OVER);
+        openLeaderboard(RUN_STATE.GAME_OVER);
         return;
       }
       if (gameOverChangeRect &&
@@ -507,19 +431,6 @@
           lastPointerX >= leaderboardBackRect.x && lastPointerX <= leaderboardBackRect.x + leaderboardBackRect.w &&
           lastPointerY >= leaderboardBackRect.y && lastPointerY <= leaderboardBackRect.y + leaderboardBackRect.h) {
         closeLeaderboard();
-        return;
-      }
-      if (leaderboardTabRects.local &&
-          lastPointerX >= leaderboardTabRects.local.x && lastPointerX <= leaderboardTabRects.local.x + leaderboardTabRects.local.w &&
-          lastPointerY >= leaderboardTabRects.local.y && lastPointerY <= leaderboardTabRects.local.y + leaderboardTabRects.local.h) {
-        leaderboard.tab = 'local';
-        return;
-      }
-      if (leaderboardTabRects.global &&
-          lastPointerX >= leaderboardTabRects.global.x && lastPointerX <= leaderboardTabRects.global.x + leaderboardTabRects.global.w &&
-          lastPointerY >= leaderboardTabRects.global.y && lastPointerY <= leaderboardTabRects.global.y + leaderboardTabRects.global.h) {
-        leaderboard.tab = 'global';
-        fetchGlobalLeaderboard();
         return;
       }
       return;
@@ -870,23 +781,15 @@
     const pad = isPhoneLandscape ? 12 : 20;
     drawText('LEADERBOARD', cx, safeTop + titleSize, titleSize, '#ffffff', 'center', true);
 
-    const tabW = Math.min(150, (canvas.width - pad * 2) / 2);
-    const tabH = Math.max(36, canvas.height * 0.06);
-    const tabY = safeTop + titleSize + pad;
-    leaderboardTabRects = {
-      local: { x: cx - tabW, y: tabY, w: tabW, h: tabH },
-      global: { x: cx, y: tabY, w: tabW, h: tabH }
-    };
-    drawButton(leaderboardTabRects.local, 'Local', leaderboard.tab === 'local');
-    drawButton(leaderboardTabRects.global, 'Global', leaderboard.tab === 'global');
+    leaderboardTabRects = {};
 
-    const rows = leaderboard.tab === 'local' ? highScores.list() : leaderboard.globalRows;
-    const listTop = tabY + tabH + pad * 1.5;
+    const rows = leaderboard.globalRows;
+    const listTop = safeTop + titleSize + pad * 2;
     const lineH = rowSize + 10;
-    const maxRows = Math.max(1, Math.floor((canvas.height - listTop - pad * 4 - tabH) / lineH));
-    if (leaderboard.tab === 'global' && leaderboard.globalStatus === 'loading') {
+    const maxRows = Math.max(1, Math.floor((canvas.height - listTop - pad * 4) / lineH));
+    if (leaderboard.globalStatus === 'loading') {
       drawText('Loading...', cx, listTop + rowSize, rowSize, 'rgba(255,255,255,0.75)', 'center', false);
-    } else if (leaderboard.tab === 'global' && leaderboard.globalStatus === 'error') {
+    } else if (leaderboard.globalStatus === 'error') {
       drawText('offline', cx, listTop + rowSize, rowSize, '#ff8888', 'center', false);
     } else if (rows.length === 0) {
       drawText('No scores yet', cx, listTop + rowSize, rowSize, 'rgba(255,255,255,0.75)', 'center', false);
@@ -895,7 +798,8 @@
       const scoreX = Math.min(canvas.width - pad, cx + Math.min(260, canvas.width * 0.42));
       rows.slice(0, maxRows).forEach((row, index) => {
         const y = listTop + index * lineH;
-        drawText(`#${index + 1} ${row.name}`, leftX, y, rowSize, '#ffffff', 'left', false);
+        const characterName = row.character_name ? ` (${row.character_name})` : '';
+        drawText(`#${index + 1} ${row.name}${characterName}`, leftX, y, rowSize, '#ffffff', 'left', false);
         drawText(row.score, scoreX, y, rowSize, '#ffe600', 'right', true);
       });
     }
@@ -1004,25 +908,37 @@
     const restartSize = isPhoneLandscape
       ? Math.max(16, Math.floor(canvas.height * 0.05))
       : Math.max(18, Math.floor(canvas.width * 0.05));
-    drawText('GAME OVER', cx, safeTop + canvas.height * 0.38,
-      titleSize, '#ffffff', 'center', true);
-    drawText(`Score: ${scoring.score}`, cx, safeTop + canvas.height * 0.49,
-      scoreSize, '#ffe600', 'center', false);
-    drawText(`${scoring.hitsInRun} of ${run.throwCount} throws landed`, cx, safeTop + canvas.height * 0.57,
-      statsSize, 'rgba(255,255,255,0.7)', 'center', false);
-    if (gameOverSave.globalMessage) {
-      const color = gameOverSave.globalStatus === 'error' ? '#ff8888' : 'rgba(255,255,255,0.78)';
-      drawText(gameOverSave.globalMessage, cx, safeTop + canvas.height * 0.64,
-        statsSize, color, 'center', false);
-    }
-    drawText('Tap to Restart', cx, safeTop + canvas.height * 0.71,
-      restartSize, 'rgba(255,255,255,0.7)', 'center', false);
-    const buttonW = Math.min(240, canvas.width * 0.62);
+    const titleY = isPhoneLandscape ? safeTop + canvas.height * 0.20 : safeTop + canvas.height * 0.34;
+    const scoreY = isPhoneLandscape ? safeTop + canvas.height * 0.34 : safeTop + canvas.height * 0.43;
+    const globalY = isPhoneLandscape ? safeTop + canvas.height * 0.48 : safeTop + canvas.height * 0.53;
+    const buttonW = isPhoneLandscape
+      ? Math.min(210, (canvas.width - HUD_PAD * 3) / 2)
+      : Math.min(240, canvas.width * 0.62);
     const buttonH = Math.max(42, canvas.height * 0.07);
     const buttonGap = Math.max(8, canvas.height * 0.015);
-    const topButtonY = safeTop + canvas.height * 0.77;
-    gameOverLeaderboardRect = { x: cx - buttonW / 2, y: topButtonY, w: buttonW, h: buttonH };
-    gameOverChangeRect = { x: cx - buttonW / 2, y: topButtonY + buttonH + buttonGap, w: buttonW, h: buttonH };
+    const topButtonY = isPhoneLandscape
+      ? canvas.height - safeTop - buttonH
+      : safeTop + canvas.height * 0.77;
+    const restartY = isPhoneLandscape ? topButtonY - 12 : safeTop + canvas.height * 0.61;
+    drawText('GAME OVER', cx, titleY,
+      titleSize, '#ffffff', 'center', true);
+    drawText(`Score: ${scoring.score}`, cx, scoreY,
+      scoreSize, '#ffe600', 'center', false);
+    if (gameOverSave.globalMessage) {
+      const color = gameOverSave.globalStatus === 'error' ? '#ff8888' : 'rgba(255,255,255,0.78)';
+      drawText(gameOverSave.globalMessage, cx, globalY,
+        statsSize, color, 'center', false);
+    }
+    drawText('Tap to Restart', cx, restartY,
+      restartSize, 'rgba(255,255,255,0.7)', 'center', false);
+    if (isPhoneLandscape) {
+      const rowX = cx - buttonW - buttonGap / 2;
+      gameOverLeaderboardRect = { x: rowX, y: topButtonY, w: buttonW, h: buttonH };
+      gameOverChangeRect = { x: rowX + buttonW + buttonGap, y: topButtonY, w: buttonW, h: buttonH };
+    } else {
+      gameOverLeaderboardRect = { x: cx - buttonW / 2, y: topButtonY, w: buttonW, h: buttonH };
+      gameOverChangeRect = { x: cx - buttonW / 2, y: topButtonY + buttonH + buttonGap, w: buttonW, h: buttonH };
+    }
     drawButton(gameOverLeaderboardRect, 'Leaderboard');
     drawButton(gameOverChangeRect, 'Change Character');
   }
@@ -1032,7 +948,6 @@
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) lastTimestamp = null;
   });
-  updateHighScoreFromLocal();
   updateLayout();
   requestAnimationFrame(gameLoop);
 </script>
