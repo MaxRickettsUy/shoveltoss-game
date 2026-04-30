@@ -27,10 +27,24 @@
     characterReady = true;
   };
 
-  const pitImg = new Image();
+  const pitBackImg = new Image();
+  const pitFrontImg = new Image();
   let pitReady = false;
-  pitImg.onload = () => { pitReady = true; if (canvas.width > 0) updateLayout(); };
-  pitImg.src = 'assets/pit.png';
+  let pitBackReady = false;
+  let pitFrontReady = false;
+  function onPitLayerLoad() {
+    pitReady = pitBackReady && pitFrontReady;
+    if (pitReady && canvas.width > 0) updateLayout();
+  }
+  pitBackImg.onload = () => { pitBackReady = true; onPitLayerLoad(); };
+  pitFrontImg.onload = () => { pitFrontReady = true; onPitLayerLoad(); };
+  pitBackImg.src = 'assets/pit-back.png';
+  pitFrontImg.src = 'assets/pit-front.png';
+
+  const dustPuffImg = new Image();
+  let dustPuffReady = false;
+  dustPuffImg.onload = () => { dustPuffReady = true; };
+  dustPuffImg.src = 'assets/dust-puff.png';
 
   const shovelImg = new Image();
   let shovelReady = false;
@@ -108,6 +122,11 @@
   const CHARACTER_RENDER_H = 150;
   const SHOVEL_RENDER_W = 40;
   const LIFE_ICON_W = 24;
+  const DUST_PUFF_FRAMES = 3;
+  const DUST_PUFF_DURATION = 250;
+  const DUST_PUFF_W = 54;
+  const DUST_PUFF_H = 27;
+  const PIT_LANDING_VISUAL_ASSET_OFFSET = 270;
   const LAST_NAME_KEY = 'shoveltoss.lastName';
   const GLOBAL_SCORE_LIMIT = 100;
 
@@ -144,7 +163,8 @@
     originY:     0,
     resetEndTime: 0,
     bounced: false,
-    angle: 0
+    angle: 0,
+    landedInPit: false
   };
 
   const scoring = {
@@ -153,6 +173,14 @@
     lastThrowPoints: 0,
     lastThrowZone:   '',
     feedbackTimer:   0
+  };
+
+  const dustPuff = {
+    active: false,
+    x: 0,
+    y: 0,
+    age: 0,
+    frame: 0
   };
 
   const difficulty = {
@@ -223,7 +251,7 @@
     pitRight = wallX;
     if (pitReady) {
       const dW = canvas.width - pitLeft;
-      wallTopY = groundY - dW * pitImg.naturalHeight / pitImg.naturalWidth;
+      wallTopY = groundY - dW * pitBackImg.naturalHeight / pitBackImg.naturalWidth;
     }
   }
 
@@ -318,6 +346,8 @@
     scoring.lastThrowPoints = 0;
     scoring.lastThrowZone   = '';
     scoring.feedbackTimer   = 0;
+    dustPuff.active = false;
+    dustPuff.age    = 0;
     gameOverSave.completed     = false;
     gameOverSave.name          = '';
     gameOverSave.globalStatus  = 'idle';
@@ -325,6 +355,7 @@
     throw_.inSweetSpot      = false;
     throw_.bounced          = false;
     throw_.angle            = 0;
+    throw_.landedInPit      = false;
     resetDifficultyRamp();
   }
 
@@ -377,6 +408,20 @@
     if (run.missesRemaining === 0) {
       endRun(timestamp);
     }
+  }
+
+  function spawnDustPuff(x, y) {
+    dustPuff.active = true;
+    dustPuff.x = x;
+    dustPuff.y = y;
+    dustPuff.age = 0;
+    dustPuff.frame = 0;
+  }
+
+  function getPitLandingVisualYOffset() {
+    if (!pitReady) return 0;
+    const pitScale = (canvas.width - pitLeft) / pitBackImg.naturalWidth;
+    return PIT_LANDING_VISUAL_ASSET_OFFSET * pitScale;
   }
 
   // --- Input ---
@@ -465,6 +510,7 @@
     throw_.flightTime = 0;
     throw_.bounced    = false;
     throw_.angle      = 0;
+    throw_.landedInPit = false;
   }
 
   let lastPointerX = 0;
@@ -549,9 +595,13 @@
           power:              throw_.power,
           inSweetSpot:        throw_.inSweetSpot
         };
+        if (result.inPit) {
+          spawnDustPuff(result.x, groundY - getPitLandingVisualYOffset());
+        }
         onThrowResult(result, timestamp);
 
         throw_.state        = STATE.RESETTING;
+        throw_.landedInPit  = result.inPit;
         throw_.resetEndTime = timestamp + RESET_DELAY;
       }
     }
@@ -559,6 +609,17 @@
     // Feedback timer
     if (scoring.feedbackTimer > 0) {
       scoring.feedbackTimer = Math.max(0, scoring.feedbackTimer - dt * 1000);
+    }
+
+    if (dustPuff.active) {
+      dustPuff.age += dt * 1000;
+      dustPuff.frame = Math.min(
+        DUST_PUFF_FRAMES - 1,
+        Math.floor((dustPuff.age / DUST_PUFF_DURATION) * DUST_PUFF_FRAMES)
+      );
+      if (dustPuff.age >= DUST_PUFF_DURATION) {
+        dustPuff.active = false;
+      }
     }
 
     // Reset after pause
@@ -613,6 +674,39 @@
     }
   }
 
+  function drawPitLayer(img) {
+    const dW = canvas.width - pitLeft;
+    const dH = dW * img.naturalHeight / img.naturalWidth;
+    ctx.drawImage(img, pitLeft, groundY - dH, dW, dH);
+  }
+
+  function drawPitFallback() {
+    const pitDepth = 20;
+    ctx.fillStyle = '#2c1810';
+    ctx.fillRect(pitLeft, groundY, pitRight - pitLeft, pitDepth);
+    ctx.strokeStyle = '#8b6914';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(pitLeft, groundY, pitRight - pitLeft, pitDepth);
+  }
+
+  function drawDustPuff() {
+    if (!dustPuff.active) return;
+    if (dustPuffReady) {
+      const frameW = dustPuffImg.naturalWidth / DUST_PUFF_FRAMES;
+      ctx.drawImage(
+        dustPuffImg,
+        dustPuff.frame * frameW, 0, frameW, dustPuffImg.naturalHeight,
+        dustPuff.x - DUST_PUFF_W / 2, dustPuff.y - DUST_PUFF_H / 2,
+        DUST_PUFF_W, DUST_PUFF_H
+      );
+    } else {
+      ctx.fillStyle = 'rgba(186, 147, 92, 0.7)';
+      ctx.beginPath();
+      ctx.ellipse(dustPuff.x, dustPuff.y, DUST_PUFF_W / 2, DUST_PUFF_H / 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
   // --- Drawing ---
   function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -620,18 +714,11 @@
     // Background
     drawBackground();
 
-    // Pit zone
+    // Pit back
     if (pitReady) {
-      const dW = canvas.width - pitLeft;
-      const dH = dW * pitImg.naturalHeight / pitImg.naturalWidth;
-      ctx.drawImage(pitImg, pitLeft, groundY - dH, dW, dH);
+      drawPitLayer(pitBackImg);
     } else {
-      const pitDepth = 20;
-      ctx.fillStyle = '#2c1810';
-      ctx.fillRect(pitLeft, groundY, pitRight - pitLeft, pitDepth);
-      ctx.strokeStyle = '#8b6914';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(pitLeft, groundY, pitRight - pitLeft, pitDepth);
+      drawPitFallback();
     }
 
     // Player
@@ -654,7 +741,10 @@
     // Shovel (during flight and brief reset pause)
     if (throw_.state === STATE.FLYING || throw_.state === STATE.RESETTING) {
       ctx.save();
-      ctx.translate(throw_.shovelX, throw_.shovelY);
+      const shovelDrawY = throw_.state === STATE.RESETTING && throw_.landedInPit
+        ? throw_.shovelY - getPitLandingVisualYOffset()
+        : throw_.shovelY;
+      ctx.translate(throw_.shovelX, shovelDrawY);
       ctx.rotate(throw_.angle);
       if (shovelReady) {
         const dH = SHOVEL_RENDER_W * shovelImg.naturalHeight / shovelImg.naturalWidth;
@@ -667,6 +757,13 @@
       }
       ctx.restore();
     }
+
+    // Pit front rim
+    if (pitReady) {
+      drawPitLayer(pitFrontImg);
+    }
+
+    drawDustPuff();
 
     // Throw meter (visible while charging or flying)
     if (throw_.state === STATE.CHARGING || throw_.state === STATE.FLYING) {
