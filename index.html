@@ -94,13 +94,15 @@
   const PIT_WIDTH_LANDSCAPE = 0.22;  // pit width as fraction of canvas in landscape
   const PIT_WIDTH_PORTRAIT  = 0.44;  // pit width as fraction of canvas in portrait
   const SWEET_SPOT_CENTER    = 0.50;
+  const SWEET_CENTER_MIN = 0.30;
+  const SWEET_CENTER_MAX = 0.85;
   const SWEET_SPOT_HALF_START = 0.10;
   const RESET_DELAY = 500;           // ms pause after landing
   const MISSES_PER_RUN = 3;
   const GAME_OVER_GUARD = 500;       // ms input guard after game over
   const PTS_STICK           = 3;
-  const PTS_BACK_WALL       = 2;
-  const PTS_IN_PIT          = 1;
+  const PTS_BACK_WALL       = 1;
+  const PTS_IN_PIT          = 0;
   const PTS_FRONT_WALL      = 0;
   const PTS_MISS            = -2;
   const ZONE_FRONT_WALL_MAX = 0.10;
@@ -150,6 +152,7 @@
     state:       STATE.IDLE,
     meterFill:   0,
     meterDir:    1,
+    sweetCenter: SWEET_SPOT_CENTER,
     power:       0,
     inSweetSpot: false,
     shovelX:     0,
@@ -234,13 +237,17 @@
   }
 
   // --- Difficulty ---
+  function updateSweetSpotBounds() {
+    const half = difficulty.sweetSpotWidth / 2;
+    difficulty.sweetSpotMin = throw_.sweetCenter - half;
+    difficulty.sweetSpotMax = throw_.sweetCenter + half;
+  }
+
   function updateDifficulty() {
     const aspect = canvas.height / canvas.width;
     const tA = Math.max(0, Math.min(1, (aspect - ASPECT_LANDSCAPE) / (ASPECT_PORTRAIT - ASPECT_LANDSCAPE)));
     difficulty.pitWidth = PIT_WIDTH_LANDSCAPE + tA * (PIT_WIDTH_PORTRAIT - PIT_WIDTH_LANDSCAPE);
-    const half = difficulty.sweetSpotWidth / 2;
-    difficulty.sweetSpotMin = SWEET_SPOT_CENTER - half;
-    difficulty.sweetSpotMax = SWEET_SPOT_CENTER + half;
+    updateSweetSpotBounds();
     const halfWidth = canvas.width * difficulty.pitWidth / 2;
     pitLeft  = pitCenterX - halfWidth;
     wallX    = canvas.width - WALL_THICKNESS;
@@ -336,6 +343,7 @@
     throw_.state         = STATE.IDLE;
     throw_.meterFill     = 0;
     throw_.meterDir      = 1;
+    throw_.sweetCenter   = SWEET_SPOT_CENTER;
     throw_.power         = 0;
     scoring.score           = 0;
     scoring.hitsInRun       = 0;
@@ -479,18 +487,21 @@
     throw_.state     = STATE.CHARGING;
     throw_.meterFill = 0;
     throw_.meterDir  = 1;
+    throw_.sweetCenter = SWEET_CENTER_MIN + Math.random() * (SWEET_CENTER_MAX - SWEET_CENTER_MIN);
+    updateSweetSpotBounds();
     throw_.inSweetSpot = false;
   }
 
   function onPressEnd() {
     if (throw_.state !== STATE.CHARGING) return;
     const f = throw_.meterFill;
+    const sweetCenter = throw_.sweetCenter;
     throw_.inSweetSpot = f >= difficulty.sweetSpotMin && f <= difficulty.sweetSpotMax;
     let throwMultiplier;
-    if (f < SWEET_SPOT_CENTER) {
-      throwMultiplier = THROW_MULT_MIN + (f / SWEET_SPOT_CENTER) * (1 - THROW_MULT_MIN);
+    if (f < sweetCenter) {
+      throwMultiplier = THROW_MULT_MIN + (f / sweetCenter) * (1 - THROW_MULT_MIN);
     } else {
-      const overPower = (f - SWEET_SPOT_CENTER) / (1 - SWEET_SPOT_CENTER);
+      const overPower = (f - sweetCenter) / (1 - sweetCenter);
       throwMultiplier = 1 + overPower * overPower * (THROW_MULT_MAX - 1);
     }
     throw_.power = (throwMultiplier - THROW_MULT_MIN) / (THROW_MULT_MAX - THROW_MULT_MIN);
