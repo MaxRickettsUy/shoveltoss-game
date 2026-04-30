@@ -81,22 +81,19 @@
   let tileRects = [];
 
   // --- Constants ---
-  const ANGLE_LANDSCAPE  = Math.PI * 35 / 180;
-  const ANGLE_PORTRAIT   = Math.PI * 65 / 180;
   const ASPECT_LANDSCAPE = 0.6;
   const ASPECT_PORTRAIT  = 1.5;
-  const V_MIN = 300;                 // px/s, weak lob
-  const V_MAX = 800;                 // px/s, full send
-  const G = 600;                     // px/s², gravity
+  const THROW_MULT_MIN = 0.25;
+  const THROW_MULT_MAX = 2.6;
+  const THROW_DURATION = 0.6;         // seconds from launch to landing
+  const THROW_PEAK_RATIO = 0.4;
   const METER_CYCLE_TIME = 0.85;     // seconds per full meter cycle
   const METER_SPEED = 2 / METER_CYCLE_TIME;
   const METER_SPEED_INCREMENT_PER_THROW = 0.15;
   const PIT_WIDTH_LANDSCAPE = 0.22;  // pit width as fraction of canvas in landscape
   const PIT_WIDTH_PORTRAIT  = 0.44;  // pit width as fraction of canvas in portrait
-  const SWEET_SPOT_CENTER    = 0.80;
+  const SWEET_SPOT_CENTER    = 0.50;
   const SWEET_SPOT_HALF_START = 0.10;
-  const POWER_AT_SWEET_SPOT_LANDSCAPE = 0.55;
-  const POWER_AT_SWEET_SPOT_PORTRAIT  = 0.33;
   const RESET_DELAY = 500;           // ms pause after landing
   const MISSES_PER_RUN = 3;
   const GAME_OVER_GUARD = 500;       // ms input guard after game over
@@ -157,10 +154,12 @@
     shovelX:     0,
     shovelY:     0,
     flightTime:  0,
-    launchVX:    0,
-    launchVY:    0,
     originX:     0,
     originY:     0,
+    landingX:    0,
+    landingY:    0,
+    peakHeight:  0,
+    duration:    THROW_DURATION,
     resetEndTime: 0,
     bounced: false,
     angle: 0,
@@ -211,7 +210,7 @@
   let groundY, playerX, playerY;
   let pitLeft, pitRight, pitCenterX, wallX, wallTopY;
   let meterX, meterY, meterWidth, meterHeight;
-  let safeTop, throwAngle, powerAtSweetSpot;
+  let safeTop;
 
   function updateLayout() {
     canvas.width = window.innerWidth;
@@ -220,10 +219,6 @@
     safeTop  = Math.max(20, canvas.height * 0.04);
     groundY  = canvas.height * 0.82;
     wallTopY = groundY - canvas.height * WALL_HEIGHT_FRACTION;
-    const aspect = canvas.height / canvas.width;
-    const tA = Math.max(0, Math.min(1, (aspect - ASPECT_LANDSCAPE) / (ASPECT_PORTRAIT - ASPECT_LANDSCAPE)));
-    throwAngle = ANGLE_LANDSCAPE + tA * (ANGLE_PORTRAIT - ANGLE_LANDSCAPE);
-    powerAtSweetSpot = POWER_AT_SWEET_SPOT_LANDSCAPE + tA * (POWER_AT_SWEET_SPOT_PORTRAIT - POWER_AT_SWEET_SPOT_LANDSCAPE);
     playerX  = canvas.width  * 0.10;
     playerY  = groundY;
 
@@ -490,21 +485,24 @@
     if (throw_.state !== STATE.CHARGING) return;
     const f = throw_.meterFill;
     throw_.inSweetSpot = f >= difficulty.sweetSpotMin && f <= difficulty.sweetSpotMax;
+    let throwMultiplier;
     if (f < SWEET_SPOT_CENTER) {
-      throw_.power = (f / SWEET_SPOT_CENTER) * powerAtSweetSpot;
+      throwMultiplier = THROW_MULT_MIN + (f / SWEET_SPOT_CENTER) * (1 - THROW_MULT_MIN);
     } else {
-      throw_.power = powerAtSweetSpot
-        + ((f - SWEET_SPOT_CENTER) / (1 - SWEET_SPOT_CENTER)) * (1 - powerAtSweetSpot);
+      const overPower = (f - SWEET_SPOT_CENTER) / (1 - SWEET_SPOT_CENTER);
+      throwMultiplier = 1 + overPower * overPower * (THROW_MULT_MAX - 1);
     }
+    throw_.power = (throwMultiplier - THROW_MULT_MIN) / (THROW_MULT_MAX - THROW_MULT_MIN);
     throw_.state = STATE.FLYING;
 
-    const V = V_MIN + throw_.power * (V_MAX - V_MIN);
-    throw_.launchVX = V * Math.cos(throwAngle);
-    throw_.launchVY = V * Math.sin(throwAngle);
-
     // Launch from player's hand height (top of player rect)
+    const pitDistance = pitCenterX - playerX;
     throw_.originX    = playerX;
     throw_.originY    = playerY - 50;
+    throw_.landingX   = playerX + pitDistance * throwMultiplier;
+    throw_.landingY   = groundY;
+    throw_.peakHeight = pitDistance * THROW_PEAK_RATIO;
+    throw_.duration   = THROW_DURATION;
     throw_.shovelX    = throw_.originX;
     throw_.shovelY    = throw_.originY;
     throw_.flightTime = 0;
@@ -563,19 +561,21 @@
     // Update projectile position
     if (throw_.state === STATE.FLYING) {
       throw_.flightTime += dt;
-      const t = throw_.flightTime;
-      throw_.shovelX = throw_.originX + throw_.launchVX * t;
-      throw_.shovelY = throw_.originY - (throw_.launchVY * t - 0.5 * G * t * t);
+      const t = Math.min(throw_.flightTime / throw_.duration, 1);
+      throw_.shovelX = throw_.originX + (throw_.landingX - throw_.originX) * t;
+      throw_.shovelY = throw_.originY + (throw_.landingY - throw_.originY) * t
+        - throw_.peakHeight * 4 * t * (1 - t);
 
       // Wall bounce
       if (!throw_.bounced && throw_.shovelX >= wallX) {
         if (throw_.shovelY >= wallTopY && throw_.shovelY < groundY) {
-          const vy = throw_.launchVY - G * throw_.flightTime;
-          throw_.shovelX    = wallX;
-          throw_.originX    = throw_.shovelX;
-          throw_.originY    = throw_.shovelY;
-          throw_.launchVX   = -Math.abs(throw_.launchVX) * BOUNCE_DAMPING;
-          throw_.launchVY   = vy;
+          const bounceLandingX = wallX - Math.abs(throw_.landingX - wallX) * BOUNCE_DAMPING;
+          throw_.shovelX = wallX;
+          throw_.originX = throw_.shovelX;
+          throw_.originY = throw_.shovelY;
+          throw_.landingX = bounceLandingX;
+          throw_.peakHeight = Math.abs(throw_.landingX - throw_.originX) * THROW_PEAK_RATIO;
+          throw_.duration = Math.max(THROW_DURATION * (1 - t), 0.12);
           throw_.flightTime = 0;
         }
         throw_.bounced = true;
@@ -584,7 +584,7 @@
       throw_.angle += SHOVEL_ROT_RATE * dt;
 
       // Landing detection
-      if (throw_.shovelY >= groundY) {
+      if (t >= 1) {
         throw_.shovelY = groundY;
 
         const result = {
