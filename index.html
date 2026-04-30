@@ -118,8 +118,6 @@
   const METER_HEIGHT_FRACTION = 0.06;
   const METER_WIDTH_FRACTION = 0.385;
   const SWEET_SPOT_WIDTH = (SWEET_SPOT_HALF_START * 2) * 0.35;
-  const SWEET_SPOT_SHRINK_PER_STICK = 0.008;
-  const SWEET_SPOT_MIN_WIDTH = 0.03;
   const WALL_HEIGHT_FRACTION = 0.30;
   const CHARACTER_RENDER_H = 150;
   const SHOVEL_RENDER_W = 40;
@@ -131,6 +129,8 @@
   const PIT_LANDING_VISUAL_ASSET_OFFSET = 270;
   const USERNAME_KEY = 'shoveltoss.username';
   const GLOBAL_SCORE_LIMIT = 100;
+  const HIGH_SCORE_NAME_EMOJI = '👑';
+  const CURRENT_HIGH_SCORE_EMOJI = '👑';
 
   const username = {
     get() {
@@ -294,6 +294,7 @@
     leaderboard.globalStatus = 'loading';
     leaderboard.globalError = '';
     try {
+      if (!window.globalScores) throw new Error('offline');
       leaderboard.globalRows = await window.globalScores.topN(GLOBAL_SCORE_LIMIT);
       leaderboard.globalStatus = 'ready';
     } catch {
@@ -301,6 +302,29 @@
       leaderboard.globalStatus = 'error';
       leaderboard.globalError = 'offline';
     }
+  }
+
+  function fetchGlobalLeaderboardWhenReady(attemptsRemaining = 20) {
+    if (window.globalScores) {
+      fetchGlobalLeaderboard();
+      return;
+    }
+    if (attemptsRemaining <= 0) {
+      leaderboard.globalStatus = 'error';
+      leaderboard.globalError = 'offline';
+      return;
+    }
+    setTimeout(() => fetchGlobalLeaderboardWhenReady(attemptsRemaining - 1), 100);
+  }
+
+  function getScoreLeaderName() {
+    if (leaderboard.globalStatus !== 'ready' || leaderboard.globalRows.length === 0) return null;
+    return String(leaderboard.globalRows[0].name || '').trim();
+  }
+
+  function isScoreLeaderUsername(name) {
+    const leaderName = getScoreLeaderName();
+    return !!leaderName && String(name || '').trim() === leaderName;
   }
 
   async function submitGlobalScore(name, score, characterName) {
@@ -480,12 +504,8 @@
     scoring.feedbackTimer  = FEEDBACK_DURATION;
 
     run.throwCount++;
-    difficulty.meterSpeed += METER_SPEED_INCREMENT_PER_THROW;
     if (zone === 'stick') {
-      difficulty.sweetSpotWidth = Math.max(
-        difficulty.sweetSpotWidth - SWEET_SPOT_SHRINK_PER_STICK,
-        SWEET_SPOT_MIN_WIDTH
-      );
+      difficulty.meterSpeed += METER_SPEED_INCREMENT_PER_THROW;
     }
     if (zone === 'miss') {
       run.missesRemaining--;
@@ -892,7 +912,9 @@
       : Math.max(16, Math.floor(canvas.width * 0.045));
     drawText(scoring.score, HUD_PAD, hudY, hudFontSize, '#ffffff', 'left', true);
     drawLifeIcons(HUD_PAD, hudY + subFontSize + 8);
-    drawText(username.get(), canvas.width - HUD_PAD, hudY, subFontSize, '#ffffff', 'right', true);
+    const playerName = username.get();
+    const highScoreBadge = isScoreLeaderUsername(playerName) ? `${CURRENT_HIGH_SCORE_EMOJI} ` : '';
+    drawText(`${highScoreBadge}${playerName}`, canvas.width - HUD_PAD, hudY, subFontSize, '#ffffff', 'right', true);
 
     // Throw feedback text
     if (scoring.feedbackTimer > 0) {
@@ -1015,7 +1037,8 @@
       rows.slice(0, maxRows).forEach((row, index) => {
         const y = listTop + index * lineH;
         const characterName = row.character_name ? ` (${row.character_name})` : '';
-        drawText(`#${index + 1} ${row.name}${characterName}`, leftX, y, rowSize, '#ffffff', 'left', false);
+        const highScoreBadge = index === 0 ? ` ${HIGH_SCORE_NAME_EMOJI}` : '';
+        drawText(`#${index + 1} ${row.name}${characterName}${highScoreBadge}`, leftX, y, rowSize, '#ffffff', 'left', false);
         drawText(row.score, scoreX, y, rowSize, '#ffe600', 'right', true);
       });
     }
@@ -1182,6 +1205,7 @@
     if (document.hidden) lastTimestamp = null;
   });
   updateLayout();
+  fetchGlobalLeaderboardWhenReady();
   if (run.state === RUN_STATE.USERNAME) openUsernameOverlay(RUN_STATE.SELECTING);
   requestAnimationFrame(gameLoop);
 </script>
