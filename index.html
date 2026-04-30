@@ -60,7 +60,6 @@
     { id: 'Wagie',    hero: 'assets/character/wagie/hero.png',    sprite: 'assets/character/wagie/sprite-sheet.png' },
     { id: 'Chef',     hero: 'assets/character/chef/hero.png',     sprite: 'assets/character/chef/sprite-sheet.png' },
     { id: 'Chuggo',   hero: 'assets/character/chuggo/hero.png',   sprite: 'assets/character/chuggo/sprite-sheet.png' },
-    // { id: 'Princess', hero: 'assets/character/princess/hero.png', sprite: 'assets/character/princess/sprite-sheet.png' },
     { id: 'Shrek',    hero: 'assets/character/shrek/hero.png',    sprite: 'assets/character/shrek/sprite-sheet.png' },
     { id: 'Luchador',    hero: 'assets/character/luchador/hero.png',    sprite: 'assets/character/luchador/sprite-sheet.png' },
     { id: "Buck", hero: 'assets/character/buck/hero.png', sprite: 'assets/character/buck/sprite-sheet.png' },
@@ -73,7 +72,6 @@
   let usernameOverlayEl = null;
   let selectLeaderboardRect = null;
   let leaderboardBackRect = null;
-  let leaderboardTabRects = {};
   const heroImages = {};
   CHARACTERS.forEach(c => {
     const img = new Image();
@@ -129,8 +127,7 @@
   const PIT_LANDING_VISUAL_ASSET_OFFSET = 270;
   const USERNAME_KEY = 'shoveltoss.username';
   const GLOBAL_SCORE_LIMIT = 100;
-  const HIGH_SCORE_NAME_EMOJI = '👑';
-  const CURRENT_HIGH_SCORE_EMOJI = '👑';
+  const HIGH_SCORE_BADGE = '👑';
 
   const username = {
     get() {
@@ -167,7 +164,6 @@
     meterFill:   0,
     meterDir:    1,
     sweetCenter: SWEET_SPOT_CENTER,
-    power:       0,
     inSweetSpot: false,
     shovelX:     0,
     shovelY:     0,
@@ -186,7 +182,6 @@
 
   const scoring = {
     score:           0,
-    hitsInRun:       0,
     lastThrowPoints: 0,
     lastThrowZone:   '',
     feedbackTimer:   0
@@ -216,7 +211,6 @@
 
   const gameOverSave = {
     completed: false,
-    name: '',
     globalStatus: 'idle',
     globalMessage: ''
   };
@@ -329,7 +323,6 @@
 
   async function submitGlobalScore(name, score, characterName) {
     gameOverSave.globalStatus = 'loading';
-    // gameOverSave.globalMessage = 'Global: submitting...';
     try {
       if (score <= 0) throw new Error('score');
       await window.globalScores.submit(name, score, characterName);
@@ -343,7 +336,6 @@
         : `Global rank: #${rank + 1}`;
     } catch {
       gameOverSave.globalStatus = 'error';
-      // gameOverSave.globalMessage = 'Global: offline';
     }
   }
 
@@ -360,7 +352,6 @@
     const name = username.get();
     if (!name) return;
     gameOverSave.completed = true;
-    gameOverSave.name = name;
     submitGlobalScore(name, scoring.score, selectedCharacterId);
   }
 
@@ -449,16 +440,13 @@
     throw_.meterFill     = 0;
     throw_.meterDir      = 1;
     throw_.sweetCenter   = SWEET_SPOT_CENTER;
-    throw_.power         = 0;
     scoring.score           = 0;
-    scoring.hitsInRun       = 0;
     scoring.lastThrowPoints = 0;
     scoring.lastThrowZone   = '';
     scoring.feedbackTimer   = 0;
     dustPuff.active = false;
     dustPuff.age    = 0;
     gameOverSave.completed     = false;
-    gameOverSave.name          = '';
     gameOverSave.globalStatus  = 'idle';
     gameOverSave.globalMessage = '';
     throw_.inSweetSpot      = false;
@@ -470,8 +458,6 @@
 
   // --- Result hook ---
   function onThrowResult(result, timestamp) {
-    console.log('Throw result:', result);
-
     // Scoring
     let zone, basePoints;
 
@@ -491,14 +477,7 @@
       }
     }
 
-    if (basePoints > 0) {
-      scoring.hitsInRun++;
-      scoring.lastThrowPoints = basePoints;
-    } else {
-      scoring.lastThrowPoints = basePoints;
-      if (zone !== 'miss') scoring.hitsInRun++;
-    }
-
+    scoring.lastThrowPoints = basePoints;
     scoring.lastThrowZone  = zone;
     scoring.score         += scoring.lastThrowPoints;
     scoring.feedbackTimer  = FEEDBACK_DURATION;
@@ -612,7 +591,6 @@
       const overPower = (f - sweetCenter) / (1 - sweetCenter);
       throwMultiplier = 1 + overPower * overPower * (THROW_MULT_MAX - 1);
     }
-    throw_.power = (throwMultiplier - THROW_MULT_MIN) / (THROW_MULT_MAX - THROW_MULT_MIN);
     throw_.state = STATE.FLYING;
 
     // Launch from player's hand height (top of player rect)
@@ -711,12 +689,9 @@
         throw_.shovelY = groundY;
 
         const result = {
-          landed:             true,
-          x:                  throw_.shovelX,
-          inPit:              throw_.shovelX >= pitLeft && throw_.shovelX <= pitRight,
-          distanceFromCenter: throw_.shovelX - pitCenterX,
-          power:              throw_.power,
-          inSweetSpot:        throw_.inSweetSpot
+          x:           throw_.shovelX,
+          inPit:       throw_.shovelX >= pitLeft && throw_.shovelX <= pitRight,
+          inSweetSpot: throw_.inSweetSpot
         };
         if (result.inPit) {
           spawnDustPuff(result.x, groundY - getPitLandingVisualYOffset());
@@ -749,7 +724,6 @@
     if (throw_.state === STATE.RESETTING && timestamp >= throw_.resetEndTime) {
       throw_.meterFill = 0;
       throw_.meterDir  = 1;
-      throw_.power     = 0;
       throw_.state     = STATE.IDLE;
       updateDifficulty(); // apply difficulty for next throw (throwCount already incremented)
     }
@@ -913,7 +887,7 @@
     drawText(scoring.score, HUD_PAD, hudY, hudFontSize, '#ffffff', 'left', true);
     drawLifeIcons(HUD_PAD, hudY + subFontSize + 8);
     const playerName = username.get();
-    const highScoreBadge = isScoreLeaderUsername(playerName) ? `${CURRENT_HIGH_SCORE_EMOJI} ` : '';
+    const highScoreBadge = isScoreLeaderUsername(playerName) ? `${HIGH_SCORE_BADGE} ` : '';
     drawText(`${highScoreBadge}${playerName}`, canvas.width - HUD_PAD, hudY, subFontSize, '#ffffff', 'right', true);
 
     // Throw feedback text
@@ -1019,8 +993,6 @@
     const pad = isPhoneLandscape ? 12 : 20;
     drawText('LEADERBOARD', cx, safeTop + titleSize, titleSize, '#ffffff', 'center', true);
 
-    leaderboardTabRects = {};
-
     const rows = leaderboard.globalRows;
     const listTop = safeTop + titleSize + pad * 2;
     const lineH = rowSize + 10;
@@ -1037,7 +1009,7 @@
       rows.slice(0, maxRows).forEach((row, index) => {
         const y = listTop + index * lineH;
         const characterName = row.character_name ? ` (${row.character_name})` : '';
-        const highScoreBadge = index === 0 ? ` ${HIGH_SCORE_NAME_EMOJI}` : '';
+        const highScoreBadge = index === 0 ? ` ${HIGH_SCORE_BADGE}` : '';
         drawText(`#${index + 1} ${row.name}${characterName}${highScoreBadge}`, leftX, y, rowSize, '#ffffff', 'left', false);
         drawText(row.score, scoreX, y, rowSize, '#ffe600', 'right', true);
       });
