@@ -128,6 +128,7 @@
   const USERNAME_KEY = 'shoveltoss.username';
   const GLOBAL_SCORE_LIMIT = 100;
   const HIGH_SCORE_BADGE = '👑';
+  const APP_VERSION_TAG = 'v0.13.0';
 
   const username = {
     get() {
@@ -959,24 +960,6 @@
       Math.max(14, Math.min(18, Math.floor(canvas.width * 0.04))), '#ffffff', 'center', false);
   }
 
-  function drawPencilIcon(x, y, size) {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(-Math.PI / 4);
-    ctx.fillStyle = '#ffe600';
-    ctx.fillRect(-size * 0.35, -size * 0.10, size * 0.70, size * 0.20);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(size * 0.35, -size * 0.10, size * 0.16, size * 0.20);
-    ctx.fillStyle = '#2a2a4a';
-    ctx.beginPath();
-    ctx.moveTo(-size * 0.50, 0);
-    ctx.lineTo(-size * 0.35, -size * 0.10);
-    ctx.lineTo(-size * 0.35, size * 0.10);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
-  }
-
   function drawLeaderboard() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = '#1a1a2e';
@@ -1031,8 +1014,8 @@
       ? Math.max(26, Math.floor(canvas.height * 0.10))
       : Math.max(34, Math.floor(canvas.width * 0.10));
     const titleSize = isPhoneLandscape
-      ? Math.max(22, Math.floor(canvas.height * 0.08))
-      : Math.max(24, Math.floor(canvas.width * 0.08));
+      ? Math.max(14, Math.floor(canvas.height * 0.04))
+      : Math.max(16, Math.floor(canvas.width * 0.042));
     drawText('SHOVEL TOSS', canvas.width / 2, safeTop + gameTitleSize, gameTitleSize, '#ffffff', 'center', true);
     drawText('Choose your character', canvas.width / 2, safeTop + gameTitleSize + titleSize + 8, titleSize, '#ffffff', 'center', true);
 
@@ -1048,15 +1031,23 @@
       const nameW = ctx.measureText(nameText).width;
       const iconSize = nameSize * 0.9;
       const iconX = canvas.width / 2 + nameW / 2 + iconSize;
-      drawPencilIcon(iconX, nameY - nameSize * 0.35, iconSize);
+      drawText('✏️', iconX, nameY, iconSize, '#ffffff', 'center', false);
       usernameNameRect = { x: canvas.width / 2 - nameW / 2 - 10, y: nameY - nameSize - 8, w: nameW + iconSize * 2 + 20, h: nameSize + 14 };
     }
+
+    const footerSize = isPhoneLandscape
+      ? Math.max(11, Math.floor(canvas.height * 0.03))
+      : Math.max(12, Math.floor(canvas.width * 0.032));
+    const footerText = APP_VERSION_TAG;
+    const footerY = canvas.height - (isPhoneLandscape ? 6 : 10);
+    ctx.font = `${Math.round(footerSize)}px sans-serif`;
+    drawText(footerText, canvas.width / 2, footerY, footerSize, 'rgba(255,255,255,0.55)', 'center', false);
 
     const buttonW = Math.min(220, canvas.width * 0.5);
     const buttonH = Math.max(38, canvas.height * 0.06);
     selectLeaderboardRect = {
       x: canvas.width / 2 - buttonW / 2,
-      y: canvas.height - buttonH - (isPhoneLandscape ? 8 : 16),
+      y: footerY - footerSize - buttonH - (isPhoneLandscape ? 14 : 22),
       w: buttonW,
       h: buttonH
     };
