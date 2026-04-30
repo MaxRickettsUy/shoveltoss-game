@@ -10,6 +10,7 @@ All notable changes to Shovel Toss. Format follows [Keep a Changelog](https://ke
 - Pit landing depth illusion.
 
 ### Changed
+- Polished character-select screen subtitle and version footer.
 - Randomized meter sweet-spot position per throw.
 - Tuned meter difficulty and high-score badge display.
 - Tuned throw parity and meter-to-power mapping.
