@@ -69,6 +69,8 @@
   let selectedCharacterId = null;
   let gameOverChangeRect = null;
   let gameOverLeaderboardRect = null;
+  let usernameNameRect = null;
+  let usernameOverlayEl = null;
   let selectLeaderboardRect = null;
   let leaderboardBackRect = null;
   let leaderboardTabRects = {};
@@ -127,11 +129,23 @@
   const DUST_PUFF_W = 54;
   const DUST_PUFF_H = 27;
   const PIT_LANDING_VISUAL_ASSET_OFFSET = 270;
-  const LAST_NAME_KEY = 'shoveltoss.lastName';
+  const USERNAME_KEY = 'shoveltoss.username';
   const GLOBAL_SCORE_LIMIT = 100;
 
+  const username = {
+    get() {
+      return String(localStorage.getItem(USERNAME_KEY) || '').trim().slice(0, 20);
+    },
+    set(name) {
+      const clean = String(name || '').trim().slice(0, 20);
+      if (!clean) return '';
+      localStorage.setItem(USERNAME_KEY, clean);
+      return clean;
+    }
+  };
+
   // --- State enums ---
-  const RUN_STATE = { SELECTING: 'selecting', PLAYING: 'playing', GAME_OVER: 'game_over', LEADERBOARD: 'leaderboard' };
+  const RUN_STATE = { USERNAME: 'username', SELECTING: 'selecting', PLAYING: 'playing', GAME_OVER: 'game_over', LEADERBOARD: 'leaderboard' };
   const STATE = {
     IDLE:      'idle',
     CHARGING:  'charging',
@@ -141,7 +155,7 @@
 
   // --- State objects ---
   const run = {
-    state:       RUN_STATE.SELECTING,
+    state:       username.get() ? RUN_STATE.SELECTING : RUN_STATE.USERNAME,
     throwCount:  0,
     missesRemaining: MISSES_PER_RUN,
     gameOverTime: 0,
@@ -264,16 +278,6 @@
     updateDifficulty();
   }
 
-  function sanitizeName(name) {
-    const clean = String(name || '').trim().slice(0, 20);
-    return clean || 'Player';
-  }
-
-  function promptForScoreName() {
-    const lastName = localStorage.getItem(LAST_NAME_KEY) || 'Player';
-    return sanitizeName(window.prompt('Name for leaderboard:', lastName));
-  }
-
   function openLeaderboard(fromState = run.state) {
     run.lastStateBeforeLeaderboard = fromState === RUN_STATE.LEADERBOARD
       ? run.lastStateBeforeLeaderboard
@@ -329,11 +333,88 @@
 
   function saveGameOverScore() {
     if (gameOverSave.completed) return;
-    const name = promptForScoreName();
+    const name = username.get();
+    if (!name) return;
     gameOverSave.completed = true;
     gameOverSave.name = name;
-    localStorage.setItem(LAST_NAME_KEY, name);
     submitGlobalScore(name, scoring.score, selectedCharacterId);
+  }
+
+  function openUsernameOverlay(returnState = RUN_STATE.SELECTING) {
+    run.state = RUN_STATE.USERNAME;
+    if (usernameOverlayEl) usernameOverlayEl.remove();
+
+    const overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.inset = '0';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.background = 'rgba(0,0,0,0.62)';
+    overlay.style.zIndex = '10';
+    overlay.style.fontFamily = 'sans-serif';
+
+    const panel = document.createElement('form');
+    panel.style.width = 'min(320px, calc(100vw - 40px))';
+    panel.style.padding = '18px';
+    panel.style.background = '#1a1a2e';
+    panel.style.border = '2px solid #ffffff';
+    panel.style.borderRadius = '8px';
+    panel.style.display = 'grid';
+    panel.style.gap = '12px';
+
+    const label = document.createElement('label');
+    label.textContent = 'Username';
+    label.style.color = '#ffffff';
+    label.style.fontWeight = '700';
+
+    const input = document.createElement('input');
+    input.value = username.get();
+    input.maxLength = 20;
+    input.autocomplete = 'nickname';
+    input.style.width = '100%';
+    input.style.marginTop = '8px';
+    input.style.padding = '12px';
+    input.style.font = '18px sans-serif';
+    input.style.borderRadius = '6px';
+    input.style.border = '0';
+
+    const error = document.createElement('div');
+    error.style.minHeight = '18px';
+    error.style.color = '#ff8888';
+    error.style.font = '13px sans-serif';
+
+    const button = document.createElement('button');
+    button.type = 'submit';
+    button.textContent = 'Save';
+    button.style.padding = '12px';
+    button.style.font = '700 18px sans-serif';
+    button.style.color = '#ffffff';
+    button.style.background = '#2a2a4a';
+    button.style.border = '2px solid #ffffff';
+    button.style.borderRadius = '6px';
+
+    panel.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const saved = username.set(input.value);
+      if (!saved) {
+        error.textContent = 'Enter a username.';
+        return;
+      }
+      overlay.remove();
+      usernameOverlayEl = null;
+      run.state = returnState;
+    });
+
+    label.appendChild(input);
+    panel.appendChild(label);
+    panel.appendChild(error);
+    panel.appendChild(button);
+    overlay.appendChild(panel);
+    document.body.appendChild(overlay);
+    usernameOverlayEl = overlay;
+    input.focus();
+    input.select();
   }
 
   function resetRun() {
@@ -437,7 +518,14 @@
   }
 
   function onPressStart() {
+    if (run.state === RUN_STATE.USERNAME) return;
     if (run.state === RUN_STATE.SELECTING) {
+      if (usernameNameRect &&
+          lastPointerX >= usernameNameRect.x && lastPointerX <= usernameNameRect.x + usernameNameRect.w &&
+          lastPointerY >= usernameNameRect.y && lastPointerY <= usernameNameRect.y + usernameNameRect.h) {
+        openUsernameOverlay(RUN_STATE.SELECTING);
+        return;
+      }
       if (selectLeaderboardRect &&
           lastPointerX >= selectLeaderboardRect.x && lastPointerX <= selectLeaderboardRect.x + selectLeaderboardRect.w &&
           lastPointerY >= selectLeaderboardRect.y && lastPointerY <= selectLeaderboardRect.y + selectLeaderboardRect.h) {
@@ -549,7 +637,10 @@
     const dt = Math.min((timestamp - lastTimestamp) / 1000, 0.05); // cap at 50ms
     lastTimestamp = timestamp;
 
-    if (run.state === RUN_STATE.SELECTING) {
+    if (run.state === RUN_STATE.USERNAME) {
+      drawCharacterSelect(timestamp);
+      if (!usernameOverlayEl) openUsernameOverlay(RUN_STATE.SELECTING);
+    } else if (run.state === RUN_STATE.SELECTING) {
       drawCharacterSelect(timestamp);
     } else if (run.state === RUN_STATE.PLAYING) {
       update(dt, timestamp);
@@ -801,6 +892,7 @@
       : Math.max(16, Math.floor(canvas.width * 0.045));
     drawText(scoring.score, HUD_PAD, hudY, hudFontSize, '#ffffff', 'left', true);
     drawLifeIcons(HUD_PAD, hudY + subFontSize + 8);
+    drawText(username.get(), canvas.width - HUD_PAD, hudY, subFontSize, '#ffffff', 'right', true);
 
     // Throw feedback text
     if (scoring.feedbackTimer > 0) {
@@ -871,6 +963,24 @@
       Math.max(14, Math.min(18, Math.floor(canvas.width * 0.04))), '#ffffff', 'center', false);
   }
 
+  function drawPencilIcon(x, y, size) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(-Math.PI / 4);
+    ctx.fillStyle = '#ffe600';
+    ctx.fillRect(-size * 0.35, -size * 0.10, size * 0.70, size * 0.20);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(size * 0.35, -size * 0.10, size * 0.16, size * 0.20);
+    ctx.fillStyle = '#2a2a4a';
+    ctx.beginPath();
+    ctx.moveTo(-size * 0.50, 0);
+    ctx.lineTo(-size * 0.35, -size * 0.10);
+    ctx.lineTo(-size * 0.35, size * 0.10);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
   function drawLeaderboard() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = '#1a1a2e';
@@ -931,6 +1041,22 @@
     drawText('SHOVEL TOSS', canvas.width / 2, safeTop + gameTitleSize, gameTitleSize, '#ffffff', 'center', true);
     drawText('Choose your character', canvas.width / 2, safeTop + gameTitleSize + titleSize + 8, titleSize, '#ffffff', 'center', true);
 
+    const name = username.get();
+    usernameNameRect = null;
+    if (name) {
+      const nameSize = isPhoneLandscape
+        ? Math.max(13, Math.floor(canvas.height * 0.04))
+        : Math.max(15, Math.floor(canvas.width * 0.04));
+      const nameText = `Player: ${name}`;
+      const nameY = safeTop + gameTitleSize + titleSize + nameSize + 14;
+      drawText(nameText, canvas.width / 2, nameY, nameSize, '#ffe600', 'center', false);
+      const nameW = ctx.measureText(nameText).width;
+      const iconSize = nameSize * 0.9;
+      const iconX = canvas.width / 2 + nameW / 2 + iconSize;
+      drawPencilIcon(iconX, nameY - nameSize * 0.35, iconSize);
+      usernameNameRect = { x: canvas.width / 2 - nameW / 2 - 10, y: nameY - nameSize - 8, w: nameW + iconSize * 2 + 20, h: nameSize + 14 };
+    }
+
     const buttonW = Math.min(220, canvas.width * 0.5);
     const buttonH = Math.max(38, canvas.height * 0.06);
     selectLeaderboardRect = {
@@ -945,7 +1071,8 @@
     const cols = isPhoneLandscape ? CHARACTERS.length : (isPortrait ? 2 : 3);
     const rows = Math.ceil(CHARACTERS.length / cols);
     const pad = isPhoneLandscape ? 10 : 16;
-    const topOffset = safeTop + gameTitleSize + titleSize + 8 + (isPhoneLandscape ? pad : pad * 2);
+    const nameOffset = name ? Math.max(18, canvas.height * 0.035) : 0;
+    const topOffset = safeTop + gameTitleSize + titleSize + 8 + nameOffset + (isPhoneLandscape ? pad : pad * 2);
     const availW = canvas.width - pad * (cols + 1);
     const availH = selectLeaderboardRect.y - topOffset - pad * (rows + 1);
     const tileW = Math.floor(availW / cols);
@@ -1055,6 +1182,7 @@
     if (document.hidden) lastTimestamp = null;
   });
   updateLayout();
+  if (run.state === RUN_STATE.USERNAME) openUsernameOverlay(RUN_STATE.SELECTING);
   requestAnimationFrame(gameLoop);
 </script>
 </body>
