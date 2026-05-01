@@ -4,6 +4,15 @@ All notable changes to Shovel Toss. Format follows [Keep a Changelog](https://ke
 
 ## [Unreleased]
 
+## [0.16.1] — 2026-05-01
+
+### Added
+- README gameplay screenshot.
+
+### Changed
+- Matched house background zoom level.
+- Adjusted champion plaques.
+
 ## [0.16.0] — 2026-05-01
 
 ### Added
