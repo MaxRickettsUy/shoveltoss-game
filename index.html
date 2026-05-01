@@ -56,11 +56,19 @@
   champShovelImg.onload = () => { champShovelReady = true; };
   champShovelImg.src = 'assets/champ-shovel.png';
 
-  const backgroundImg = new Image();
+  const LEVELS = [
+    { id: 'house',     label: 'The House',  background: 'assets/house.png' },
+    { id: 'lil-italy', label: 'Lil Italy',  background: 'assets/lil-italy.png' },
+  ];
+
+  const levelImages = {};
   let backgroundReady = false;
-  backgroundImg.onload = () => { backgroundReady = true; };
-  backgroundImg.src = 'assets/house.png';
-  // backgroundImg.src = 'assets/lil-italy.png';
+  let backgroundImg = null;
+  LEVELS.forEach(l => {
+    const img = new Image();
+    img.src = l.background;
+    levelImages[l.id] = img;
+  });
 
   const CHARACTERS = [
     { id: "Buck", hero: 'assets/character/buck/hero.png', sprite: 'assets/character/buck/sprite-sheet.png' },
@@ -75,6 +83,9 @@
   ];
 
   let selectedCharacterId = null;
+  let selectedLevelId = null;
+  let levelTileRects = [];
+  let levelBackRect = null;
   let gameOverChangeRect = null;
   let gameOverLeaderboardRect = null;
   let usernameNameRect = null;
@@ -158,7 +169,7 @@
   };
 
   // --- State enums ---
-  const RUN_STATE = { USERNAME: 'username', SELECTING: 'selecting', PLAYING: 'playing', GAME_OVER: 'game_over', LEADERBOARD: 'leaderboard' };
+  const RUN_STATE = { USERNAME: 'username', SELECTING: 'selecting', LEVEL_SELECT: 'level_select', PLAYING: 'playing', GAME_OVER: 'game_over', LEADERBOARD: 'leaderboard' };
   const STATE = {
     IDLE:      'idle',
     CHARGING:  'charging',
@@ -529,11 +540,41 @@
     selectedCharacterId = CHARACTERS[index].id;
     characterReady = false;
     characterImg.src = CHARACTERS[index].sprite;
+    run.state = RUN_STATE.LEVEL_SELECT;
+    levelTileRects = [];
+  }
+
+  function chooseLevel(index) {
+    selectedLevelId = LEVELS[index].id;
+    backgroundImg = levelImages[selectedLevelId];
+    backgroundReady = backgroundImg.complete && backgroundImg.naturalWidth > 0;
+    if (!backgroundReady) {
+      backgroundImg.onload = () => { backgroundReady = true; };
+    }
     resetRun();
   }
 
   function onPressStart() {
     if (run.state === RUN_STATE.USERNAME) return;
+    if (run.state === RUN_STATE.LEVEL_SELECT) {
+      if (levelBackRect &&
+          lastPointerX >= levelBackRect.x && lastPointerX <= levelBackRect.x + levelBackRect.w &&
+          lastPointerY >= levelBackRect.y && lastPointerY <= levelBackRect.y + levelBackRect.h) {
+        run.state = RUN_STATE.SELECTING;
+        levelTileRects = [];
+        levelBackRect = null;
+        return;
+      }
+      for (let i = 0; i < levelTileRects.length; i++) {
+        const tile = levelTileRects[i];
+        if (lastPointerX >= tile.x && lastPointerX <= tile.x + tile.w &&
+            lastPointerY >= tile.y && lastPointerY <= tile.y + tile.h) {
+          chooseLevel(i);
+          return;
+        }
+      }
+      return;
+    }
     if (run.state === RUN_STATE.SELECTING) {
       if (usernameNameRect &&
           lastPointerX >= usernameNameRect.x && lastPointerX <= usernameNameRect.x + usernameNameRect.w &&
@@ -724,6 +765,8 @@
       if (!usernameOverlayEl) openUsernameOverlay(RUN_STATE.SELECTING);
     } else if (run.state === RUN_STATE.SELECTING) {
       drawCharacterSelect(timestamp);
+    } else if (run.state === RUN_STATE.LEVEL_SELECT) {
+      drawLevelSelect(timestamp);
     } else if (run.state === RUN_STATE.PLAYING) {
       update(dt, timestamp);
       draw();
@@ -1218,6 +1261,92 @@
       }
     }
     ctx.restore();
+  }
+
+  function drawLevelSelect(timestamp) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const isPhoneLandscape = canvas.width > canvas.height && canvas.height <= 500;
+    const gameTitleSize = isPhoneLandscape
+      ? Math.max(26, Math.floor(canvas.height * 0.10))
+      : Math.max(34, Math.floor(canvas.width * 0.10));
+    const titleSize = isPhoneLandscape
+      ? Math.max(14, Math.floor(canvas.height * 0.04))
+      : Math.max(16, Math.floor(canvas.width * 0.042));
+    drawText('SHOVEL TOSS', canvas.width / 2, safeTop + gameTitleSize, gameTitleSize, '#ffffff', 'center', true);
+    drawText('Choose your level', canvas.width / 2, safeTop + gameTitleSize + titleSize + 8, titleSize, '#ffffff', 'center', true);
+
+    const pad = isPhoneLandscape ? 10 : 16;
+    const buttonW = Math.min(220, canvas.width * 0.5);
+    const buttonH = Math.max(38, canvas.height * 0.06);
+    levelBackRect = {
+      x: canvas.width / 2 - buttonW / 2,
+      y: canvas.height - pad - buttonH,
+      w: buttonW,
+      h: buttonH
+    };
+    drawButton(levelBackRect, 'Back');
+
+    const isPortrait = canvas.height > canvas.width;
+    const cols = isPortrait ? 1 : 2;
+    const rows = Math.ceil(LEVELS.length / cols);
+    const listTop = safeTop + gameTitleSize + titleSize + pad * 3;
+    const listBottom = levelBackRect.y - pad;
+    const tileW = Math.floor(Math.min(360, (canvas.width - pad * (cols + 1)) / cols));
+    const tileH = Math.floor(Math.max(80, Math.min(tileW * 0.62, (listBottom - listTop - pad * (rows - 1)) / rows)));
+    const gridW = cols * tileW + (cols - 1) * pad;
+    const gridH = rows * tileH + (rows - 1) * pad;
+    const gridX = Math.floor((canvas.width - gridW) / 2);
+    const gridY = Math.floor(listTop + Math.max(0, (listBottom - listTop - gridH) / 2));
+
+    levelTileRects = [];
+    for (let i = 0; i < LEVELS.length; i++) {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const x = gridX + col * (tileW + pad);
+      const y = gridY + row * (tileH + pad);
+      levelTileRects.push({ id: LEVELS[i].id, x, y, w: tileW, h: tileH });
+
+      ctx.fillStyle = '#2a2a4a';
+      ctx.strokeStyle = '#5555aa';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(x, y, tileW, tileH, 8);
+      ctx.fill();
+      ctx.stroke();
+
+      const img = levelImages[LEVELS[i].id];
+      if (img && img.complete && img.naturalWidth > 0) {
+        const imgAspect = img.naturalWidth / img.naturalHeight;
+        const tileAspect = tileW / tileH;
+        let drawW, drawH;
+        if (imgAspect > tileAspect) {
+          drawH = tileH;
+          drawW = drawH * imgAspect;
+        } else {
+          drawW = tileW;
+          drawH = drawW / imgAspect;
+        }
+        const drawX = x + (tileW - drawW) / 2;
+        const drawY = y + (tileH - drawH) / 2;
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(x, y, tileW, tileH, 8);
+        ctx.clip();
+        ctx.drawImage(img, drawX, drawY, drawW, drawH);
+        ctx.restore();
+      }
+
+      const stripH = Math.max(34, Math.floor(tileH * 0.24));
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(x, y + tileH - stripH, tileW, stripH);
+      const labelSize = isPhoneLandscape
+        ? Math.max(14, Math.floor(canvas.height * 0.045))
+        : Math.max(16, Math.floor(canvas.width * 0.042));
+      drawText(LEVELS[i].label, x + tileW / 2, y + tileH - stripH / 2 + labelSize * 0.35, labelSize, '#ffffff', 'center', true);
+    }
   }
 
   function drawGameOverOverlay() {
