@@ -4,6 +4,18 @@ All notable changes to Shovel Toss. Format follows [Keep a Changelog](https://ke
 
 ## [Unreleased]
 
+## [0.16.0] — 2026-05-01
+
+### Added
+- Level select screen (House, Lil Italy) shown after character select.
+- Champion shovel asset rendered for champion-tier characters.
+
+### Changed
+- Leaderboard rank styling updated.
+- Refined Lil Italy level layout.
+- Updated cropped pit rendering and tightened pit assets.
+- Polished shovel landing visuals.
+
 ## [0.15.0] — 2026-04-30
 
 ### Added
