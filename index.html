@@ -1132,7 +1132,7 @@
     drawButton(selectLeaderboardRect, 'Leaderboard');
 
     const isPortrait = canvas.height > canvas.width;
-    const cols = isPhoneLandscape ? CHARACTERS.length : (isPortrait ? 2 : 3);
+    const cols = isPortrait ? 2 : 4;
     const rows = Math.ceil(CHARACTERS.length / cols);
     const pad = isPhoneLandscape ? 10 : 16;
     const nameOffset = name ? Math.max(18, canvas.height * 0.035) : 0;
