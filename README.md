@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/buck-lil-italy.png" alt="Buck on Lil Italy">
+</p>
+
 # Shovel Toss
 
 A mobile-first 2D arcade timing game. Hold to charge a power meter, release to launch a shovel into the pit.
