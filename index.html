@@ -149,6 +149,7 @@
   const PIT_LANDING_VISUAL_ASSET_OFFSET_LEFT = 293;
   const PIT_FRONT_OVERLAY_ASSET_OFFSET_RIGHT = 228;
   const PIT_FRONT_OVERLAY_ASSET_OFFSET_LEFT = 219;
+  const SHOVEL_STICK_ANGLE = Math.PI / 2;
   const USERNAME_KEY = 'shoveltoss.username';
   const GLOBAL_SCORE_LIMIT = 100;
   const HIGH_SCORE_BADGE = '👑';
@@ -857,6 +858,9 @@
           spawnDustPuff(result.x, groundY - getPitLandingVisualYOffset());
         }
         onThrowResult(result, timestamp);
+        if (scoring.lastThrowZone === 'stick') {
+          throw_.angle = SHOVEL_STICK_ANGLE;
+        }
 
         throw_.state        = STATE.RESETTING;
         throw_.landedInPit  = result.inPit;
@@ -1066,7 +1070,7 @@
     }
 
     // Pit front rim
-    if (isPitReady()) {
+    if (isPitReady() && throw_.state === STATE.RESETTING && throw_.landedInPit) {
       drawPitFrontOverlay();
     }
 
