@@ -29,17 +29,21 @@
 
   const pitBackImg = new Image();
   const pitFrontImg = new Image();
+  const pitLeftImg = new Image();
   let pitReady = false;
   let pitBackReady = false;
   let pitFrontReady = false;
+  let pitLeftReady = false;
   function onPitLayerLoad() {
     pitReady = pitBackReady && pitFrontReady;
     if (pitReady && canvas.width > 0) updateLayout();
   }
   pitBackImg.onload = () => { pitBackReady = true; onPitLayerLoad(); };
   pitFrontImg.onload = () => { pitFrontReady = true; onPitLayerLoad(); };
+  pitLeftImg.onload = () => { pitLeftReady = true; if (canvas.width > 0) updateLayout(); };
   pitBackImg.src = 'assets/pit-back.png';
   pitFrontImg.src = 'assets/pit-front.png';
+  pitLeftImg.src = 'assets/pit-left.png';
 
   const dustPuffImg = new Image();
   let dustPuffReady = false;
@@ -251,6 +255,18 @@
   let meterX, meterY, meterWidth, meterHeight;
   let safeTop;
 
+  function isLilItalyLevel() {
+    return selectedLevelId === 'lil-italy';
+  }
+
+  function isPitReady() {
+    return isLilItalyLevel() ? pitLeftReady : pitReady;
+  }
+
+  function getActivePitImg() {
+    return isLilItalyLevel() ? pitLeftImg : pitBackImg;
+  }
+
   function updateLayout() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
@@ -258,10 +274,10 @@
     safeTop  = Math.max(20, canvas.height * 0.04);
     groundY  = canvas.height * 0.82;
     wallTopY = groundY - canvas.height * WALL_HEIGHT_FRACTION;
-    playerX  = canvas.width  * 0.10;
+    playerX  = canvas.width * (isLilItalyLevel() ? 0.90 : 0.10);
     playerY  = groundY;
 
-    pitCenterX = canvas.width * 0.80;  // far end; pitLeft/pitRight set by updateDifficulty
+    pitCenterX = canvas.width * (isLilItalyLevel() ? 0.20 : 0.80);  // far end; pitLeft/pitRight set by updateDifficulty
     updateDifficulty();
 
     // Meter: narrowed and centered at top
@@ -284,12 +300,19 @@
     difficulty.pitWidth = PIT_WIDTH_LANDSCAPE + tA * (PIT_WIDTH_PORTRAIT - PIT_WIDTH_LANDSCAPE);
     updateSweetSpotBounds();
     const halfWidth = canvas.width * difficulty.pitWidth / 2;
-    pitLeft  = pitCenterX - halfWidth;
-    wallX    = canvas.width - WALL_THICKNESS;
-    pitRight = wallX;
-    if (pitReady) {
-      const dW = canvas.width - pitLeft;
-      wallTopY = groundY - dW * pitBackImg.naturalHeight / pitBackImg.naturalWidth;
+    if (isLilItalyLevel()) {
+      wallX = WALL_THICKNESS;
+      pitLeft = wallX;
+      pitRight = pitCenterX + halfWidth;
+    } else {
+      pitLeft  = pitCenterX - halfWidth;
+      wallX    = canvas.width - WALL_THICKNESS;
+      pitRight = wallX;
+    }
+    if (isPitReady()) {
+      const pitImg = getActivePitImg();
+      const dW = isLilItalyLevel() ? pitRight : canvas.width - pitLeft;
+      wallTopY = groundY - dW * pitImg.naturalHeight / pitImg.naturalWidth;
     }
   }
 
@@ -492,7 +515,9 @@
       zone = 'miss';
       basePoints = PTS_MISS;
     } else {
-      const norm = (result.x - pitLeft) / (pitRight - pitLeft);
+      const norm = isLilItalyLevel()
+        ? (pitRight - result.x) / (pitRight - pitLeft)
+        : (result.x - pitLeft) / (pitRight - pitLeft);
       if (norm < ZONE_FRONT_WALL_MAX) {
         zone = 'front_wall'; basePoints = PTS_FRONT_WALL;
       } else if (result.inSweetSpot) {
@@ -530,8 +555,9 @@
   }
 
   function getPitLandingVisualYOffset() {
-    if (!pitReady) return 0;
-    const pitScale = (canvas.width - pitLeft) / pitBackImg.naturalWidth;
+    if (!isPitReady()) return 0;
+    const pitImg = getActivePitImg();
+    const pitScale = (isLilItalyLevel() ? pitRight : canvas.width - pitLeft) / pitImg.naturalWidth;
     return PIT_LANDING_VISUAL_ASSET_OFFSET * pitScale;
   }
 
@@ -551,6 +577,7 @@
     if (!backgroundReady) {
       backgroundImg.onload = () => { backgroundReady = true; };
     }
+    updateLayout();
     resetRun();
   }
 
@@ -658,7 +685,7 @@
     throw_.originY    = playerY - 50;
     throw_.landingX   = playerX + pitDistance * throwMultiplier;
     throw_.landingY   = groundY;
-    throw_.peakHeight = pitDistance * THROW_PEAK_RATIO;
+    throw_.peakHeight = Math.abs(pitDistance) * THROW_PEAK_RATIO;
     throw_.duration   = THROW_DURATION;
     throw_.shovelX    = throw_.originX;
     throw_.shovelY    = throw_.originY;
@@ -795,9 +822,12 @@
         - throw_.peakHeight * 4 * t * (1 - t);
 
       // Wall bounce
-      if (!throw_.bounced && throw_.shovelX >= wallX) {
+      const hitWall = isLilItalyLevel() ? throw_.shovelX <= wallX : throw_.shovelX >= wallX;
+      if (!throw_.bounced && hitWall) {
         if (throw_.shovelY >= wallTopY && throw_.shovelY < groundY) {
-          const bounceLandingX = wallX - Math.abs(throw_.landingX - wallX) * BOUNCE_DAMPING;
+          const bounceLandingX = isLilItalyLevel()
+            ? wallX + Math.abs(throw_.landingX - wallX) * BOUNCE_DAMPING
+            : wallX - Math.abs(throw_.landingX - wallX) * BOUNCE_DAMPING;
           throw_.shovelX = wallX;
           throw_.originX = throw_.shovelX;
           throw_.originY = throw_.shovelY;
@@ -889,11 +919,17 @@
 
   function drawBackground() {
     if (backgroundReady) {
-      const scale = Math.max(canvas.width / backgroundImg.naturalWidth, canvas.height / backgroundImg.naturalHeight);
+      const isPortrait = canvas.height > canvas.width;
+      const coverScale = Math.max(canvas.width / backgroundImg.naturalWidth, canvas.height / backgroundImg.naturalHeight);
+      const scale = selectedLevelId === 'lil-italy' && isPortrait
+        ? coverScale * 0.72
+        : coverScale;
       const dW = backgroundImg.naturalWidth * scale;
       const dH = backgroundImg.naturalHeight * scale;
       const dx = (canvas.width - dW) / 2;
-      const dy = (canvas.height - dH) / 2;
+      const dy = selectedLevelId === 'lil-italy' && isPortrait
+        ? canvas.height - dH
+        : (canvas.height - dH) / 2;
       ctx.drawImage(backgroundImg, dx, dy, dW, dH);
     } else {
       ctx.fillStyle = '#1a1a2e';
@@ -902,9 +938,14 @@
   }
 
   function drawPitLayer(img) {
-    const dW = canvas.width - pitLeft;
-    const dH = dW * img.naturalHeight / img.naturalWidth;
-    ctx.drawImage(img, pitLeft, groundY - dH, dW, dH);
+    const drawImg = isLilItalyLevel() ? pitLeftImg : img;
+    const dW = isLilItalyLevel() ? pitRight : canvas.width - pitLeft;
+    const dH = dW * drawImg.naturalHeight / drawImg.naturalWidth;
+    if (isLilItalyLevel()) {
+      ctx.drawImage(drawImg, 0, groundY - dH, dW, dH);
+    } else {
+      ctx.drawImage(drawImg, pitLeft, groundY - dH, dW, dH);
+    }
   }
 
   function drawPitFallback() {
@@ -942,7 +983,7 @@
     drawBackground();
 
     // Pit back
-    if (pitReady) {
+    if (isPitReady()) {
       drawPitLayer(pitBackImg);
     } else {
       drawPitFallback();
@@ -953,12 +994,26 @@
       const frame = throw_.state === STATE.CHARGING ? 1
                  : throw_.state === STATE.FLYING   ? 2
                  : 0;
-      ctx.drawImage(
-        characterImg,
-        frame * CHARACTER_FRAME_W, 0, CHARACTER_FRAME_W, CHARACTER_FRAME_H,
-        playerX - (CHARACTER_RENDER_H * (CHARACTER_FRAME_W / CHARACTER_FRAME_H)) / 2, playerY - CHARACTER_RENDER_H,
-        CHARACTER_RENDER_H * (CHARACTER_FRAME_W / CHARACTER_FRAME_H), CHARACTER_RENDER_H
-      );
+      const renderW = CHARACTER_RENDER_H * (CHARACTER_FRAME_W / CHARACTER_FRAME_H);
+      if (isLilItalyLevel()) {
+        ctx.save();
+        ctx.translate(playerX, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(
+          characterImg,
+          frame * CHARACTER_FRAME_W, 0, CHARACTER_FRAME_W, CHARACTER_FRAME_H,
+          -renderW / 2, playerY - CHARACTER_RENDER_H,
+          renderW, CHARACTER_RENDER_H
+        );
+        ctx.restore();
+      } else {
+        ctx.drawImage(
+          characterImg,
+          frame * CHARACTER_FRAME_W, 0, CHARACTER_FRAME_W, CHARACTER_FRAME_H,
+          playerX - renderW / 2, playerY - CHARACTER_RENDER_H,
+          renderW, CHARACTER_RENDER_H
+        );
+      }
     } else if (!selectedCharacterId) {
       const pW = 28, pH = 50;
       ctx.fillStyle = '#e07b39';
@@ -989,7 +1044,7 @@
     }
 
     // Pit front rim
-    if (pitReady) {
+    if (pitReady && !isLilItalyLevel()) {
       drawPitLayer(pitFrontImg);
     }
 
