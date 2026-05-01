@@ -4,6 +4,17 @@ All notable changes to Shovel Toss. Format follows [Keep a Changelog](https://ke
 
 ## [Unreleased]
 
+## [0.15.0] — 2026-04-30
+
+### Added
+- Cowgirl, Maria, and Seaman characters.
+- Champion plaques on character-select tiles for Buck, Wagie, Chef, and Chuggo.
+- Vertical scroll on the character-select grid (mouse wheel and touch/drag).
+
+### Changed
+- Larger fixed-size character-select tiles, centered horizontally.
+- Character-select grid uses four columns in landscape.
+
 ## [0.14.0] — 2026-04-29
 
 ### Added
