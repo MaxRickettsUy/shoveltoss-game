@@ -1333,9 +1333,9 @@
       if (isChampion) {
         drawText(CHARACTERS[i].id, x + 8, y + labelSize + 6, labelSize, '#ffffff', 'left', false);
         if (championImg.complete && championImg.naturalWidth > 0) {
-          const badgeW = Math.floor(tileW * 0.62);
+          const badgeW = Math.floor(tileW * 0.78);
           const badgeH = Math.floor(tileW * 0.48);
-          ctx.drawImage(championImg, x + (tileW - badgeW) / 2, y + tileH - badgeH - 6, badgeW, badgeH);
+          ctx.drawImage(championImg, x + (tileW - badgeW) / 2, y + tileH - badgeH + 4, badgeW, badgeH);
         }
       } else {
         drawText(CHARACTERS[i].id, x + tileW / 2, y + tileH - 6, labelSize, '#ffffff', 'center', false);
