@@ -928,13 +928,13 @@
     if (backgroundReady) {
       const isPortrait = canvas.height > canvas.width;
       const coverScale = Math.max(canvas.width / backgroundImg.naturalWidth, canvas.height / backgroundImg.naturalHeight);
-      const scale = selectedLevelId === 'lil-italy' && isPortrait
+      const scale = isPortrait
         ? coverScale * 0.72
         : coverScale;
       const dW = backgroundImg.naturalWidth * scale;
       const dH = backgroundImg.naturalHeight * scale;
       const dx = (canvas.width - dW) / 2;
-      const dy = selectedLevelId === 'lil-italy' && isPortrait
+      const dy = isPortrait
         ? canvas.height - dH
         : (canvas.height - dH) / 2;
       ctx.drawImage(backgroundImg, dx, dy, dW, dH);
