@@ -51,6 +51,11 @@
   shovelImg.onload = () => { shovelReady = true; };
   shovelImg.src = 'assets/shovel.png';
 
+  const champShovelImg = new Image();
+  let champShovelReady = false;
+  champShovelImg.onload = () => { champShovelReady = true; };
+  champShovelImg.src = 'assets/champ-shovel.png';
+
   const backgroundImg = new Image();
   let backgroundReady = false;
   backgroundImg.onload = () => { backgroundReady = true; };
@@ -818,16 +823,19 @@
 
   function drawLifeIcons(x, y) {
     const iconW = Math.max(20, Math.min(LIFE_ICON_W, canvas.width * 0.06));
-    const iconH = shovelReady
-      ? iconW * shovelImg.naturalHeight / shovelImg.naturalWidth
+    const activeShovelImg = selectedCharacterId && CHAMPION_IDS.has(selectedCharacterId) && champShovelReady
+      ? champShovelImg
+      : (shovelReady ? shovelImg : null);
+    const iconH = activeShovelImg
+      ? iconW * activeShovelImg.naturalHeight / activeShovelImg.naturalWidth
       : iconW;
     const gap = 8;
 
     for (let i = 0; i < MISSES_PER_RUN; i++) {
       ctx.save();
       ctx.globalAlpha = i < run.missesRemaining ? 1 : 0.25;
-      if (shovelReady) {
-        ctx.drawImage(shovelImg, x + i * (iconW + gap), y - iconH, iconW, iconH);
+      if (activeShovelImg) {
+        ctx.drawImage(activeShovelImg, x + i * (iconW + gap), y - iconH, iconW, iconH);
       } else {
         ctx.fillStyle = '#c0c0c0';
         ctx.fillRect(x + i * (iconW + gap), y - iconH, iconW, iconH);
@@ -922,9 +930,12 @@
         : throw_.shovelY;
       ctx.translate(throw_.shovelX, shovelDrawY);
       ctx.rotate(throw_.angle);
-      if (shovelReady) {
-        const dH = SHOVEL_RENDER_W * shovelImg.naturalHeight / shovelImg.naturalWidth;
-        ctx.drawImage(shovelImg, -SHOVEL_RENDER_W / 2, -dH / 2, SHOVEL_RENDER_W, dH);
+      const activeShovelImg = selectedCharacterId && CHAMPION_IDS.has(selectedCharacterId) && champShovelReady
+        ? champShovelImg
+        : (shovelReady ? shovelImg : null);
+      if (activeShovelImg) {
+        const dH = SHOVEL_RENDER_W * activeShovelImg.naturalHeight / activeShovelImg.naturalWidth;
+        ctx.drawImage(activeShovelImg, -SHOVEL_RENDER_W / 2, -dH / 2, SHOVEL_RENDER_W, dH);
       } else {
         ctx.fillStyle = '#8b5a2b';
         ctx.fillRect(-14, -3, 20, 6);
@@ -1071,7 +1082,7 @@
         const y = listTop + index * lineH;
         const characterName = row.character_name ? ` (${row.character_name})` : '';
         const highScoreBadge = index === 0 ? ` ${HIGH_SCORE_BADGE}` : '';
-        drawText(`#${index + 1} ${row.name}${characterName}${highScoreBadge}`, leftX, y, rowSize, '#ffffff', 'left', false);
+        drawText(`${index + 1}. ${row.name}${characterName}${highScoreBadge}`, leftX, y, rowSize, '#ffffff', 'left', false);
         drawText(row.score, scoreX, y, rowSize, '#ffe600', 'right', true);
       });
     }
