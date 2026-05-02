@@ -4,6 +4,15 @@ All notable changes to Shovel Toss. Format follows [Keep a Changelog](https://ke
 
 ## [Unreleased]
 
+## [0.17.0] — 2026-05-02
+
+### Added
+- Assman, Chambray, and WD40 characters.
+- Character selection filters.
+
+### Changed
+- Renamed npm script `start` → `dev`.
+
 ## [0.16.1] — 2026-05-01
 
 ### Added
