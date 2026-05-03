@@ -4,6 +4,14 @@ All notable changes to Shovel Toss. Format follows [Keep a Changelog](https://ke
 
 ## [Unreleased]
 
+## [0.19.1] — 2026-05-03
+
+### Fixed
+- Post-run rank message now reflects the player's actual position when scores tie (previously reported the first tied row's rank).
+
+### Added
+- Umami analytics tag.
+
 ## [0.19.0] — 2026-05-03
 
 ### Added
