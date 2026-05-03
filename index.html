@@ -126,7 +126,6 @@
   let flippedCardId = null;
   let flippedCardRows = [];
   let flippedCardStatus = 'idle';
-  let flippedCardError = '';
   const flippedCardCache = new Map();
   let cardFlipBtnRects = [];
   let cardBackLeaderboardRect = null;
@@ -673,7 +672,6 @@
       return;
     }
     flippedCardStatus = 'loading';
-    flippedCardError = '';
     try {
       const rows = await window.globalScores.topN(5, { characterName: characterId });
       if (flippedCardId !== characterId) return;
@@ -684,7 +682,6 @@
       if (flippedCardId !== characterId) return;
       flippedCardRows = [];
       flippedCardStatus = 'error';
-      flippedCardError = 'offline';
     }
   }
 
@@ -1001,25 +998,19 @@
     lastTimestamp = timestamp;
 
     if (run.state === RUN_STATE.USERNAME) {
-      unmountLeaderboardFilterSelect();
       drawCharacterSelect(timestamp);
       if (!usernameOverlayEl) openUsernameOverlay(RUN_STATE.SELECTING);
     } else if (run.state === RUN_STATE.SELECTING) {
-      unmountLeaderboardFilterSelect();
       drawCharacterSelect(timestamp);
     } else if (run.state === RUN_STATE.LEVEL_SELECT) {
-      unmountLeaderboardFilterSelect();
       drawLevelSelect(timestamp);
     } else if (run.state === RUN_STATE.PLAYING) {
-      unmountLeaderboardFilterSelect();
       update(dt, timestamp);
       draw();
     } else if (run.state === RUN_STATE.GAME_OVER) {
-      unmountLeaderboardFilterSelect();
       draw();
       drawGameOverOverlay();
     } else if (run.state === RUN_STATE.LEADERBOARD) {
-      mountLeaderboardFilterSelect();
       drawLeaderboard();
     }
   }
