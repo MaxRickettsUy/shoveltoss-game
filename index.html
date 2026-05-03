@@ -102,9 +102,9 @@
   });
   const championImg = new Image();
   championImg.src = 'assets/champion.png';
-  const CHAMPION_IDS = new Set(['Buck', 'Wagie', 'Chef', 'Chuggo']);
-  const NEW_CHARACTER_IDS = new Set(['Assman', 'Billie', 'WD40']);
-  const LADY_CHARACTER_IDS = new Set(['Billie', 'Cowgirl', 'Maria']);
+  const CHAMPION_IDS = new Set(['Alexsama', 'Buck', 'Wagie', 'Chef', 'Chuggo']);
+  const NEW_CHARACTER_IDS = new Set(['Alexsama', 'Patriot', 'Smokey', 'Xena']);
+  const LADY_CHARACTER_IDS = new Set(['Billie', 'Cowgirl', 'Maria', 'Smokey', 'Xena']);
   const CHARACTER_FILTERS = [
     { id: 'new', label: 'NEW' },
     { id: 'ladies', label: 'LADIES' },
@@ -586,6 +586,13 @@
     if (activeCharacterFilter === 'ladies') return CHARACTERS.filter(c => LADY_CHARACTER_IDS.has(c.id));
     if (activeCharacterFilter === 'champs') return CHARACTERS.filter(c => CHAMPION_IDS.has(c.id));
     return CHARACTERS;
+  }
+
+  function getCharacterFilterCount(filterId) {
+    if (filterId === 'new') return CHARACTERS.filter(c => NEW_CHARACTER_IDS.has(c.id)).length;
+    if (filterId === 'ladies') return CHARACTERS.filter(c => LADY_CHARACTER_IDS.has(c.id)).length;
+    if (filterId === 'champs') return CHARACTERS.filter(c => CHAMPION_IDS.has(c.id)).length;
+    return CHARACTERS.length;
   }
 
   // --- Input ---
@@ -1202,7 +1209,7 @@
     ctx.fill();
     ctx.stroke();
     drawText(label, rect.x + rect.w / 2, rect.y + rect.h * 0.64,
-      Math.max(14, Math.min(18, Math.floor(canvas.width * 0.04))), '#ffffff', 'center', false);
+      rect.fontSize || Math.max(14, Math.min(18, Math.floor(canvas.width * 0.04))), '#ffffff', 'center', false);
   }
 
   function drawLeaderboard() {
@@ -1305,9 +1312,9 @@
     const pad = isPhoneLandscape ? 10 : 16;
     const nameOffset = name ? Math.max(18, canvas.height * 0.035) : 0;
     const topOffset = safeTop + gameTitleSize + titleSize + 8 + nameOffset + (isPhoneLandscape ? pad : pad * 2);
-    const filterGap = isPhoneLandscape ? 8 : 10;
-    const filterButtonH = Math.max(30, canvas.height * 0.045);
-    const filterButtonW = Math.min(110, (canvas.width - pad * 2 - filterGap * (CHARACTER_FILTERS.length - 1)) / CHARACTER_FILTERS.length);
+    const filterGap = isPhoneLandscape ? 6 : 8;
+    const filterButtonH = isPhoneLandscape ? 26 : 30;
+    const filterButtonW = Math.min(isPhoneLandscape ? 84 : 98, (canvas.width - pad * 2 - filterGap * (CHARACTER_FILTERS.length - 1)) / CHARACTER_FILTERS.length);
     const filterW = filterButtonW * CHARACTER_FILTERS.length + filterGap * (CHARACTER_FILTERS.length - 1);
     const filterY = topOffset;
     filterRects = [];
@@ -1317,10 +1324,11 @@
         x: canvas.width / 2 - filterW / 2 + index * (filterButtonW + filterGap),
         y: filterY,
         w: filterButtonW,
-        h: filterButtonH
+        h: filterButtonH,
+        fontSize: isPhoneLandscape ? 10 : 12
       };
       filterRects.push(rect);
-      drawButton(rect, filter.label, activeCharacterFilter === filter.id);
+      drawButton(rect, `${filter.label} (${getCharacterFilterCount(filter.id)})`, activeCharacterFilter === filter.id);
     });
 
     const targetTileW = Math.floor(Math.min(240, (canvas.width - pad * (cols + 1)) / cols));
