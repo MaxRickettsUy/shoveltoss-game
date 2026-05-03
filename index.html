@@ -408,7 +408,12 @@
       gameOverSave.globalMessage = rank === -1
         ? 'Global: outside top 100'
         : `Global rank: #${rank + 1}`;
-    } catch {
+    } catch (err) {
+      if (err && err.code === 'disabled-non-prod') {
+        gameOverSave.globalStatus = 'ready';
+        gameOverSave.globalMessage = 'Global save disabled (dev)';
+        return;
+      }
       gameOverSave.globalStatus = 'error';
     }
   }
@@ -426,6 +431,11 @@
     const name = username.get();
     if (!name) return;
     gameOverSave.completed = true;
+    if (!window.globalScores.isProduction()) {
+      gameOverSave.globalStatus = 'ready';
+      gameOverSave.globalMessage = 'Global save disabled (dev)';
+      return;
+    }
     submitGlobalScore(name, scoring.score, selectedCharacterId);
   }
 

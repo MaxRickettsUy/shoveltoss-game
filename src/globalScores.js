@@ -1,6 +1,18 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from './config.js';
 
+const PROD_APEX = 'shoveltoss.ing';
+
+function normalizeHost(h) {
+  return String(h || '').toLowerCase().replace(/\.$/, '');
+}
+
+function isProductionHost() {
+  if (typeof window === 'undefined') return false;
+  const host = normalizeHost(window.location.hostname);
+  return host === PROD_APEX || host.endsWith('.' + PROD_APEX);
+}
+
 let client = null;
 
 function cleanName(name) {
@@ -25,7 +37,16 @@ function getClient() {
 }
 
 window.globalScores = {
+  isProduction() {
+    return isProductionHost();
+  },
+
   async submit(name, score, characterName) {
+    if (!isProductionHost()) {
+      const err = new Error('disabled-non-prod');
+      err.code = 'disabled-non-prod';
+      throw err;
+    }
     const { error } = await getClient()
       .from('high_scores')
       .insert({ name: cleanName(name), score, character_name: cleanCharacterName(characterName) });
