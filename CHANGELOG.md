@@ -4,6 +4,20 @@ All notable changes to Shovel Toss. Format follows [Keep a Changelog](https://ke
 
 ## [Unreleased]
 
+## [0.18.0] — 2026-05-03
+
+### Added
+- Alexsama, Patriot, Smokey, and Xena characters.
+- Count badges on character-select filter buttons.
+
+### Changed
+- Renamed Chambray → Billie.
+- Tightened filter button sizing in landscape.
+- Updated filter rosters (Champions, New, Ladies) for the expanded character list.
+
+### Removed
+- Yinzer character assets.
+
 ## [0.17.0] — 2026-05-02
 
 ### Added
