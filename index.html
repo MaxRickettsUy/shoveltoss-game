@@ -106,9 +106,9 @@
   const NEW_CHARACTER_IDS = new Set(['Alexsama', 'Patriot', 'Smokey', 'Xena']);
   const LADY_CHARACTER_IDS = new Set(['Billie', 'Cowgirl', 'Maria', 'Smokey', 'Xena']);
   const CHARACTER_FILTERS = [
-    { id: 'new', label: 'NEW' },
-    { id: 'ladies', label: 'LADIES' },
-    { id: 'champs', label: 'CHAMPS' },
+    { id: 'new', label: '✨ NEW' },
+    { id: 'ladies', label: '💃 LADIES' },
+    { id: 'champs', label: '👑 CHAMPS' },
   ];
 
   let tileRects = [];
@@ -117,6 +117,9 @@
   let charSelectScrollY = 0;
   let charSelectGridTop = 0;
   let charSelectGridBottom = 0;
+  let leaderboardScrollY = 0;
+  let leaderboardListTop = 0;
+  let leaderboardListBottom = 0;
 
   // --- Constants ---
   const ASPECT_LANDSCAPE = 0.6;
@@ -347,6 +350,7 @@
       ? run.lastStateBeforeLeaderboard
       : fromState;
     run.state = RUN_STATE.LEADERBOARD;
+    leaderboardScrollY = 0;
     fetchGlobalLeaderboard();
   }
 
@@ -744,9 +748,17 @@
   let selectDragScrolling = false;
   let selectDragLastY = 0;
   let selectDragTotal = 0;
+  let leaderboardDragStartedInList = false;
+  let leaderboardDragScrolling = false;
+  let leaderboardDragLastY = 0;
+  let leaderboardDragTotal = 0;
 
   function isInCharacterGrid(y) {
     return y >= charSelectGridTop && y <= charSelectGridBottom;
+  }
+
+  function isInLeaderboardList(y) {
+    return y >= leaderboardListTop && y <= leaderboardListBottom;
   }
 
   function startSelectDrag(y) {
@@ -774,12 +786,37 @@
     return shouldSelect;
   }
 
+  function startLeaderboardDrag(y) {
+    leaderboardDragStartedInList = run.state === RUN_STATE.LEADERBOARD && isInLeaderboardList(y);
+    leaderboardDragScrolling = false;
+    leaderboardDragLastY = y;
+    leaderboardDragTotal = 0;
+    return leaderboardDragStartedInList;
+  }
+
+  function moveLeaderboardDrag(y) {
+    if (!leaderboardDragStartedInList) return;
+    const dy = y - leaderboardDragLastY;
+    leaderboardDragLastY = y;
+    leaderboardDragTotal += Math.abs(dy);
+    leaderboardScrollY -= dy;
+    if (leaderboardDragTotal > 8) leaderboardDragScrolling = true;
+  }
+
+  function finishLeaderboardDrag() {
+    const shouldClick = leaderboardDragStartedInList && !leaderboardDragScrolling;
+    leaderboardDragStartedInList = false;
+    leaderboardDragScrolling = false;
+    leaderboardDragTotal = 0;
+    return shouldClick;
+  }
+
   canvas.addEventListener('touchstart', (e) => {
     e.preventDefault();
     const t = e.touches[0];
     lastPointerX = t.clientX;
     lastPointerY = t.clientY;
-    if (!startSelectDrag(lastPointerY)) onPressStart();
+    if (!startSelectDrag(lastPointerY) && !startLeaderboardDrag(lastPointerY)) onPressStart();
   }, { passive: false });
   canvas.addEventListener('touchmove', (e) => {
     e.preventDefault();
@@ -787,10 +824,15 @@
     lastPointerX = t.clientX;
     lastPointerY = t.clientY;
     moveSelectDrag(lastPointerY);
+    moveLeaderboardDrag(lastPointerY);
   }, { passive: false });
   canvas.addEventListener('touchend',   (e) => {
     e.preventDefault();
     if (finishSelectDrag()) {
+      onPressStart();
+      return;
+    }
+    if (finishLeaderboardDrag()) {
       onPressStart();
       return;
     }
@@ -799,13 +841,14 @@
   canvas.addEventListener('mousedown', (e) => {
     lastPointerX = e.clientX;
     lastPointerY = e.clientY;
-    if (!startSelectDrag(lastPointerY)) onPressStart();
+    if (!startSelectDrag(lastPointerY) && !startLeaderboardDrag(lastPointerY)) onPressStart();
   });
   canvas.addEventListener('mousemove', (e) => {
     if (e.buttons !== 1) return;
     lastPointerX = e.clientX;
     lastPointerY = e.clientY;
     moveSelectDrag(lastPointerY);
+    moveLeaderboardDrag(lastPointerY);
   });
   canvas.addEventListener('mouseup', (e) => {
     lastPointerX = e.clientX;
@@ -814,11 +857,20 @@
       onPressStart();
       return;
     }
+    if (finishLeaderboardDrag()) {
+      onPressStart();
+      return;
+    }
     onPressEnd();
   });
   canvas.addEventListener('wheel', (e) => {
-    if (run.state !== RUN_STATE.SELECTING) return;
-    charSelectScrollY += e.deltaY;
+    if (run.state === RUN_STATE.SELECTING) {
+      charSelectScrollY += e.deltaY;
+    } else if (run.state === RUN_STATE.LEADERBOARD) {
+      leaderboardScrollY += e.deltaY;
+    } else {
+      return;
+    }
     e.preventDefault();
   }, { passive: false });
 
@@ -938,6 +990,29 @@
     ctx.fillStyle = color;
     ctx.textAlign = align;
     ctx.fillText(text, x, y);
+  }
+
+  function truncateText(text, maxWidth, fontSize, bold = false) {
+    const value = String(text || '');
+    if (maxWidth <= 0) return '';
+    ctx.font = `${bold ? 'bold ' : ''}${Math.round(fontSize)}px sans-serif`;
+    if (ctx.measureText(value).width <= maxWidth) return value;
+
+    const ellipsis = '...';
+    const ellipsisW = ctx.measureText(ellipsis).width;
+    if (ellipsisW > maxWidth) return '';
+
+    let lo = 0;
+    let hi = value.length;
+    while (lo < hi) {
+      const mid = Math.ceil((lo + hi) / 2);
+      if (ctx.measureText(value.slice(0, mid) + ellipsis).width <= maxWidth) {
+        lo = mid;
+      } else {
+        hi = mid - 1;
+      }
+    }
+    return value.slice(0, lo) + ellipsis;
   }
 
   function drawLifeIcons(x, y) {
@@ -1212,6 +1287,13 @@
       rect.fontSize || Math.max(14, Math.min(18, Math.floor(canvas.width * 0.04))), '#ffffff', 'center', false);
   }
 
+  function formatScoreDate(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: '2-digit' });
+  }
+
   function drawLeaderboard() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = '#1a1a2e';
@@ -1222,16 +1304,30 @@
     const titleSize = isPhoneLandscape
       ? Math.max(24, Math.floor(canvas.height * 0.09))
       : Math.max(30, Math.floor(canvas.width * 0.09));
+    const subtitleSize = isPhoneLandscape
+      ? Math.max(10, Math.floor(canvas.height * 0.035))
+      : Math.max(12, Math.floor(canvas.width * 0.032));
     const rowSize = isPhoneLandscape
       ? Math.max(12, Math.floor(canvas.height * 0.04))
       : Math.max(15, Math.floor(canvas.width * 0.04));
     const pad = isPhoneLandscape ? 12 : 20;
     drawText('LEADERBOARD', cx, safeTop + titleSize, titleSize, '#ffffff', 'center', true);
+    drawText('Showing top 100 scores', cx, safeTop + titleSize + subtitleSize + 6, subtitleSize, 'rgba(255,255,255,0.65)', 'center', false);
 
+    const backW = Math.min(220, canvas.width * 0.55);
+    const backH = Math.max(40, canvas.height * 0.065);
     const rows = leaderboard.globalRows;
-    const listTop = safeTop + titleSize + pad * 2;
-    const lineH = rowSize + 10;
-    const maxRows = Math.max(1, Math.floor((canvas.height - listTop - pad * 4) / lineH));
+    const listTop = safeTop + titleSize + subtitleSize + pad * 2;
+    const listBottom = canvas.height - pad * 2 - backH;
+    leaderboardListTop = listTop;
+    leaderboardListBottom = listBottom;
+    const dateSize = Math.max(10, Math.floor(rowSize * 0.76));
+    const lineH = rowSize + 12;
+    const listH = Math.max(0, listBottom - listTop);
+    const listInsetTop = rowSize;
+    const totalContentH = listInsetTop + rows.length * lineH;
+    const maxScroll = Math.max(0, totalContentH - listH);
+    leaderboardScrollY = Math.max(0, Math.min(leaderboardScrollY, maxScroll));
     if (leaderboard.globalStatus === 'loading') {
       drawText('Loading...', cx, listTop + rowSize, rowSize, 'rgba(255,255,255,0.75)', 'center', false);
     } else if (leaderboard.globalStatus === 'error') {
@@ -1241,17 +1337,38 @@
     } else {
       const leftX = Math.max(pad, cx - Math.min(260, canvas.width * 0.42));
       const scoreX = Math.min(canvas.width - pad, cx + Math.min(260, canvas.width * 0.42));
-      rows.slice(0, maxRows).forEach((row, index) => {
-        const y = listTop + index * lineH;
+      const dateX = scoreX - Math.max(72, canvas.width * 0.17);
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, listTop, canvas.width, listH);
+      ctx.clip();
+      rows.forEach((row, index) => {
+        const y = listTop + listInsetTop + index * lineH - leaderboardScrollY;
+        if (y + lineH < listTop || y > listBottom) return;
+        if (index % 2 === 1) {
+          ctx.fillStyle = '#111126';
+          ctx.fillRect(leftX - 8, y - rowSize - 4, scoreX - leftX + 16, lineH);
+        }
         const characterName = row.character_name ? ` (${row.character_name})` : '';
         const highScoreBadge = index === 0 ? ` ${HIGH_SCORE_BADGE}` : '';
-        drawText(`${index + 1}. ${row.name}${characterName}${highScoreBadge}`, leftX, y, rowSize, '#ffffff', 'left', false);
+        const scoreDate = formatScoreDate(row.created_at);
+        const rankText = `${index + 1}. `;
+        ctx.font = `${Math.round(rowSize)}px sans-serif`;
+        ctx.font = `${Math.round(dateSize)}px sans-serif`;
+        const dateW = scoreDate ? ctx.measureText(scoreDate).width : 0;
+        ctx.font = `${Math.round(rowSize)}px sans-serif`;
+        const nameRightX = scoreDate ? dateX - dateW - 12 : dateX;
+        const nameMaxW = nameRightX - leftX - ctx.measureText(`${rankText}${characterName}${highScoreBadge}`).width;
+        const nameText = truncateText(row.name, nameMaxW, rowSize);
+        drawText(`${rankText}${nameText}${characterName}${highScoreBadge}`, leftX, y, rowSize, '#ffffff', 'left', false);
+        if (scoreDate) {
+          drawText(scoreDate, dateX, y, dateSize, 'rgba(255,255,255,0.58)', 'right', false);
+        }
         drawText(row.score, scoreX, y, rowSize, '#ffe600', 'right', true);
       });
+      ctx.restore();
     }
 
-    const backW = Math.min(220, canvas.width * 0.55);
-    const backH = Math.max(40, canvas.height * 0.065);
     leaderboardBackRect = { x: cx - backW / 2, y: canvas.height - pad - backH, w: backW, h: backH };
     drawButton(leaderboardBackRect, 'Back');
   }
