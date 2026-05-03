@@ -4,6 +4,15 @@ All notable changes to Shovel Toss. Format follows [Keep a Changelog](https://ke
 
 ## [Unreleased]
 
+## [0.19.0] — 2026-05-03
+
+### Added
+- Production-only score submission (gated by `*.shoveltoss.ing` host check) with a "save disabled (dev)" notice on non-prod.
+- Leaderboard score notice.
+
+### Changed
+- Improved leaderboard display.
+
 ## [0.18.0] — 2026-05-03
 
 ### Added
