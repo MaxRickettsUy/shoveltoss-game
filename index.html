@@ -1317,6 +1317,9 @@
     const subtitleSize = isPhoneLandscape
       ? Math.max(10, Math.floor(canvas.height * 0.035))
       : Math.max(12, Math.floor(canvas.width * 0.032));
+    const bannerSize = isPhoneLandscape
+      ? Math.max(10, Math.floor(canvas.height * 0.032))
+      : Math.max(11, Math.floor(canvas.width * 0.03));
     const rowSize = isPhoneLandscape
       ? Math.max(12, Math.floor(canvas.height * 0.04))
       : Math.max(15, Math.floor(canvas.width * 0.04));
@@ -1326,8 +1329,24 @@
 
     const backW = Math.min(220, canvas.width * 0.55);
     const backH = Math.max(40, canvas.height * 0.065);
+    const bannerText = '👋 Please let Max know if your score is not registered ❤';
+    const bannerPadX = isPhoneLandscape ? 10 : 14;
+    const bannerH = bannerSize + (isPhoneLandscape ? 8 : 10);
+    const bannerY = safeTop + titleSize + subtitleSize + 12;
+    ctx.font = `${Math.round(bannerSize)}px sans-serif`;
+    const bannerW = Math.min(canvas.width - pad * 2, Math.max(260, ctx.measureText(bannerText).width + bannerPadX * 2));
+    const bannerX = cx - bannerW / 2;
+    ctx.fillStyle = '#111126';
+    ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(bannerX, bannerY, bannerW, bannerH, 6);
+    ctx.fill();
+    ctx.stroke();
+    drawText(truncateText(bannerText, bannerW - bannerPadX * 2, bannerSize), cx, bannerY + bannerH * 0.66, bannerSize, '#ffffff', 'center', false);
+
     const rows = leaderboard.globalRows;
-    const listTop = safeTop + titleSize + subtitleSize + pad * 2;
+    const listTop = bannerY + bannerH + pad;
     const listBottom = canvas.height - pad * 2 - backH;
     leaderboardListTop = listTop;
     leaderboardListBottom = listBottom;
