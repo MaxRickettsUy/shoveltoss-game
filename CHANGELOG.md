@@ -4,6 +4,12 @@ All notable changes to Shovel Toss. Format follows [Keep a Changelog](https://ke
 
 ## [Unreleased]
 
+## [0.20.0] — 2026-05-03
+
+### Added
+- Character card flip with top-5 score preview on the character-select screen; back-side button opens the leaderboard pre-filtered to that character.
+- Leaderboard character filter via dropdown.
+
 ## [0.19.1] — 2026-05-03
 
 ### Fixed
