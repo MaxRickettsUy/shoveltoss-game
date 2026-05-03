@@ -56,10 +56,14 @@ window.globalScores = {
     return data.id;
   },
 
-  async topN(n = 100) {
-    const { data, error } = await getClient()
+  async topN(n = 100, opts = {}) {
+    let query = getClient()
       .from('high_scores')
-      .select('id, name, character_name, score, created_at')
+      .select('id, name, character_name, score, created_at');
+    if (opts.characterName) {
+      query = query.eq('character_name', opts.characterName);
+    }
+    const { data, error } = await query
       .order('score', { ascending: false })
       .order('created_at', { ascending: true })
       .order('id', { ascending: true })

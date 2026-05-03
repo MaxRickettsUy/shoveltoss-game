@@ -121,6 +121,15 @@
   let leaderboardScrollY = 0;
   let leaderboardListTop = 0;
   let leaderboardListBottom = 0;
+  let leaderboardCharacterFilter = null;
+  let leaderboardFilterSelectEl = null;
+  let flippedCardId = null;
+  let flippedCardRows = [];
+  let flippedCardStatus = 'idle';
+  let flippedCardError = '';
+  const flippedCardCache = new Map();
+  let cardFlipBtnRects = [];
+  let cardBackLeaderboardRect = null;
 
   // --- Constants ---
   const ASPECT_LANDSCAPE = 0.6;
@@ -346,16 +355,20 @@
     updateDifficulty();
   }
 
-  function openLeaderboard(fromState = run.state) {
+  function openLeaderboard(fromState = run.state, preserveFilter = false) {
     run.lastStateBeforeLeaderboard = fromState === RUN_STATE.LEADERBOARD
       ? run.lastStateBeforeLeaderboard
       : fromState;
     run.state = RUN_STATE.LEADERBOARD;
     leaderboardScrollY = 0;
+    if (!preserveFilter) leaderboardCharacterFilter = null;
     fetchGlobalLeaderboard();
+    mountLeaderboardFilterSelect();
   }
 
   function closeLeaderboard() {
+    leaderboardCharacterFilter = null;
+    unmountLeaderboardFilterSelect();
     run.state = run.lastStateBeforeLeaderboard || RUN_STATE.SELECTING;
   }
 
@@ -364,13 +377,55 @@
     leaderboard.globalError = '';
     try {
       if (!window.globalScores) throw new Error('offline');
-      leaderboard.globalRows = await window.globalScores.topN(GLOBAL_SCORE_LIMIT);
+      leaderboard.globalRows = await window.globalScores.topN(
+        GLOBAL_SCORE_LIMIT,
+        { characterName: leaderboardCharacterFilter }
+      );
       leaderboard.globalStatus = 'ready';
     } catch {
       leaderboard.globalRows = [];
       leaderboard.globalStatus = 'error';
       leaderboard.globalError = 'offline';
     }
+  }
+
+  function mountLeaderboardFilterSelect() {
+    if (leaderboardFilterSelectEl) {
+      leaderboardFilterSelectEl.value = leaderboardCharacterFilter || '';
+      return;
+    }
+    const select = document.createElement('select');
+    select.style.cssText = 'position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:900;padding:6px 10px;font:14px sans-serif;background:#1a1a2e;color:#fff;border:1px solid #5555aa;border-radius:6px;';
+    const all = document.createElement('option');
+    all.value = '';
+    all.textContent = 'All Characters';
+    select.appendChild(all);
+    CHARACTERS.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.id;
+      select.appendChild(opt);
+    });
+    select.value = leaderboardCharacterFilter || '';
+    select.addEventListener('change', () => {
+      leaderboardCharacterFilter = select.value || null;
+      leaderboardScrollY = 0;
+      fetchGlobalLeaderboard();
+    });
+    document.body.appendChild(select);
+    leaderboardFilterSelectEl = select;
+  }
+
+  function positionLeaderboardFilterSelect(top, fontSize = 14) {
+    if (!leaderboardFilterSelectEl) return;
+    leaderboardFilterSelectEl.style.top = `${Math.round(top)}px`;
+    leaderboardFilterSelectEl.style.font = `${Math.round(fontSize)}px sans-serif`;
+  }
+
+  function unmountLeaderboardFilterSelect() {
+    if (!leaderboardFilterSelectEl) return;
+    leaderboardFilterSelectEl.remove();
+    leaderboardFilterSelectEl = null;
   }
 
   function fetchGlobalLeaderboardWhenReady(attemptsRemaining = 20) {
@@ -610,12 +665,45 @@
     return CHARACTERS.length;
   }
 
+  async function fetchCardTop5(characterId) {
+    const cached = flippedCardCache.get(characterId);
+    if (cached && Date.now() - cached.fetchedAt < 60000) {
+      flippedCardRows = cached.rows;
+      flippedCardStatus = 'ready';
+      return;
+    }
+    flippedCardStatus = 'loading';
+    flippedCardError = '';
+    try {
+      const rows = await window.globalScores.topN(5, { characterName: characterId });
+      if (flippedCardId !== characterId) return;
+      flippedCardRows = rows;
+      flippedCardStatus = 'ready';
+      flippedCardCache.set(characterId, { rows, fetchedAt: Date.now() });
+    } catch {
+      if (flippedCardId !== characterId) return;
+      flippedCardRows = [];
+      flippedCardStatus = 'error';
+      flippedCardError = 'offline';
+    }
+  }
+
+  function flipCard(characterId) {
+    if (flippedCardId === characterId) {
+      flippedCardId = null;
+      return;
+    }
+    flippedCardId = characterId;
+    fetchCardTop5(characterId);
+  }
+
   // --- Input ---
   function chooseCharacter(index) {
     selectedCharacterId = CHARACTERS[index].id;
     characterReady = false;
     characterImg.src = CHARACTERS[index].sprite;
     run.state = RUN_STATE.LEVEL_SELECT;
+    flippedCardId = null;
     levelTileRects = [];
   }
 
@@ -637,6 +725,7 @@
           lastPointerX >= levelBackRect.x && lastPointerX <= levelBackRect.x + levelBackRect.w &&
           lastPointerY >= levelBackRect.y && lastPointerY <= levelBackRect.y + levelBackRect.h) {
         run.state = RUN_STATE.SELECTING;
+        flippedCardId = null;
         levelTileRects = [];
         levelBackRect = null;
         return;
@@ -670,12 +759,29 @@
             lastPointerY >= filter.y && lastPointerY <= filter.y + filter.h) {
           activeCharacterFilter = activeCharacterFilter === filter.id ? null : filter.id;
           charSelectScrollY = 0;
+          flippedCardId = null;
           return;
         }
+      }
+      for (let i = 0; i < cardFlipBtnRects.length; i++) {
+        const btn = cardFlipBtnRects[i];
+        if (lastPointerX >= btn.x && lastPointerX <= btn.x + btn.w &&
+            lastPointerY >= btn.y && lastPointerY <= btn.y + btn.h) {
+          flipCard(btn.id);
+          return;
+        }
+      }
+      if (cardBackLeaderboardRect &&
+          lastPointerX >= cardBackLeaderboardRect.x && lastPointerX <= cardBackLeaderboardRect.x + cardBackLeaderboardRect.w &&
+          lastPointerY >= cardBackLeaderboardRect.y && lastPointerY <= cardBackLeaderboardRect.y + cardBackLeaderboardRect.h) {
+        leaderboardCharacterFilter = cardBackLeaderboardRect.characterId;
+        openLeaderboard(RUN_STATE.SELECTING, true);
+        return;
       }
       for (let i = 0; i < tileRects.length; i++) {
         const tile = tileRects[i];
         if (tile.y + tile.h <= charSelectGridTop || tile.y >= charSelectGridBottom) continue;
+        if (flippedCardId === tile.id) continue;
         if (lastPointerX >= tile.x && lastPointerX <= tile.x + tile.w &&
             lastPointerY >= tile.y && lastPointerY <= tile.y + tile.h) {
           chooseCharacter(tile.index);
@@ -697,6 +803,7 @@
           lastPointerY >= gameOverChangeRect.y && lastPointerY <= gameOverChangeRect.y + gameOverChangeRect.h) {
         run.state = RUN_STATE.SELECTING;
         charSelectScrollY = 0;
+        flippedCardId = null;
         tileRects = [];
         gameOverChangeRect = null;
         return;
@@ -894,19 +1001,25 @@
     lastTimestamp = timestamp;
 
     if (run.state === RUN_STATE.USERNAME) {
+      unmountLeaderboardFilterSelect();
       drawCharacterSelect(timestamp);
       if (!usernameOverlayEl) openUsernameOverlay(RUN_STATE.SELECTING);
     } else if (run.state === RUN_STATE.SELECTING) {
+      unmountLeaderboardFilterSelect();
       drawCharacterSelect(timestamp);
     } else if (run.state === RUN_STATE.LEVEL_SELECT) {
+      unmountLeaderboardFilterSelect();
       drawLevelSelect(timestamp);
     } else if (run.state === RUN_STATE.PLAYING) {
+      unmountLeaderboardFilterSelect();
       update(dt, timestamp);
       draw();
     } else if (run.state === RUN_STATE.GAME_OVER) {
+      unmountLeaderboardFilterSelect();
       draw();
       drawGameOverOverlay();
     } else if (run.state === RUN_STATE.LEADERBOARD) {
+      mountLeaderboardFilterSelect();
       drawLeaderboard();
     }
   }
@@ -1298,6 +1411,52 @@
       rect.fontSize || Math.max(14, Math.min(18, Math.floor(canvas.width * 0.04))), '#ffffff', 'center', false);
   }
 
+  function drawCardBack(x, y, w, h, character) {
+    ctx.fillStyle = '#20203a';
+    ctx.strokeStyle = '#5555aa';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, 8);
+    ctx.fill();
+    ctx.stroke();
+
+    const titleSize = Math.max(13, Math.floor(w * 0.11));
+    const rowSize = Math.max(10, Math.floor(w * 0.08));
+    const pad = 10;
+    drawText(character.id, x + w / 2, y + titleSize + pad, titleSize, '#ffffff', 'center', true);
+
+    const contentTop = y + titleSize + pad * 2;
+    const buttonH = Math.max(26, Math.floor(h * 0.14));
+    const buttonW = Math.min(w - pad * 2, Math.max(104, Math.floor(w * 0.72)));
+    const buttonRect = {
+      x: x + (w - buttonW) / 2,
+      y: y + h - buttonH - pad,
+      w: buttonW,
+      h: buttonH,
+      fontSize: Math.max(11, Math.floor(rowSize * 0.95)),
+      characterId: character.id
+    };
+    cardBackLeaderboardRect = buttonRect;
+
+    if (flippedCardStatus === 'loading') {
+      drawText('Loading…', x + w / 2, y + h / 2, rowSize, 'rgba(255,255,255,0.75)', 'center', false);
+    } else if (flippedCardStatus === 'error') {
+      drawText('Offline', x + w / 2, y + h / 2, rowSize, '#ff8888', 'center', false);
+    } else if (flippedCardStatus === 'ready') {
+      if (flippedCardRows.length === 0) {
+        drawText('No scores yet', x + w / 2, y + h / 2, rowSize, 'rgba(255,255,255,0.75)', 'center', false);
+      } else {
+        const maxTextW = w - pad * 2;
+        flippedCardRows.slice(0, 5).forEach((row, index) => {
+          const rowText = `${index + 1}. ${row.name} — ${row.score}`;
+          drawText(truncateText(rowText, maxTextW, rowSize), x + pad, contentTop + (index + 1) * (rowSize + 6), rowSize, '#ffffff', 'left', false);
+        });
+      }
+    }
+
+    drawButton(buttonRect, 'Leaderboard ›');
+  }
+
   function formatScoreDate(value) {
     if (!value) return '';
     const date = new Date(value);
@@ -1325,29 +1484,33 @@
       ? Math.max(12, Math.floor(canvas.height * 0.04))
       : Math.max(15, Math.floor(canvas.width * 0.04));
     const pad = isPhoneLandscape ? 12 : 20;
-    drawText('LEADERBOARD', cx, safeTop + titleSize, titleSize, '#ffffff', 'center', true);
-    drawText('Showing top 100 scores', cx, safeTop + titleSize + subtitleSize + 6, subtitleSize, 'rgba(255,255,255,0.65)', 'center', false);
-
-    const backW = Math.min(220, canvas.width * 0.55);
-    const backH = Math.max(40, canvas.height * 0.065);
     const bannerText = '👋 Please let Max know if your score is not registered ❤';
     const bannerPadX = isPhoneLandscape ? 10 : 14;
     const bannerH = bannerSize + (isPhoneLandscape ? 8 : 10);
-    const bannerY = safeTop + titleSize + subtitleSize + 12;
+    const bannerY = Math.max(4, safeTop * 0.35);
     ctx.font = `${Math.round(bannerSize)}px sans-serif`;
     const bannerW = Math.min(canvas.width - pad * 2, Math.max(260, ctx.measureText(bannerText).width + bannerPadX * 2));
     const bannerX = cx - bannerW / 2;
     ctx.fillStyle = '#111126';
-    ctx.strokeStyle = 'rgba(255,255,255,0.22)';
-    ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.roundRect(bannerX, bannerY, bannerW, bannerH, 6);
     ctx.fill();
-    ctx.stroke();
     drawText(truncateText(bannerText, bannerW - bannerPadX * 2, bannerSize), cx, bannerY + bannerH * 0.66, bannerSize, '#ffffff', 'center', false);
 
+    const titleY = bannerY + bannerH + Math.floor(pad * 0.55) + titleSize;
+    const subtitleY = titleY + subtitleSize + 6;
+    drawText('LEADERBOARD', cx, titleY, titleSize, '#ffffff', 'center', true);
+    drawText('Showing top 100 scores', cx, subtitleY, subtitleSize, 'rgba(255,255,255,0.65)', 'center', false);
+
+    const selectFontSize = isPhoneLandscape ? 12 : 14;
+    const selectTop = subtitleY + 8;
+    const selectH = selectFontSize + 14;
+    positionLeaderboardFilterSelect(selectTop, selectFontSize);
+
+    const backW = Math.min(140, canvas.width * 0.36);
+    const backH = Math.max(30, canvas.height * 0.048);
     const rows = leaderboard.globalRows;
-    const listTop = bannerY + bannerH + pad;
+    const listTop = selectTop + selectH + Math.floor(pad * 0.65);
     const listBottom = canvas.height - pad * 2 - backH;
     leaderboardListTop = listTop;
     leaderboardListBottom = listBottom;
@@ -1400,7 +1563,7 @@
     }
 
     leaderboardBackRect = { x: cx - backW / 2, y: canvas.height - pad - backH, w: backW, h: backH };
-    drawButton(leaderboardBackRect, 'Back');
+    drawButton({ ...leaderboardBackRect, fontSize: isPhoneLandscape ? 11 : 13 }, 'Back');
   }
 
   function drawCharacterSelect(timestamp) {
@@ -1415,8 +1578,9 @@
     const titleSize = isPhoneLandscape
       ? Math.max(14, Math.floor(canvas.height * 0.04))
       : Math.max(16, Math.floor(canvas.width * 0.042));
-    drawText('SHOVEL TOSS', canvas.width / 2, safeTop + gameTitleSize, gameTitleSize, '#ffffff', 'center', true);
-    drawText('Choose your character', canvas.width / 2, safeTop + gameTitleSize + titleSize + 8, titleSize, '#ffffff', 'center', true);
+    const homeTop = Math.max(4, safeTop * 0.45);
+    drawText('SHOVEL TOSS', canvas.width / 2, homeTop + gameTitleSize, gameTitleSize, '#ffffff', 'center', true);
+    drawText('Choose your character', canvas.width / 2, homeTop + gameTitleSize + titleSize + 8, titleSize, '#ffffff', 'center', true);
 
     const name = username.get();
     usernameNameRect = null;
@@ -1425,7 +1589,7 @@
         ? Math.max(13, Math.floor(canvas.height * 0.04))
         : Math.max(15, Math.floor(canvas.width * 0.04));
       const nameText = `Player: ${name}`;
-      const nameY = safeTop + gameTitleSize + titleSize + nameSize + 14;
+      const nameY = homeTop + gameTitleSize + titleSize + nameSize + 14;
       drawText(nameText, canvas.width / 2, nameY, nameSize, '#ffe600', 'center', false);
       const nameW = ctx.measureText(nameText).width;
       const iconSize = nameSize * 0.9;
@@ -1442,15 +1606,15 @@
     ctx.font = `${Math.round(footerSize)}px sans-serif`;
     drawText(footerText, canvas.width / 2, footerY, footerSize, 'rgba(255,255,255,0.55)', 'center', false);
 
-    const buttonW = Math.min(220, canvas.width * 0.5);
-    const buttonH = Math.max(38, canvas.height * 0.06);
+    const buttonW = Math.min(150, canvas.width * 0.36);
+    const buttonH = Math.max(30, canvas.height * 0.048);
     selectLeaderboardRect = {
       x: canvas.width / 2 - buttonW / 2,
       y: footerY - footerSize - buttonH - (isPhoneLandscape ? 14 : 22),
       w: buttonW,
       h: buttonH
     };
-    drawButton(selectLeaderboardRect, 'Leaderboard');
+    drawButton({ ...selectLeaderboardRect, fontSize: isPhoneLandscape ? 11 : 13 }, 'Leaderboard');
 
     const isPortrait = canvas.height > canvas.width;
     const cols = isPortrait ? 2 : 4;
@@ -1458,7 +1622,7 @@
     const rows = Math.ceil(visibleCharacters.length / cols);
     const pad = isPhoneLandscape ? 10 : 16;
     const nameOffset = name ? Math.max(18, canvas.height * 0.035) : 0;
-    const topOffset = safeTop + gameTitleSize + titleSize + 8 + nameOffset + (isPhoneLandscape ? pad : pad * 2);
+    const topOffset = homeTop + gameTitleSize + titleSize + 4 + nameOffset + (isPhoneLandscape ? Math.floor(pad * 0.55) : pad);
     const filterGap = isPhoneLandscape ? 6 : 8;
     const filterButtonH = isPhoneLandscape ? 26 : 30;
     const filterButtonW = Math.min(isPhoneLandscape ? 84 : 98, (canvas.width - pad * 2 - filterGap * (CHARACTER_FILTERS.length - 1)) / CHARACTER_FILTERS.length);
@@ -1482,13 +1646,15 @@
     const tileW = targetTileW;
     const tileH = Math.floor(tileW * 1.25);
     charSelectGridTop = filterY + filterButtonH + pad;
-    charSelectGridBottom = selectLeaderboardRect.y - pad;
+    charSelectGridBottom = selectLeaderboardRect.y - Math.floor(pad * 0.45);
     const gridViewportH = charSelectGridBottom - charSelectGridTop;
     const totalContentH = rows * tileH + (rows - 1) * pad;
     const maxScroll = Math.max(0, totalContentH - gridViewportH);
     charSelectScrollY = Math.max(0, Math.min(charSelectScrollY, maxScroll));
 
     tileRects = [];
+    cardFlipBtnRects = [];
+    cardBackLeaderboardRect = null;
     ctx.save();
     ctx.beginPath();
     ctx.rect(0, charSelectGridTop, canvas.width, gridViewportH);
@@ -1512,54 +1678,77 @@
       ctx.fill();
       ctx.stroke();
 
-      const heroImg = heroImages[character.id];
-      if (heroImg && heroImg.complete && heroImg.naturalWidth > 0) {
-        const imgAspect = heroImg.naturalWidth / heroImg.naturalHeight;
-        const tileAspect = tileW / tileH;
-        let drawW, drawH, drawX, drawY;
-        if (imgAspect > tileAspect) {
-          drawH = tileH - 8;
-          drawW = drawH * imgAspect;
-        } else {
-          drawW = tileW - 8;
-          drawH = drawW / imgAspect;
+      if (flippedCardId === character.id) {
+        drawCardBack(x, y, tileW, tileH, character);
+      } else {
+        const heroImg = heroImages[character.id];
+        if (heroImg && heroImg.complete && heroImg.naturalWidth > 0) {
+          const imgAspect = heroImg.naturalWidth / heroImg.naturalHeight;
+          const tileAspect = tileW / tileH;
+          let drawW, drawH, drawX, drawY;
+          if (imgAspect > tileAspect) {
+            drawH = tileH - 8;
+            drawW = drawH * imgAspect;
+          } else {
+            drawW = tileW - 8;
+            drawH = drawW / imgAspect;
+          }
+          drawX = x + (tileW - drawW) / 2;
+          drawY = y + 4;
+          ctx.save();
+          ctx.beginPath();
+          ctx.roundRect(x, y, tileW, tileH, 8);
+          ctx.clip();
+          ctx.drawImage(heroImg, drawX, drawY, drawW, drawH);
+          ctx.restore();
         }
-        drawX = x + (tileW - drawW) / 2;
-        drawY = y + 4;
-        ctx.save();
-        ctx.beginPath();
-        ctx.roundRect(x, y, tileW, tileH, 8);
-        ctx.clip();
-        ctx.drawImage(heroImg, drawX, drawY, drawW, drawH);
-        ctx.restore();
+
+        const labelSize = isPhoneLandscape
+          ? Math.max(12, Math.floor(canvas.height * 0.035))
+          : Math.max(12, Math.floor(canvas.width * 0.03));
+        if (NEW_CHARACTER_IDS.has(character.id)) {
+          const badgeSize = Math.max(10, Math.floor(labelSize * 0.85));
+          const badgeW = Math.max(42, badgeSize * 3.5);
+          const badgeH = badgeSize + 8;
+          ctx.fillStyle = '#ffe600';
+          ctx.strokeStyle = '#111111';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.roundRect(x + tileW - badgeW - 7, y + 7, badgeW, badgeH, 4);
+          ctx.fill();
+          ctx.stroke();
+          drawText('NEW', x + tileW - badgeW / 2 - 7, y + 7 + badgeH * 0.68, badgeSize, '#111111', 'center', true);
+        }
+
+        const isChampion = CHAMPION_IDS.has(character.id);
+        drawText(character.id, x + 8, y + labelSize + 6, labelSize, '#ffffff', 'left', false);
+        if (isChampion) {
+          if (championImg.complete && championImg.naturalWidth > 0) {
+            const badgeW = Math.floor(tileW * 0.78);
+            const badgeH = Math.floor(tileW * 0.48);
+            ctx.drawImage(championImg, x + (tileW - badgeW) / 2, y + tileH - badgeH + 4, badgeW, badgeH);
+          }
+        }
       }
 
-      const labelSize = isPhoneLandscape
-        ? Math.max(12, Math.floor(canvas.height * 0.035))
-        : Math.max(12, Math.floor(canvas.width * 0.03));
-      if (NEW_CHARACTER_IDS.has(character.id)) {
-        const badgeSize = Math.max(10, Math.floor(labelSize * 0.85));
-        const badgeW = Math.max(42, badgeSize * 3.5);
-        const badgeH = badgeSize + 8;
-        ctx.fillStyle = '#ffe600';
-        ctx.strokeStyle = '#111111';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.roundRect(x + tileW - badgeW - 7, y + 7, badgeW, badgeH, 4);
-        ctx.fill();
-        ctx.stroke();
-        drawText('NEW', x + tileW - badgeW / 2 - 7, y + 7 + badgeH * 0.68, badgeSize, '#111111', 'center', true);
-      }
-
-      const isChampion = CHAMPION_IDS.has(character.id);
-      drawText(character.id, x + 8, y + labelSize + 6, labelSize, '#ffffff', 'left', false);
-      if (isChampion) {
-        if (championImg.complete && championImg.naturalWidth > 0) {
-          const badgeW = Math.floor(tileW * 0.78);
-          const badgeH = Math.floor(tileW * 0.48);
-          ctx.drawImage(championImg, x + (tileW - badgeW) / 2, y + tileH - badgeH + 4, badgeW, badgeH);
-        }
-      }
+      const flipBtnSize = Math.max(22, Math.floor(tileW * 0.18));
+      const isFlippedCard = flippedCardId === character.id;
+      const flipBtnX = x + tileW - flipBtnSize - 6;
+      const flipBtnY = isFlippedCard ? y + 6 : y + tileH - flipBtnSize - 6;
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.beginPath();
+      ctx.arc(flipBtnX + flipBtnSize / 2, flipBtnY + flipBtnSize / 2, flipBtnSize / 2, 0, Math.PI * 2);
+      ctx.fill();
+      drawText(isFlippedCard ? '×' : 'i',
+        flipBtnX + flipBtnSize / 2, flipBtnY + flipBtnSize * (isFlippedCard ? 0.69 : 0.72),
+        flipBtnSize * (isFlippedCard ? 0.72 : 0.6), '#ffffff', 'center', true);
+      cardFlipBtnRects.push({
+        id: character.id,
+        x: flipBtnX,
+        y: flipBtnY,
+        w: flipBtnSize,
+        h: flipBtnSize
+      });
     }
     ctx.restore();
   }
