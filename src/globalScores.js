@@ -47,18 +47,22 @@ window.globalScores = {
       err.code = 'disabled-non-prod';
       throw err;
     }
-    const { error } = await getClient()
+    const { data, error } = await getClient()
       .from('high_scores')
-      .insert({ name: cleanName(name), score, character_name: cleanCharacterName(characterName) });
+      .insert({ name: cleanName(name), score, character_name: cleanCharacterName(characterName) })
+      .select('id')
+      .single();
     if (error) throw error;
+    return data.id;
   },
 
   async topN(n = 100) {
     const { data, error } = await getClient()
       .from('high_scores')
-      .select('name, character_name, score, created_at')
+      .select('id, name, character_name, score, created_at')
       .order('score', { ascending: false })
       .order('created_at', { ascending: true })
+      .order('id', { ascending: true })
       .limit(n);
     if (error) throw error;
     return data || [];

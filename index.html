@@ -399,11 +399,11 @@
     gameOverSave.globalStatus = 'loading';
     try {
       if (score <= 0) throw new Error('score');
-      await window.globalScores.submit(name, score, characterName);
+      const insertedId = await window.globalScores.submit(name, score, characterName);
       const rows = await window.globalScores.topN(GLOBAL_SCORE_LIMIT);
       leaderboard.globalRows = rows;
       leaderboard.globalStatus = 'ready';
-      const rank = rows.findIndex(row => score >= row.score);
+      const rank = rows.findIndex(row => row.id === insertedId);
       gameOverSave.globalStatus = 'ready';
       gameOverSave.globalMessage = rank === -1
         ? 'Global: outside top 100'
