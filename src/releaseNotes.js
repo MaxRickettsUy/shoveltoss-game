@@ -2,6 +2,16 @@
 // When releasing, prepend an entry here if users should see "What's New".
 const RELEASE_NOTES = [
   {
+    version: 'v0.21.0',
+    date: '2026-05-04',
+    headline: 'New home screen',
+    items: [
+      'New landing screen with quick access to Leaderboard, Hall of Fame, Player Stats, and What\'s New.',
+      'Hall of Fame: see all-time records across players.',
+      'Player Stats: dig into your own run history.'
+    ]
+  },
+  {
     version: 'v0.20.0',
     date: '2026-05-03',
     headline: 'Leaderboard upgrades',
