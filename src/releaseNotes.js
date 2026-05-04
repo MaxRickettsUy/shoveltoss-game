@@ -39,8 +39,8 @@ const RELEASE_NOTES = [
   }
 ];
 
-function getAllNotes() {
-  return RELEASE_NOTES.slice();
+function getLatestNote() {
+  return RELEASE_NOTES[0] || null;
 }
 
-window.releaseNotes = { getAllNotes };
+window.releaseNotes = { getLatestNote };
