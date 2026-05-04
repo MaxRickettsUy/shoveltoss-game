@@ -13,6 +13,7 @@
 </head>
 <body>
 <canvas id="gameCanvas"></canvas>
+<script src="src/releaseNotes.js"></script>
 <script type="module" src="src/globalScores.js"></script>
 <script>
   const canvas = document.getElementById('gameCanvas');
@@ -97,6 +98,9 @@
   let leaderboardBackRect = null;
   let homeButtonRects = [];
   let stubBackRect = null;
+  let releaseNotesList = window.releaseNotes ? window.releaseNotes.getAllNotes() : [];
+  let whatsNewOverlayEl = null;
+  let whatsNewButtonEl = null;
   const heroImages = {};
   CHARACTERS.forEach(c => {
     const img = new Image();
@@ -195,6 +199,7 @@
   const USERNAME_KEY = 'shoveltoss.username';
   const GLOBAL_SCORE_LIMIT = 100;
   const HIGH_SCORE_BADGE = '👑';
+  // When releasing user-visible changes, prepend a note in src/releaseNotes.js.
   const APP_VERSION_TAG = 'v0.20.0';
   const HOF_POINTS_LEADER = { key: 'pointsLeader', label: 'Most Points' };
   const HOF_TOTAL_POINTS_LEADER = { key: 'totalPointsLeader', label: 'Most Total Points All Time' };
@@ -664,6 +669,82 @@
     input.select();
   }
 
+  function openWhatsNewOverlay() {
+    if (releaseNotesList.length === 0 && window.releaseNotes) {
+      releaseNotesList = window.releaseNotes.getAllNotes();
+    }
+    if (whatsNewOverlayEl || releaseNotesList.length === 0) return;
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:1000;display:flex;align-items:center;justify-content:center;padding:24px;font-family:sans-serif;';
+
+    const card = document.createElement('div');
+    card.style.cssText = 'background:#1a1a2e;color:#fff;border:2px solid #5555aa;border-radius:10px;max-width:420px;width:100%;max-height:80vh;overflow-y:auto;padding:20px;';
+
+    const title = document.createElement('h2');
+    title.textContent = "What's New";
+    title.style.cssText = 'margin:0 0 12px;font-size:22px;';
+    card.appendChild(title);
+
+    releaseNotesList.forEach(note => {
+      const h = document.createElement('h3');
+      h.textContent = `${note.version}${note.headline ? ' - ' + note.headline : ''}`;
+      h.style.cssText = 'margin:14px 0 6px;font-size:15px;color:#ffe600;';
+      card.appendChild(h);
+
+      const ul = document.createElement('ul');
+      ul.style.cssText = 'margin:0 0 4px 20px;padding:0;font-size:14px;line-height:1.4;';
+      note.items.forEach(item => {
+        const li = document.createElement('li');
+        li.textContent = item;
+        li.style.marginBottom = '4px';
+        ul.appendChild(li);
+      });
+      card.appendChild(ul);
+    });
+
+    const btn = document.createElement('button');
+    btn.textContent = 'Got it';
+    btn.style.cssText = 'margin-top:18px;width:100%;padding:10px;background:#ffe600;color:#1a1a2e;border:none;border-radius:6px;font-weight:bold;font-size:15px;cursor:pointer;';
+    btn.addEventListener('click', closeWhatsNewOverlay);
+    card.appendChild(btn);
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) closeWhatsNewOverlay();
+    });
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+    whatsNewOverlayEl = overlay;
+  }
+
+  function closeWhatsNewOverlay() {
+    if (!whatsNewOverlayEl) return;
+    whatsNewOverlayEl.remove();
+    whatsNewOverlayEl = null;
+    if (window.releaseNotes) window.releaseNotes.markAllSeen();
+  }
+
+  function updateWhatsNewButtonHitTarget(rect) {
+    if (run.state !== RUN_STATE.HOME || !rect) {
+      if (whatsNewButtonEl) whatsNewButtonEl.style.display = 'none';
+      return;
+    }
+    if (!whatsNewButtonEl) {
+      whatsNewButtonEl = document.createElement('button');
+      whatsNewButtonEl.type = 'button';
+      whatsNewButtonEl.textContent = "What's New?";
+      whatsNewButtonEl.style.cssText = 'position:fixed;z-index:20;background:transparent;border:0;color:transparent;cursor:pointer;';
+      whatsNewButtonEl.setAttribute('aria-label', "What's New?");
+      whatsNewButtonEl.addEventListener('click', openWhatsNewOverlay);
+      document.body.appendChild(whatsNewButtonEl);
+    }
+    whatsNewButtonEl.style.display = 'block';
+    whatsNewButtonEl.style.left = `${Math.round(rect.x)}px`;
+    whatsNewButtonEl.style.top = `${Math.round(rect.y)}px`;
+    whatsNewButtonEl.style.width = `${Math.round(rect.w)}px`;
+    whatsNewButtonEl.style.height = `${Math.round(rect.h)}px`;
+  }
+
   function resetRun() {
     run.throwCount       = 0;
     run.missesRemaining  = MISSES_PER_RUN;
@@ -836,6 +917,9 @@
               break;
             case 'stats':
               openPlayerStats();
+              break;
+            case 'whatsNew':
+              openWhatsNewOverlay();
               break;
           }
           return;
@@ -1141,6 +1225,7 @@
     if (lastTimestamp === null) { lastTimestamp = timestamp; }
     const dt = Math.min((timestamp - lastTimestamp) / 1000, 0.05); // cap at 50ms
     lastTimestamp = timestamp;
+    if (run.state !== RUN_STATE.HOME && whatsNewButtonEl) whatsNewButtonEl.style.display = 'none';
 
     if (run.state === RUN_STATE.USERNAME) {
       drawHome(timestamp);
@@ -1542,7 +1627,8 @@
   }
 
   function drawButton(rect, label, active = false) {
-    ctx.fillStyle = active ? '#3f6f58' : '#2a2a4a';
+    const textColor = rect.textColor || '#ffffff';
+    ctx.fillStyle = rect.fillStyle || (active ? '#3f6f58' : '#2a2a4a');
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -1553,12 +1639,12 @@
     if (rect.centered) {
       ctx.save();
       ctx.textBaseline = 'middle';
-      drawText(label, rect.x + rect.w / 2, rect.y + rect.h / 2, fontSize, '#ffffff', 'center', false);
+      drawText(label, rect.x + rect.w / 2, rect.y + rect.h / 2, fontSize, textColor, 'center', false);
       ctx.restore();
       return;
     }
     drawText(label, rect.x + rect.w / 2, rect.y + rect.h * 0.64,
-      fontSize, '#ffffff', 'center', false);
+      fontSize, textColor, 'center', false);
   }
 
   function drawCardBack(x, y, w, h, character) {
@@ -1755,6 +1841,7 @@
       { label: '👑 Leaderboard', action: 'leaderboard' },
       { label: '🏛 Hall of Fame', action: 'hall' },
       { label: '📊 Player Stats', action: 'stats' },
+      { label: "What's New?", action: 'whatsNew' },
     ];
     const totalButtonH = buttons.length * buttonH + (buttons.length - 1) * buttonGap;
     const footerSize = isPhoneLandscape
@@ -1776,12 +1863,18 @@
         action: button.action,
         fontSize: isPhoneLandscape ? 13 : 16
       };
+      if (button.action === 'whatsNew') {
+        rect.fillStyle = '#ffe600';
+        rect.textColor = '#1a1a2e';
+      }
       homeButtonRects.push(rect);
       drawButton(rect, button.label);
+      if (button.action === 'whatsNew') updateWhatsNewButtonHitTarget(rect);
     });
 
+    const footerText = APP_VERSION_TAG;
     ctx.font = `${Math.round(footerSize)}px sans-serif`;
-    drawText(APP_VERSION_TAG, canvas.width / 2, footerY, footerSize, 'rgba(255,255,255,0.55)', 'center', false);
+    drawText(footerText, canvas.width / 2, footerY, footerSize, 'rgba(255,255,255,0.55)', 'center', false);
   }
 
   function drawStubScreen(title) {
