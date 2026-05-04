@@ -72,6 +72,16 @@ window.globalScores = {
     return data || [];
   },
 
+  async allScores(maxRows = 5000) {
+    const { data, error } = await getClient()
+      .from('high_scores')
+      .select('name, score')
+      .order('id', { ascending: true })
+      .limit(maxRows);
+    if (error) throw error;
+    return data || [];
+  },
+
   async firstAtMilestone(threshold) {
     const { data, error } = await getClient()
       .from('high_scores')

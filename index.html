@@ -131,6 +131,12 @@
   let hallOfFameListTop = 0;
   let hallOfFameListBottom = 0;
   let hallOfFameBackRect = null;
+  let playerStatsRows = [];
+  let playerStatsStatus = 'idle';
+  let playerStatsScrollY = 0;
+  let playerStatsBackRect = null;
+  let playerStatsListTop = 0;
+  let playerStatsListBottom = 0;
   let flippedCardId = null;
   let flippedCardRows = [];
   let flippedCardStatus = 'idle';
@@ -399,6 +405,12 @@
     fetchHallOfFame();
   }
 
+  function openPlayerStats() {
+    playerStatsScrollY = 0;
+    run.state = RUN_STATE.PLAYER_STATS;
+    fetchPlayerStats();
+  }
+
   async function fetchGlobalLeaderboard() {
     leaderboard.globalStatus = 'loading';
     leaderboard.globalError = '';
@@ -436,6 +448,36 @@
     } catch {
       hallOfFameRows = [];
       hallOfFameStatus = 'error';
+    }
+  }
+
+  function aggregatePlayerStats(rawRows) {
+    const byName = new Map();
+    for (const r of rawRows) {
+      const key = String(r.name || '').trim();
+      if (!key) continue;
+      const cur = byName.get(key) || { name: key, totalPoints: 0, gamesPlayed: 0, avgPoints: 0 };
+      cur.totalPoints += Number(r.score) || 0;
+      cur.gamesPlayed += 1;
+      cur.avgPoints = cur.gamesPlayed ? cur.totalPoints / cur.gamesPlayed : 0;
+      byName.set(key, cur);
+    }
+    return Array.from(byName.values()).sort((a, b) => {
+      if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+      return b.gamesPlayed - a.gamesPlayed;
+    });
+  }
+
+  async function fetchPlayerStats() {
+    playerStatsStatus = 'loading';
+    try {
+      if (!window.globalScores) throw new Error('offline');
+      const raw = await window.globalScores.allScores();
+      playerStatsRows = aggregatePlayerStats(raw);
+      playerStatsStatus = 'ready';
+    } catch {
+      playerStatsRows = [];
+      playerStatsStatus = 'error';
     }
   }
 
@@ -793,7 +835,7 @@
               openHallOfFame();
               break;
             case 'stats':
-              run.state = RUN_STATE.PLAYER_STATS;
+              openPlayerStats();
               break;
           }
           return;
@@ -893,8 +935,9 @@
       return;
     }
     if (run.state === RUN_STATE.PLAYER_STATS) {
-      if (pointerInRect(stubBackRect)) {
+      if (pointerInRect(playerStatsBackRect)) {
         run.state = RUN_STATE.HOME;
+        playerStatsBackRect = null;
         return;
       }
       return;
@@ -962,6 +1005,10 @@
     return y >= hallOfFameListTop && y <= hallOfFameListBottom;
   }
 
+  function isInPlayerStatsList(y) {
+    return y >= playerStatsListTop && y <= playerStatsListBottom;
+  }
+
   function startSelectDrag(y) {
     selectDragStartedInGrid = run.state === RUN_STATE.SELECTING && isInCharacterGrid(y);
     selectDragScrolling = false;
@@ -989,7 +1036,8 @@
 
   function startLeaderboardDrag(y) {
     leaderboardDragStartedInList = (run.state === RUN_STATE.LEADERBOARD && isInLeaderboardList(y))
-      || (run.state === RUN_STATE.HALL_OF_FAME && isInHallOfFameList(y));
+      || (run.state === RUN_STATE.HALL_OF_FAME && isInHallOfFameList(y))
+      || (run.state === RUN_STATE.PLAYER_STATS && isInPlayerStatsList(y));
     leaderboardDragScrolling = false;
     leaderboardDragLastY = y;
     leaderboardDragTotal = 0;
@@ -1003,6 +1051,8 @@
     leaderboardDragTotal += Math.abs(dy);
     if (run.state === RUN_STATE.HALL_OF_FAME) {
       hallOfFameScrollY -= dy;
+    } else if (run.state === RUN_STATE.PLAYER_STATS) {
+      playerStatsScrollY -= dy;
     } else {
       leaderboardScrollY -= dy;
     }
@@ -1076,6 +1126,8 @@
       leaderboardScrollY += e.deltaY;
     } else if (run.state === RUN_STATE.HALL_OF_FAME) {
       hallOfFameScrollY += e.deltaY;
+    } else if (run.state === RUN_STATE.PLAYER_STATS) {
+      playerStatsScrollY += e.deltaY;
     } else {
       return;
     }
@@ -1699,10 +1751,10 @@
     const buttonH = Math.max(isPhoneLandscape ? 34 : 42, canvas.height * (isPhoneLandscape ? 0.075 : 0.06));
     const buttonGap = Math.max(isPhoneLandscape ? 8 : 12, canvas.height * 0.018);
     const buttons = [
-      { label: 'Play Game', action: 'play' },
-      { label: 'Leaderboard', action: 'leaderboard' },
-      { label: 'Hall of Fame', action: 'hall' },
-      { label: 'Player Stats', action: 'stats' },
+      { label: '🪏 Play Game', action: 'play' },
+      { label: '👑 Leaderboard', action: 'leaderboard' },
+      { label: '🏛 Hall of Fame', action: 'hall' },
+      { label: '📊 Player Stats', action: 'stats' },
     ];
     const totalButtonH = buttons.length * buttonH + (buttons.length - 1) * buttonGap;
     const footerSize = isPhoneLandscape
@@ -1868,7 +1920,88 @@
   }
 
   function drawPlayerStats(timestamp) {
-    drawStubScreen('PLAYER STATS');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const cx = canvas.width / 2;
+    const isPhoneLandscape = canvas.width > canvas.height && canvas.height <= 500;
+    const titleSize = isPhoneLandscape
+      ? Math.max(24, Math.floor(canvas.height * 0.09))
+      : Math.max(30, Math.floor(canvas.width * 0.09));
+    const subtitleSize = isPhoneLandscape
+      ? Math.max(10, Math.floor(canvas.height * 0.035))
+      : Math.max(12, Math.floor(canvas.width * 0.032));
+    const rowSize = isPhoneLandscape
+      ? Math.max(12, Math.floor(canvas.height * 0.04))
+      : Math.max(15, Math.floor(canvas.width * 0.04));
+    const headerSize = Math.max(10, Math.floor(rowSize * 0.78));
+    const pad = isPhoneLandscape ? 12 : 20;
+
+    const titleY = Math.max(4, safeTop * 0.35) + titleSize;
+    const subtitleY = titleY + subtitleSize + 6;
+    drawText('PLAYER STATS', cx, titleY, titleSize, '#ffffff', 'center', true);
+    drawText('Sorted by total points', cx, subtitleY, subtitleSize, 'rgba(255,255,255,0.65)', 'center', false);
+
+    const backW = Math.min(140, canvas.width * 0.36);
+    const backH = Math.max(30, canvas.height * 0.048);
+    const headerY = subtitleY + Math.floor(pad * 1.25);
+    const listTop = headerY + headerSize + Math.floor(pad * 0.45);
+    const listBottom = canvas.height - pad * 2 - backH;
+    playerStatsListTop = listTop;
+    playerStatsListBottom = listBottom;
+
+    const rankX = pad;
+    const gamesX = canvas.width - pad;
+    const avgX = gamesX - Math.max(50, canvas.width * 0.12);
+    const totalX = avgX - Math.max(58, canvas.width * 0.14);
+    const playerX = rankX + Math.max(34, canvas.width * 0.08);
+    drawText('#', rankX, headerY, headerSize, 'rgba(255,255,255,0.58)', 'left', true);
+    drawText('Player', playerX, headerY, headerSize, 'rgba(255,255,255,0.58)', 'left', true);
+    drawText('Total', totalX, headerY, headerSize, 'rgba(255,255,255,0.58)', 'right', true);
+    drawText('Avg', avgX, headerY, headerSize, 'rgba(255,255,255,0.58)', 'right', true);
+    drawText('Games', gamesX, headerY, headerSize, 'rgba(255,255,255,0.58)', 'right', true);
+
+    const rows = playerStatsStatus === 'ready' ? playerStatsRows : [];
+    const lineH = rowSize + 12;
+    const listH = Math.max(0, listBottom - listTop);
+    const listInsetTop = rowSize;
+    const totalContentH = listInsetTop + rows.length * lineH;
+    const maxScroll = Math.max(0, totalContentH - listH);
+    playerStatsScrollY = Math.max(0, Math.min(playerStatsScrollY, maxScroll));
+
+    if (playerStatsStatus === 'loading') {
+      drawText('Loading...', cx, listTop + rowSize, rowSize, 'rgba(255,255,255,0.75)', 'center', false);
+    } else if (playerStatsStatus === 'error') {
+      drawText('Offline', cx, listTop + rowSize, rowSize, '#ff8888', 'center', false);
+    } else if (rows.length === 0) {
+      drawText('No players yet', cx, listTop + rowSize, rowSize, 'rgba(255,255,255,0.75)', 'center', false);
+    } else {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, listTop, canvas.width, listH);
+      ctx.clip();
+      rows.forEach((row, index) => {
+        const y = listTop + listInsetTop + index * lineH - playerStatsScrollY;
+        if (y + lineH < listTop || y > listBottom) return;
+        if (index % 2 === 1) {
+          ctx.fillStyle = '#111126';
+          ctx.fillRect(rankX - 8, y - rowSize - 4, gamesX - rankX + 16, lineH);
+        }
+        const rankText = `${index + 1}.`;
+        ctx.font = `${Math.round(rowSize)}px sans-serif`;
+        const nameMaxW = totalX - playerX - 16;
+        drawText(rankText, rankX, y, rowSize, 'rgba(255,255,255,0.68)', 'left', false);
+        drawText(truncateText(row.name, nameMaxW, rowSize), playerX, y, rowSize, '#ffffff', 'left', false);
+        drawText(row.totalPoints, totalX, y, rowSize, '#ffe600', 'right', true);
+        drawText(row.avgPoints.toFixed(1), avgX, y, rowSize, '#ffffff', 'right', false);
+        drawText(row.gamesPlayed, gamesX, y, rowSize, '#ffffff', 'right', false);
+      });
+      ctx.restore();
+    }
+
+    playerStatsBackRect = { x: cx - backW / 2, y: canvas.height - pad - backH, w: backW, h: backH };
+    drawButton({ ...playerStatsBackRect, fontSize: isPhoneLandscape ? 11 : 13 }, 'Back');
   }
 
   function drawCharacterSelect(timestamp) {
