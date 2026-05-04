@@ -94,7 +94,10 @@
   let usernameNameRect = null;
   let usernameOverlayEl = null;
   let selectLeaderboardRect = null;
+  let selectHomeRect = null;
   let leaderboardBackRect = null;
+  let homeButtonRects = [];
+  let stubBackRect = null;
   const heroImages = {};
   CHARACTERS.forEach(c => {
     const img = new Image();
@@ -196,7 +199,7 @@
   };
 
   // --- State enums ---
-  const RUN_STATE = { USERNAME: 'username', SELECTING: 'selecting', LEVEL_SELECT: 'level_select', PLAYING: 'playing', GAME_OVER: 'game_over', LEADERBOARD: 'leaderboard' };
+  const RUN_STATE = { USERNAME: 'username', HOME: 'home', SELECTING: 'selecting', LEVEL_SELECT: 'level_select', PLAYING: 'playing', GAME_OVER: 'game_over', LEADERBOARD: 'leaderboard', HALL_OF_FAME: 'hall_of_fame', PLAYER_STATS: 'player_stats' };
   const STATE = {
     IDLE:      'idle',
     CHARGING:  'charging',
@@ -206,11 +209,11 @@
 
   // --- State objects ---
   const run = {
-    state:       username.get() ? RUN_STATE.SELECTING : RUN_STATE.USERNAME,
+    state:       username.get() ? RUN_STATE.HOME : RUN_STATE.USERNAME,
     throwCount:  0,
     missesRemaining: MISSES_PER_RUN,
     gameOverTime: 0,
-    lastStateBeforeLeaderboard: RUN_STATE.SELECTING
+    lastStateBeforeLeaderboard: RUN_STATE.HOME
   };
 
   const throw_ = {
@@ -368,7 +371,7 @@
   function closeLeaderboard() {
     leaderboardCharacterFilter = null;
     unmountLeaderboardFilterSelect();
-    run.state = run.lastStateBeforeLeaderboard || RUN_STATE.SELECTING;
+    run.state = run.lastStateBeforeLeaderboard || RUN_STATE.HOME;
   }
 
   async function fetchGlobalLeaderboard() {
@@ -494,7 +497,7 @@
     submitGlobalScore(name, scoring.score, selectedCharacterId);
   }
 
-  function openUsernameOverlay(returnState = RUN_STATE.SELECTING) {
+  function openUsernameOverlay(returnState = RUN_STATE.HOME) {
     run.state = RUN_STATE.USERNAME;
     if (usernameOverlayEl) usernameOverlayEl.remove();
 
@@ -717,6 +720,36 @@
 
   function onPressStart() {
     if (run.state === RUN_STATE.USERNAME) return;
+    if (run.state === RUN_STATE.HOME) {
+      if (usernameNameRect &&
+          lastPointerX >= usernameNameRect.x && lastPointerX <= usernameNameRect.x + usernameNameRect.w &&
+          lastPointerY >= usernameNameRect.y && lastPointerY <= usernameNameRect.y + usernameNameRect.h) {
+        openUsernameOverlay(RUN_STATE.HOME);
+        return;
+      }
+      for (let i = 0; i < homeButtonRects.length; i++) {
+        const btn = homeButtonRects[i];
+        if (lastPointerX >= btn.x && lastPointerX <= btn.x + btn.w &&
+            lastPointerY >= btn.y && lastPointerY <= btn.y + btn.h) {
+          switch (btn.action) {
+            case 'play':
+              run.state = RUN_STATE.SELECTING;
+              break;
+            case 'leaderboard':
+              openLeaderboard(RUN_STATE.HOME);
+              break;
+            case 'hall':
+              run.state = RUN_STATE.HALL_OF_FAME;
+              break;
+            case 'stats':
+              run.state = RUN_STATE.PLAYER_STATS;
+              break;
+          }
+          return;
+        }
+      }
+      return;
+    }
     if (run.state === RUN_STATE.LEVEL_SELECT) {
       if (levelBackRect &&
           lastPointerX >= levelBackRect.x && lastPointerX <= levelBackRect.x + levelBackRect.w &&
@@ -738,6 +771,14 @@
       return;
     }
     if (run.state === RUN_STATE.SELECTING) {
+      if (selectHomeRect &&
+          lastPointerX >= selectHomeRect.x && lastPointerX <= selectHomeRect.x + selectHomeRect.w &&
+          lastPointerY >= selectHomeRect.y && lastPointerY <= selectHomeRect.y + selectHomeRect.h) {
+        run.state = RUN_STATE.HOME;
+        charSelectScrollY = 0;
+        flippedCardId = null;
+        return;
+      }
       if (usernameNameRect &&
           lastPointerX >= usernameNameRect.x && lastPointerX <= usernameNameRect.x + usernameNameRect.w &&
           lastPointerY >= usernameNameRect.y && lastPointerY <= usernameNameRect.y + usernameNameRect.h) {
@@ -805,7 +846,7 @@
         gameOverChangeRect = null;
         return;
       }
-      resetRun();
+      run.state = RUN_STATE.HOME;
       return;
     }
     if (run.state === RUN_STATE.LEADERBOARD) {
@@ -813,6 +854,16 @@
           lastPointerX >= leaderboardBackRect.x && lastPointerX <= leaderboardBackRect.x + leaderboardBackRect.w &&
           lastPointerY >= leaderboardBackRect.y && lastPointerY <= leaderboardBackRect.y + leaderboardBackRect.h) {
         closeLeaderboard();
+        return;
+      }
+      return;
+    }
+    if (run.state === RUN_STATE.HALL_OF_FAME || run.state === RUN_STATE.PLAYER_STATS) {
+      if (stubBackRect &&
+          lastPointerX >= stubBackRect.x && lastPointerX <= stubBackRect.x + stubBackRect.w &&
+          lastPointerY >= stubBackRect.y && lastPointerY <= stubBackRect.y + stubBackRect.h) {
+        run.state = RUN_STATE.HOME;
+        stubBackRect = null;
         return;
       }
       return;
@@ -998,8 +1049,10 @@
     lastTimestamp = timestamp;
 
     if (run.state === RUN_STATE.USERNAME) {
-      drawCharacterSelect(timestamp);
-      if (!usernameOverlayEl) openUsernameOverlay(RUN_STATE.SELECTING);
+      drawHome(timestamp);
+      if (!usernameOverlayEl) openUsernameOverlay(RUN_STATE.HOME);
+    } else if (run.state === RUN_STATE.HOME) {
+      drawHome(timestamp);
     } else if (run.state === RUN_STATE.SELECTING) {
       drawCharacterSelect(timestamp);
     } else if (run.state === RUN_STATE.LEVEL_SELECT) {
@@ -1012,6 +1065,10 @@
       drawGameOverOverlay();
     } else if (run.state === RUN_STATE.LEADERBOARD) {
       drawLeaderboard();
+    } else if (run.state === RUN_STATE.HALL_OF_FAME) {
+      drawHallOfFame(timestamp);
+    } else if (run.state === RUN_STATE.PLAYER_STATS) {
+      drawPlayerStats(timestamp);
     }
   }
 
@@ -1398,8 +1455,16 @@
     ctx.roundRect(rect.x, rect.y, rect.w, rect.h, 6);
     ctx.fill();
     ctx.stroke();
+    const fontSize = rect.fontSize || Math.max(14, Math.min(18, Math.floor(canvas.width * 0.04)));
+    if (label === '←') {
+      ctx.save();
+      ctx.textBaseline = 'middle';
+      drawText(label, rect.x + rect.w / 2, rect.y + rect.h / 2, fontSize, '#ffffff', 'center', false);
+      ctx.restore();
+      return;
+    }
     drawText(label, rect.x + rect.w / 2, rect.y + rect.h * 0.64,
-      rect.fontSize || Math.max(14, Math.min(18, Math.floor(canvas.width * 0.04))), '#ffffff', 'center', false);
+      fontSize, '#ffffff', 'center', false);
   }
 
   function drawCardBack(x, y, w, h, character) {
@@ -1557,7 +1622,7 @@
     drawButton({ ...leaderboardBackRect, fontSize: isPhoneLandscape ? 11 : 13 }, 'Back');
   }
 
-  function drawCharacterSelect(timestamp) {
+  function drawHome(timestamp) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = '#1a1a2e';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -1571,7 +1636,6 @@
       : Math.max(16, Math.floor(canvas.width * 0.042));
     const homeTop = Math.max(4, safeTop * 0.45);
     drawText('SHOVEL TOSS', canvas.width / 2, homeTop + gameTitleSize, gameTitleSize, '#ffffff', 'center', true);
-    drawText('Choose your character', canvas.width / 2, homeTop + gameTitleSize + titleSize + 8, titleSize, '#ffffff', 'center', true);
 
     const name = username.get();
     usernameNameRect = null;
@@ -1580,7 +1644,7 @@
         ? Math.max(13, Math.floor(canvas.height * 0.04))
         : Math.max(15, Math.floor(canvas.width * 0.04));
       const nameText = `Player: ${name}`;
-      const nameY = homeTop + gameTitleSize + titleSize + nameSize + 14;
+      const nameY = homeTop + gameTitleSize + titleSize + 12;
       drawText(nameText, canvas.width / 2, nameY, nameSize, '#ffe600', 'center', false);
       const nameW = ctx.measureText(nameText).width;
       const iconSize = nameSize * 0.9;
@@ -1589,31 +1653,120 @@
       usernameNameRect = { x: canvas.width / 2 - nameW / 2 - 10, y: nameY - nameSize - 8, w: nameW + iconSize * 2 + 20, h: nameSize + 14 };
     }
 
+    const buttonW = Math.min(260, canvas.width * (isPhoneLandscape ? 0.34 : 0.68));
+    const buttonH = Math.max(isPhoneLandscape ? 34 : 42, canvas.height * (isPhoneLandscape ? 0.075 : 0.06));
+    const buttonGap = Math.max(isPhoneLandscape ? 8 : 12, canvas.height * 0.018);
+    const buttons = [
+      { label: 'Play Game', action: 'play' },
+      { label: 'Leaderboard', action: 'leaderboard' },
+      { label: 'Hall of Fame', action: 'hall' },
+      { label: 'Player Stats', action: 'stats' },
+    ];
+    const totalButtonH = buttons.length * buttonH + (buttons.length - 1) * buttonGap;
     const footerSize = isPhoneLandscape
       ? Math.max(11, Math.floor(canvas.height * 0.03))
       : Math.max(12, Math.floor(canvas.width * 0.032));
-    const footerText = APP_VERSION_TAG;
     const footerY = canvas.height - (isPhoneLandscape ? 6 : 10);
-    ctx.font = `${Math.round(footerSize)}px sans-serif`;
-    drawText(footerText, canvas.width / 2, footerY, footerSize, 'rgba(255,255,255,0.55)', 'center', false);
+    const bottomLimit = footerY - footerSize - (isPhoneLandscape ? 14 : 24);
+    const minTop = name ? usernameNameRect.y + usernameNameRect.h + (isPhoneLandscape ? 10 : 24) : homeTop + gameTitleSize + titleSize + 18;
+    const buttonTop = Math.max(minTop, Math.floor((bottomLimit - totalButtonH + minTop) / 2));
 
-    const buttonW = Math.min(150, canvas.width * 0.36);
-    const buttonH = Math.max(30, canvas.height * 0.048);
-    selectLeaderboardRect = {
-      x: canvas.width / 2 - buttonW / 2,
-      y: footerY - footerSize - buttonH - (isPhoneLandscape ? 14 : 22),
+    homeButtonRects = [];
+    buttons.forEach((button, index) => {
+      const rect = {
+        x: canvas.width / 2 - buttonW / 2,
+        y: buttonTop + index * (buttonH + buttonGap),
+        w: buttonW,
+        h: buttonH,
+        action: button.action,
+        fontSize: isPhoneLandscape ? 13 : 16
+      };
+      homeButtonRects.push(rect);
+      drawButton(rect, button.label);
+    });
+
+    ctx.font = `${Math.round(footerSize)}px sans-serif`;
+    drawText(APP_VERSION_TAG, canvas.width / 2, footerY, footerSize, 'rgba(255,255,255,0.55)', 'center', false);
+  }
+
+  function drawStubScreen(title) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const cx = canvas.width / 2;
+    const isPhoneLandscape = canvas.width > canvas.height && canvas.height <= 500;
+    const titleSize = isPhoneLandscape
+      ? Math.max(24, Math.floor(canvas.height * 0.09))
+      : Math.max(30, Math.floor(canvas.width * 0.09));
+    const buttonW = Math.min(220, canvas.width * 0.5);
+    const buttonH = Math.max(38, canvas.height * 0.06);
+    const pad = isPhoneLandscape ? 10 : 16;
+    drawText(title, cx, safeTop + titleSize + Math.floor(pad * 2), titleSize, '#ffffff', 'center', true);
+    stubBackRect = {
+      x: cx - buttonW / 2,
+      y: canvas.height - pad - buttonH,
       w: buttonW,
       h: buttonH
     };
-    drawButton({ ...selectLeaderboardRect, fontSize: isPhoneLandscape ? 11 : 13 }, 'Leaderboard');
+    drawButton(stubBackRect, 'Back');
+  }
+
+  function drawHallOfFame(timestamp) {
+    drawStubScreen('HALL OF FAME');
+  }
+
+  function drawPlayerStats(timestamp) {
+    drawStubScreen('PLAYER STATS');
+  }
+
+  function drawCharacterSelect(timestamp) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const isPhoneLandscape = canvas.width > canvas.height && canvas.height <= 500;
+    const titleSize = isPhoneLandscape
+      ? Math.max(14, Math.floor(canvas.height * 0.04))
+      : Math.max(16, Math.floor(canvas.width * 0.042));
+    const homeTop = Math.max(4, safeTop * 0.45);
+    const titleY = homeTop + titleSize;
+    drawText('Choose your character', canvas.width / 2, titleY, titleSize, '#ffffff', 'center', true);
+
+    const pad = isPhoneLandscape ? 10 : 16;
+    selectHomeRect = {
+      x: pad,
+      y: Math.max(8, safeTop * 0.45),
+      w: isPhoneLandscape ? 32 : 38,
+      h: isPhoneLandscape ? 28 : 32,
+      fontSize: isPhoneLandscape ? 17 : 20
+    };
+    drawButton(selectHomeRect, '←');
+
+    const name = username.get();
+    usernameNameRect = null;
+    if (name) {
+      const nameSize = isPhoneLandscape
+        ? Math.max(13, Math.floor(canvas.height * 0.04))
+        : Math.max(15, Math.floor(canvas.width * 0.04));
+      const nameText = `Player: ${name}`;
+      const nameY = titleY + nameSize + 8;
+      drawText(nameText, canvas.width / 2, nameY, nameSize, '#ffe600', 'center', false);
+      const nameW = ctx.measureText(nameText).width;
+      const iconSize = nameSize * 0.9;
+      const iconX = canvas.width / 2 + nameW / 2 + iconSize;
+      drawText('✏️', iconX, nameY, iconSize, '#ffffff', 'center', false);
+      usernameNameRect = { x: canvas.width / 2 - nameW / 2 - 10, y: nameY - nameSize - 8, w: nameW + iconSize * 2 + 20, h: nameSize + 14 };
+    }
+
+    selectLeaderboardRect = null;
 
     const isPortrait = canvas.height > canvas.width;
     const cols = isPortrait ? 2 : 4;
     const visibleCharacters = getFilteredCharacters();
     const rows = Math.ceil(visibleCharacters.length / cols);
-    const pad = isPhoneLandscape ? 10 : 16;
     const nameOffset = name ? Math.max(18, canvas.height * 0.035) : 0;
-    const topOffset = homeTop + gameTitleSize + titleSize + 4 + nameOffset + (isPhoneLandscape ? Math.floor(pad * 0.55) : pad);
+    const topOffset = titleY + 4 + nameOffset + (isPhoneLandscape ? Math.floor(pad * 0.55) : pad);
     const filterGap = isPhoneLandscape ? 6 : 8;
     const filterButtonH = isPhoneLandscape ? 26 : 30;
     const filterButtonW = Math.min(isPhoneLandscape ? 84 : 98, (canvas.width - pad * 2 - filterGap * (CHARACTER_FILTERS.length - 1)) / CHARACTER_FILTERS.length);
@@ -1637,7 +1790,7 @@
     const tileW = targetTileW;
     const tileH = Math.floor(tileW * 1.25);
     charSelectGridTop = filterY + filterButtonH + pad;
-    charSelectGridBottom = selectLeaderboardRect.y - Math.floor(pad * 0.45);
+    charSelectGridBottom = canvas.height - pad;
     const gridViewportH = charSelectGridBottom - charSelectGridTop;
     const totalContentH = rows * tileH + (rows - 1) * pad;
     const maxScroll = Math.max(0, totalContentH - gridViewportH);
@@ -1869,7 +2022,7 @@
       drawText(gameOverSave.globalMessage, cx, globalY,
         statsSize, color, 'center', false);
     }
-    drawText('Tap to Restart', cx, restartY,
+    drawText('Tap for Menu', cx, restartY,
       restartSize, 'rgba(255,255,255,0.7)', 'center', false);
     if (isPhoneLandscape) {
       const rowX = cx - buttonW - buttonGap / 2;
@@ -1890,7 +2043,7 @@
   });
   updateLayout();
   fetchGlobalLeaderboardWhenReady();
-  if (run.state === RUN_STATE.USERNAME) openUsernameOverlay(RUN_STATE.SELECTING);
+  if (run.state === RUN_STATE.USERNAME) openUsernameOverlay(RUN_STATE.HOME);
   requestAnimationFrame(gameLoop);
 </script>
 </body>
