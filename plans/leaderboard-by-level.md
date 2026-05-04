@@ -114,7 +114,7 @@ Update `fetchGlobalLeaderboard()` (around index.html:361) to pass the filter:
 leaderboard.globalRows = await window.globalScores.topN(GLOBAL_SCORE_LIMIT, leaderboardLevelFilter);
 ```
 
-In `drawLeaderboard()` (around index.html:1340), draw three pills above the list — `All`, `The House`, `Lil Italy`. Use the same `drawButton(rect, label, active)` helper used elsewhere. Push hit rects into `leaderboardLevelFilterRects`.
+In `drawLeaderboard()` (around index.html:1340), draw three pills above the list — `All`, ``, `Lil Italy`. Use the same `drawButton(rect, label, active)` helper used elsewhere. Push hit rects into `leaderboardLevelFilterRects`.
 
 ### Step 6 — Wire pill click handler
 

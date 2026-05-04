@@ -17,7 +17,7 @@ Near `CHARACTERS` (index.html:60–70), add:
 
 ```js
 const LEVELS = [
-  { id: 'house',     label: 'The House',  background: 'assets/house.png' },
+  { id: 'house',     label: 'St Paul',  background: 'assets/house.png' },
   { id: 'lil-italy', label: 'Lil Italy',  background: 'assets/lil-italy.png' },
 ];
 let selectedLevelId = null;
