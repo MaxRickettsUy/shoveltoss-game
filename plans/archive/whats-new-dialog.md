@@ -2,9 +2,11 @@
 
 ## Scope
 
-Show a small, dismissible "What's New" badge on the character-select screen when the user hasn't seen the current release. Tapping the badge (or the version footer) opens a DOM overlay listing user-friendly highlights for each unseen version. Closing it persists "last seen version" in `localStorage`.
+Show a small, dismissible "What's New" badge on the home/landing screen when the user hasn't seen the current release. Tapping the badge (or the version footer) opens a DOM overlay listing user-friendly highlights for each unseen version. Closing it persists "last seen version" in `localStorage`.
 
 User-facing notes are authored manually as part of each release — separate from `CHANGELOG.md`, which stays developer-focused.
+
+> **Context note**: This plan was originally written when character-select was the app's first screen. A landing/HOME screen has since shipped (`drawHome`), and the version footer + `APP_VERSION_TAG` moved with it. The badge belongs on HOME now — that's the screen every returning user lands on, and it already hosts the version footer the badge sits next to.
 
 ## Files Touched / Added
 
