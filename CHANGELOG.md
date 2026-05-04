@@ -4,6 +4,17 @@ All notable changes to Shovel Toss. Format follows [Keep a Changelog](https://ke
 
 ## [Unreleased]
 
+## [0.21.0] — 2026-05-04
+
+### Added
+- Landing screen with menu navigation (Play, Leaderboard, Hall of Fame, Player Stats, What's New).
+- Hall of Fame screen showing all-time records.
+- Player Stats screen with per-player run history.
+- "What's New" dialog on the landing screen surfacing release notes from `src/releaseNotes.js`.
+
+### Changed
+- Extracted `pointerInRect` helper and removed dead pointer hit-test code.
+
 ## [0.20.0] — 2026-05-03
 
 ### Added
