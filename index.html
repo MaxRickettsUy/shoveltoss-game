@@ -125,6 +125,12 @@
   let leaderboardListBottom = 0;
   let leaderboardCharacterFilter = null;
   let leaderboardFilterSelectEl = null;
+  let hallOfFameRows = [];
+  let hallOfFameStatus = 'idle';
+  let hallOfFameScrollY = 0;
+  let hallOfFameListTop = 0;
+  let hallOfFameListBottom = 0;
+  let hallOfFameBackRect = null;
   let flippedCardId = null;
   let flippedCardRows = [];
   let flippedCardStatus = 'idle';
@@ -184,6 +190,20 @@
   const GLOBAL_SCORE_LIMIT = 100;
   const HIGH_SCORE_BADGE = '👑';
   const APP_VERSION_TAG = 'v0.20.0';
+  const HOF_POINTS_LEADER = { key: 'pointsLeader', label: 'Most Points' };
+  const HOF_TOTAL_POINTS_LEADER = { key: 'totalPointsLeader', label: 'Most Total Points All Time' };
+  const HOF_GAMES_LEADER = { key: 'gamesLeader', label: 'Most Games All Time' };
+  const HOF_MILESTONES = [
+    { key: 'first',    label: 'First Player Ever',    threshold: 1 },
+    { key: 'ten',      label: 'First to 10 Points',   threshold: 10 },
+    { key: 'twenty',   label: 'First to 20 Points',   threshold: 20 },
+    { key: 'thirty',   label: 'First to 30 Points',   threshold: 30 },
+    { key: 'fifty',    label: 'First to 50 Points',   threshold: 50 },
+    { key: 'seventy5', label: 'First to 75 Points',   threshold: 75 },
+    { key: 'hundred',  label: 'First to 100 Points',  threshold: 100 },
+    { key: 'oneFifty', label: 'First to 150 Points',  threshold: 150 },
+    { key: 'twoHund',  label: 'First to 200 Points',  threshold: 200 },
+  ];
 
   const username = {
     get() {
@@ -373,6 +393,12 @@
     run.state = run.lastStateBeforeLeaderboard || RUN_STATE.HOME;
   }
 
+  function openHallOfFame() {
+    hallOfFameScrollY = 0;
+    run.state = RUN_STATE.HALL_OF_FAME;
+    fetchHallOfFame();
+  }
+
   async function fetchGlobalLeaderboard() {
     leaderboard.globalStatus = 'loading';
     leaderboard.globalError = '';
@@ -387,6 +413,29 @@
       leaderboard.globalRows = [];
       leaderboard.globalStatus = 'error';
       leaderboard.globalError = 'offline';
+    }
+  }
+
+  async function fetchHallOfFame() {
+    hallOfFameStatus = 'loading';
+    try {
+      if (!window.globalScores) throw new Error('offline');
+      const [pointsLeaders, totalPointsLeader, gamesLeader, ...results] = await Promise.all([
+        window.globalScores.topN(1),
+        window.globalScores.mostTotalPointsLeader(),
+        window.globalScores.mostGamesLeader(),
+        ...HOF_MILESTONES.map(m => window.globalScores.firstAtMilestone(m.threshold))
+      ]);
+      hallOfFameRows = [
+        { milestone: HOF_POINTS_LEADER, row: pointsLeaders[0] || null },
+        { milestone: HOF_TOTAL_POINTS_LEADER, row: totalPointsLeader },
+        { milestone: HOF_GAMES_LEADER, row: gamesLeader },
+        ...HOF_MILESTONES.map((m, i) => ({ milestone: m, row: results[i] }))
+      ];
+      hallOfFameStatus = 'ready';
+    } catch {
+      hallOfFameRows = [];
+      hallOfFameStatus = 'error';
     }
   }
 
@@ -741,7 +790,7 @@
               openLeaderboard(RUN_STATE.HOME);
               break;
             case 'hall':
-              run.state = RUN_STATE.HALL_OF_FAME;
+              openHallOfFame();
               break;
             case 'stats':
               run.state = RUN_STATE.PLAYER_STATS;
@@ -835,7 +884,15 @@
       }
       return;
     }
-    if (run.state === RUN_STATE.HALL_OF_FAME || run.state === RUN_STATE.PLAYER_STATS) {
+    if (run.state === RUN_STATE.HALL_OF_FAME) {
+      if (pointerInRect(hallOfFameBackRect)) {
+        run.state = RUN_STATE.HOME;
+        hallOfFameBackRect = null;
+        return;
+      }
+      return;
+    }
+    if (run.state === RUN_STATE.PLAYER_STATS) {
       if (pointerInRect(stubBackRect)) {
         run.state = RUN_STATE.HOME;
         return;
@@ -901,6 +958,10 @@
     return y >= leaderboardListTop && y <= leaderboardListBottom;
   }
 
+  function isInHallOfFameList(y) {
+    return y >= hallOfFameListTop && y <= hallOfFameListBottom;
+  }
+
   function startSelectDrag(y) {
     selectDragStartedInGrid = run.state === RUN_STATE.SELECTING && isInCharacterGrid(y);
     selectDragScrolling = false;
@@ -927,7 +988,8 @@
   }
 
   function startLeaderboardDrag(y) {
-    leaderboardDragStartedInList = run.state === RUN_STATE.LEADERBOARD && isInLeaderboardList(y);
+    leaderboardDragStartedInList = (run.state === RUN_STATE.LEADERBOARD && isInLeaderboardList(y))
+      || (run.state === RUN_STATE.HALL_OF_FAME && isInHallOfFameList(y));
     leaderboardDragScrolling = false;
     leaderboardDragLastY = y;
     leaderboardDragTotal = 0;
@@ -939,7 +1001,11 @@
     const dy = y - leaderboardDragLastY;
     leaderboardDragLastY = y;
     leaderboardDragTotal += Math.abs(dy);
-    leaderboardScrollY -= dy;
+    if (run.state === RUN_STATE.HALL_OF_FAME) {
+      hallOfFameScrollY -= dy;
+    } else {
+      leaderboardScrollY -= dy;
+    }
     if (leaderboardDragTotal > 8) leaderboardDragScrolling = true;
   }
 
@@ -1008,6 +1074,8 @@
       charSelectScrollY += e.deltaY;
     } else if (run.state === RUN_STATE.LEADERBOARD) {
       leaderboardScrollY += e.deltaY;
+    } else if (run.state === RUN_STATE.HALL_OF_FAME) {
+      hallOfFameScrollY += e.deltaY;
     } else {
       return;
     }
@@ -1131,8 +1199,8 @@
   }
 
   // --- Draw helpers ---
-  function drawText(text, x, y, fontSize, color, align, bold) {
-    ctx.font = `${bold ? 'bold ' : ''}${Math.round(fontSize)}px sans-serif`;
+  function drawText(text, x, y, fontSize, color, align, bold, italic = false) {
+    ctx.font = `${italic ? 'italic ' : ''}${bold ? 'bold ' : ''}${Math.round(fontSize)}px sans-serif`;
     ctx.fillStyle = color;
     ctx.textAlign = align;
     ctx.fillText(text, x, y);
@@ -1688,7 +1756,115 @@
   }
 
   function drawHallOfFame(timestamp) {
-    drawStubScreen('HALL OF FAME');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const cx = canvas.width / 2;
+    const isPhoneLandscape = canvas.width > canvas.height && canvas.height <= 500;
+    const titleSize = isPhoneLandscape
+      ? Math.max(24, Math.floor(canvas.height * 0.09))
+      : Math.max(30, Math.floor(canvas.width * 0.09));
+    const subtitleSize = isPhoneLandscape
+      ? Math.max(10, Math.floor(canvas.height * 0.035))
+      : Math.max(12, Math.floor(canvas.width * 0.032));
+    const milestoneSize = isPhoneLandscape
+      ? Math.max(12, Math.floor(canvas.height * 0.04))
+      : Math.max(15, Math.floor(canvas.width * 0.04));
+    const detailSize = Math.max(10, Math.floor(milestoneSize * 0.76));
+    const pad = isPhoneLandscape ? 12 : 20;
+
+    const titleY = Math.max(4, safeTop * 0.35) + titleSize;
+    const subtitleY = titleY + subtitleSize + 6;
+    drawText('HALL OF FAME', cx, titleY, titleSize, '#ffffff', 'center', true);
+    drawText('Milestones and records', cx, subtitleY, subtitleSize, 'rgba(255,255,255,0.65)', 'center', false);
+
+    const backW = Math.min(140, canvas.width * 0.36);
+    const backH = Math.max(30, canvas.height * 0.048);
+    const listTop = subtitleY + Math.floor(pad * 1.1);
+    const listBottom = canvas.height - pad * 2 - backH;
+    hallOfFameListTop = listTop;
+    hallOfFameListBottom = listBottom;
+
+    const rows = hallOfFameStatus === 'ready' ? hallOfFameRows : [];
+    const lineH = milestoneSize + 12;
+    const listH = Math.max(0, listBottom - listTop);
+    const listInsetTop = milestoneSize;
+    const totalContentH = listInsetTop + rows.length * lineH;
+    const maxScroll = Math.max(0, totalContentH - listH);
+    hallOfFameScrollY = Math.max(0, Math.min(hallOfFameScrollY, maxScroll));
+
+    if (hallOfFameStatus === 'loading') {
+      drawText('Loading...', cx, listTop + milestoneSize, milestoneSize, 'rgba(255,255,255,0.75)', 'center', false);
+    } else if (hallOfFameStatus === 'error') {
+      drawText('Offline', cx, listTop + milestoneSize, milestoneSize, '#ff8888', 'center', false);
+    } else if (rows.length === 0) {
+      drawText('No milestones yet', cx, listTop + milestoneSize, milestoneSize, 'rgba(255,255,255,0.75)', 'center', false);
+    } else {
+      const leftX = pad;
+      const rightX = canvas.width - pad;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, listTop, canvas.width, listH);
+      ctx.clip();
+      rows.forEach((entry, index) => {
+        const y = listTop + listInsetTop + index * lineH - hallOfFameScrollY;
+        if (y + lineH < listTop || y > listBottom) return;
+        if (index % 2 === 1) {
+          ctx.fillStyle = '#111126';
+          ctx.fillRect(leftX - 8, y - milestoneSize - 5, rightX - leftX + 16, lineH);
+        }
+        drawText(entry.milestone.label, leftX, y, milestoneSize, '#ffffff', 'left', true);
+        let detailText = '— unclaimed —';
+        let playerText = '';
+        let statText = '';
+        let detailColor = 'rgba(255,255,255,0.42)';
+        if (entry.row) {
+          const characterName = entry.row.character_name ? ` (${entry.row.character_name})` : '';
+          const scoreDate = formatScoreDate(entry.row.created_at);
+          playerText = `${entry.row.name}${characterName}`;
+          statText = ` — ${entry.row.score}`;
+          const isAggregateRecord = entry.milestone.key === HOF_TOTAL_POINTS_LEADER.key
+            || entry.milestone.key === HOF_GAMES_LEADER.key;
+          if (scoreDate && !isAggregateRecord) statText += ` — ${scoreDate}`;
+          detailText = `${playerText}${statText}`;
+          detailColor = '#ffe600';
+        }
+        ctx.font = `bold ${Math.round(milestoneSize)}px sans-serif`;
+        const labelW = ctx.measureText(entry.milestone.label).width;
+        const detailMaxW = Math.max(80, rightX - leftX - labelW - 14);
+        if (entry.row) {
+          ctx.font = `${Math.round(detailSize)}px sans-serif`;
+          let displayPlayer = playerText;
+          let displayStat = statText;
+          let playerW = ctx.measureText(displayPlayer).width;
+          ctx.font = `italic ${Math.round(detailSize)}px sans-serif`;
+          const statW = ctx.measureText(displayStat).width;
+          if (playerW + statW > detailMaxW) {
+            displayPlayer = truncateText(playerText, detailMaxW - statW, detailSize);
+            ctx.font = `${Math.round(detailSize)}px sans-serif`;
+            playerW = ctx.measureText(displayPlayer).width;
+          }
+          drawText(displayPlayer, rightX - statW, y, detailSize, detailColor, 'right', false);
+          drawText(displayStat, rightX, y, detailSize, detailColor, 'right', false, true);
+        } else {
+          drawText(
+            truncateText(detailText, detailMaxW, detailSize),
+            rightX,
+            y,
+            detailSize,
+            detailColor,
+            'right',
+            false,
+            true
+          );
+        }
+      });
+      ctx.restore();
+    }
+
+    hallOfFameBackRect = { x: cx - backW / 2, y: canvas.height - pad - backH, w: backW, h: backH };
+    drawButton({ ...hallOfFameBackRect, fontSize: isPhoneLandscape ? 11 : 13 }, 'Back');
   }
 
   function drawPlayerStats(timestamp) {

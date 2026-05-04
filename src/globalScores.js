@@ -70,5 +70,69 @@ window.globalScores = {
       .limit(n);
     if (error) throw error;
     return data || [];
+  },
+
+  async firstAtMilestone(threshold) {
+    const { data, error } = await getClient()
+      .from('high_scores')
+      .select('id, name, character_name, score, created_at')
+      .gte('score', threshold)
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true })
+      .limit(1);
+    if (error) throw error;
+    return (data && data[0]) || null;
+  },
+
+  async mostTotalPointsLeader() {
+    const pageSize = 1000;
+    const totals = new Map();
+    let from = 0;
+    while (true) {
+      const { data, error } = await getClient()
+        .from('high_scores')
+        .select('id, name, score, created_at')
+        .order('created_at', { ascending: true })
+        .order('id', { ascending: true })
+        .range(from, from + pageSize - 1);
+      if (error) throw error;
+      const rows = data || [];
+      rows.forEach(row => {
+        const name = cleanName(row.name);
+        const current = totals.get(name) || { name, score: 0, created_at: row.created_at };
+        current.score += Number(row.score) || 0;
+        totals.set(name, current);
+      });
+      if (rows.length < pageSize) break;
+      from += pageSize;
+    }
+    return Array.from(totals.values())
+      .sort((a, b) => b.score - a.score || new Date(a.created_at) - new Date(b.created_at) || a.name.localeCompare(b.name))[0] || null;
+  },
+
+  async mostGamesLeader() {
+    const pageSize = 1000;
+    const totals = new Map();
+    let from = 0;
+    while (true) {
+      const { data, error } = await getClient()
+        .from('high_scores')
+        .select('id, name, created_at')
+        .order('created_at', { ascending: true })
+        .order('id', { ascending: true })
+        .range(from, from + pageSize - 1);
+      if (error) throw error;
+      const rows = data || [];
+      rows.forEach(row => {
+        const name = cleanName(row.name);
+        const current = totals.get(name) || { name, score: 0, created_at: row.created_at };
+        current.score += 1;
+        totals.set(name, current);
+      });
+      if (rows.length < pageSize) break;
+      from += pageSize;
+    }
+    return Array.from(totals.values())
+      .sort((a, b) => b.score - a.score || new Date(a.created_at) - new Date(b.created_at) || a.name.localeCompare(b.name))[0] || null;
   }
 };
