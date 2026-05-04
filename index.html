@@ -100,7 +100,6 @@
   let stubBackRect = null;
   let releaseNotesList = window.releaseNotes ? window.releaseNotes.getAllNotes() : [];
   let whatsNewOverlayEl = null;
-  let whatsNewButtonEl = null;
   const heroImages = {};
   CHARACTERS.forEach(c => {
     const img = new Image();
@@ -721,28 +720,6 @@
     if (!whatsNewOverlayEl) return;
     whatsNewOverlayEl.remove();
     whatsNewOverlayEl = null;
-    if (window.releaseNotes) window.releaseNotes.markAllSeen();
-  }
-
-  function updateWhatsNewButtonHitTarget(rect) {
-    if (run.state !== RUN_STATE.HOME || !rect) {
-      if (whatsNewButtonEl) whatsNewButtonEl.style.display = 'none';
-      return;
-    }
-    if (!whatsNewButtonEl) {
-      whatsNewButtonEl = document.createElement('button');
-      whatsNewButtonEl.type = 'button';
-      whatsNewButtonEl.textContent = "What's New?";
-      whatsNewButtonEl.style.cssText = 'position:fixed;z-index:20;background:transparent;border:0;color:transparent;cursor:pointer;';
-      whatsNewButtonEl.setAttribute('aria-label', "What's New?");
-      whatsNewButtonEl.addEventListener('click', openWhatsNewOverlay);
-      document.body.appendChild(whatsNewButtonEl);
-    }
-    whatsNewButtonEl.style.display = 'block';
-    whatsNewButtonEl.style.left = `${Math.round(rect.x)}px`;
-    whatsNewButtonEl.style.top = `${Math.round(rect.y)}px`;
-    whatsNewButtonEl.style.width = `${Math.round(rect.w)}px`;
-    whatsNewButtonEl.style.height = `${Math.round(rect.h)}px`;
   }
 
   function resetRun() {
@@ -1225,7 +1202,6 @@
     if (lastTimestamp === null) { lastTimestamp = timestamp; }
     const dt = Math.min((timestamp - lastTimestamp) / 1000, 0.05); // cap at 50ms
     lastTimestamp = timestamp;
-    if (run.state !== RUN_STATE.HOME && whatsNewButtonEl) whatsNewButtonEl.style.display = 'none';
 
     if (run.state === RUN_STATE.USERNAME) {
       drawHome(timestamp);
@@ -1869,7 +1845,6 @@
       }
       homeButtonRects.push(rect);
       drawButton(rect, button.label);
-      if (button.action === 'whatsNew') updateWhatsNewButtonHitTarget(rect);
     });
 
     const footerText = APP_VERSION_TAG;

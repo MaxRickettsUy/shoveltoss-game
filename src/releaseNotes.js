@@ -29,48 +29,8 @@ const RELEASE_NOTES = [
   }
 ];
 
-const STORAGE_KEY = 'shoveltoss.lastSeenVersion';
-
-function compareSemver(a, b) {
-  const pa = String(a || '').replace(/^v/, '').split('.').map(Number);
-  const pb = String(b || '').replace(/^v/, '').split('.').map(Number);
-  for (let i = 0; i < 3; i++) {
-    const ai = pa[i] || 0;
-    const bi = pb[i] || 0;
-    if (ai !== bi) return ai - bi;
-  }
-  return 0;
-}
-
-function getLastSeen() {
-  try {
-    return localStorage.getItem(STORAGE_KEY) || null;
-  } catch {
-    return null;
-  }
-}
-
-function setLastSeen(version) {
-  try {
-    localStorage.setItem(STORAGE_KEY, version);
-  } catch {}
-}
-
-function getUnseenNotes() {
-  const last = getLastSeen();
-  if (!last) {
-    if (RELEASE_NOTES[0]) setLastSeen(RELEASE_NOTES[0].version);
-    return [];
-  }
-  return RELEASE_NOTES.filter(note => compareSemver(note.version, last) > 0);
-}
-
 function getAllNotes() {
   return RELEASE_NOTES.slice();
 }
 
-function markAllSeen() {
-  if (RELEASE_NOTES[0]) setLastSeen(RELEASE_NOTES[0].version);
-}
-
-window.releaseNotes = { getUnseenNotes, getAllNotes, markAllSeen };
+window.releaseNotes = { getAllNotes };
