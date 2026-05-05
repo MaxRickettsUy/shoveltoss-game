@@ -17,7 +17,7 @@ Add SEO + social-preview + favicon metadata to `index.html` so that shoveltoss.i
 Inside `<head>` (after the existing `<title>`):
 
 ```html
-<meta name="description" content="Shovel Toss — a 2D arcade timing game. Hit the sweet spot, stick the shovel, top the leaderboard.">
+<meta name="description" content="Shovel Toss: The Game. Stick the shovel, top the leaderboard.">
 <link rel="canonical" href="https://shoveltoss.ing/">
 ```
 
@@ -29,7 +29,7 @@ Description must be ≤155 chars (truncated by Google). Update if the game's pit
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Shovel Toss">
 <meta property="og:title" content="Shovel Toss">
-<meta property="og:description" content="A 2D arcade timing game. Hit the sweet spot, stick the shovel, top the leaderboard.">
+<meta property="og:description" content="Shovel Toss: The Game. Stick the shovel, top the leaderboard.">
 <meta property="og:url" content="https://shoveltoss.ing/">
 <meta property="og:image" content="https://shoveltoss.ing/assets/share.png">
 <meta property="og:image:width" content="1200">
@@ -43,7 +43,7 @@ Description must be ≤155 chars (truncated by Google). Update if the game's pit
 ```html
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Shovel Toss">
-<meta name="twitter:description" content="A 2D arcade timing game. Hit the sweet spot, stick the shovel, top the leaderboard.">
+<meta name="twitter:description" content="Shovel Toss: The Game. Stick the shovel, top the leaderboard.">
 <meta name="twitter:image" content="https://shoveltoss.ing/assets/share.png">
 ```
 
