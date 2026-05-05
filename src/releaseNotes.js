@@ -2,6 +2,17 @@
 // When releasing, prepend an entry here if users should see "What's New".
 const RELEASE_NOTES = [
   {
+    version: 'v0.22.0',
+    date: '2026-05-05',
+    headline: 'New characters and pit fixes',
+    items: [
+      'Two new characters: Anheuser and Ore.',
+      'Front-wall throws now score 1 point (up from 0).',
+      'Fixed throws aimed at the back of the pit ricocheting off the wall and missing — they now land cleanly.',
+      'Polish pass on character sprites, pit, and shovel art.'
+    ]
+  },
+  {
     version: 'v0.21.0',
     date: '2026-05-04',
     headline: 'New home screen',

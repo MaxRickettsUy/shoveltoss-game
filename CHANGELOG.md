@@ -4,6 +4,20 @@ All notable changes to Shovel Toss. Format follows [Keep a Changelog](https://ke
 
 ## [Unreleased]
 
+## [0.22.0] — 2026-05-05
+
+### Added
+- Two new playable characters: Anheuser and Ore.
+- HTML metadata and share image for social previews.
+
+### Changed
+- Front-wall throws now award 1 point (previously 0); feedback color updated to match scoring zones.
+- Polished sprite sheets across the existing character roster; refreshed pit, shovel, and champion art.
+- Reorganized level background assets under `assets/level/`.
+
+### Fixed
+- Throws aimed at the back of the pit no longer trigger a phantom wall bounce that turned would-be back-wall scores into misses (gated bounce on projected landing instead of in-flight x crossing).
+
 ## [0.21.0] — 2026-05-04
 
 ### Added
