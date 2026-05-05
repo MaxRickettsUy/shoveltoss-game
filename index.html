@@ -171,7 +171,7 @@
   const PTS_STICK           = 3;
   const PTS_BACK_WALL       = 1;
   const PTS_IN_PIT          = 0;
-  const PTS_FRONT_WALL      = 0;
+  const PTS_FRONT_WALL      = 1;
   const PTS_MISS            = -2;
   const ZONE_FRONT_WALL_MAX = 0.10;
   const ZONE_BACK_WALL_MIN  = 0.90;
@@ -1554,7 +1554,7 @@
       if      (scoring.lastThrowZone === 'stick')      zoneColor = '#ffe600';
       else if (scoring.lastThrowZone === 'back_wall')  zoneColor = '#44dd44';
       else if (scoring.lastThrowZone === 'in_pit')     zoneColor = '#ffffff';
-      else if (scoring.lastThrowZone === 'front_wall') zoneColor = '#aaaaaa';
+      else if (scoring.lastThrowZone === 'front_wall') zoneColor = '#44dd44';
       else                                             zoneColor = '#ff4444';
       drawText(scoring.lastThrowZone.toUpperCase().replace('_', ' '), canvas.width / 2, groundY - 60, fbFontSize, zoneColor, 'center', true);
       if (scoring.lastThrowPoints !== 0) {
