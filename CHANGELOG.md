@@ -4,6 +4,17 @@ All notable changes to Shovel Toss. Format follows [Keep a Changelog](https://ke
 
 ## [Unreleased]
 
+## [0.23.0] — 2026-05-06
+
+### Added
+- Hall of Fame: "First to N Games" milestones tracking the first player to reach 10, 20, 30, 50, 75, 100, and 150 lifetime games.
+- In-game settings menu (gear icon) with a meter-position selector (top / middle / bottom), persisted across sessions.
+- Daily leaderboard toggle on the leaderboard screen — switch between All Time and Today's scores (since local midnight).
+- Score celebrations during a run: emoji confetti at 100 points and when passing the all-time high score, plus high-energy phrases at every 20-point boundary.
+
+### Changed
+- Polished menu button layouts.
+
 ## [0.22.0] — 2026-05-05
 
 ### Added
