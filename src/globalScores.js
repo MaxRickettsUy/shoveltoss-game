@@ -63,6 +63,9 @@ window.globalScores = {
     if (opts.characterName) {
       query = query.eq('character_name', opts.characterName);
     }
+    if (opts.sinceISO) {
+      query = query.gte('created_at', opts.sinceISO);
+    }
     const { data, error } = await query
       .order('score', { ascending: false })
       .order('created_at', { ascending: true })

@@ -2,6 +2,14 @@
 // When releasing, prepend an entry here if users should see "What's New".
 const RELEASE_NOTES = [
   {
+    version: 'v0.24.0',
+    date: '2026-05-05',
+    headline: 'Daily leaderboard',
+    items: [
+      "Daily leaderboard — see Today's scores by default, with an All Time toggle."
+    ]
+  },
+  {
     version: 'v0.23.0',
     date: '2026-05-05',
     headline: 'In-game settings',

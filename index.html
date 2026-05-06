@@ -149,6 +149,8 @@
   let leaderboardListTop = 0;
   let leaderboardListBottom = 0;
   let leaderboardCharacterFilter = null;
+  let leaderboardScope = 'daily';
+  let leaderboardScopeRects = { all: null, daily: null };
   let leaderboardFilterSelectEl = null;
   let hallOfFameRows = [];
   let hallOfFameStatus = 'idle';
@@ -223,7 +225,7 @@
   const GLOBAL_SCORE_LIMIT = 100;
   const HIGH_SCORE_BADGE = '👑';
   // When releasing user-visible changes, prepend a note in src/releaseNotes.js.
-  const APP_VERSION_TAG = 'v0.23.0';
+  const APP_VERSION_TAG = 'v0.24.0';
   const HOF_POINTS_LEADER = { key: 'pointsLeader', label: 'Most Points' };
   const HOF_TOTAL_POINTS_LEADER = { key: 'totalPointsLeader', label: 'Most Total Points All Time' };
   const HOF_GAMES_LEADER = { key: 'gamesLeader', label: 'Most Games All Time' };
@@ -279,6 +281,12 @@
       try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch {}
     },
   };
+
+  function dailySinceISO() {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString();
+  }
 
   // --- State enums ---
   const RUN_STATE = { USERNAME: 'username', HOME: 'home', SELECTING: 'selecting', LEVEL_SELECT: 'level_select', PLAYING: 'playing', GAME_OVER: 'game_over', LEADERBOARD: 'leaderboard', HALL_OF_FAME: 'hall_of_fame', PLAYER_STATS: 'player_stats' };
@@ -461,6 +469,7 @@
 
   function closeLeaderboard() {
     leaderboardCharacterFilter = null;
+    leaderboardScope = 'daily';
     unmountLeaderboardFilterSelect();
     run.state = run.lastStateBeforeLeaderboard || RUN_STATE.HOME;
   }
@@ -484,7 +493,10 @@
       if (!window.globalScores) throw new Error('offline');
       leaderboard.globalRows = await window.globalScores.topN(
         GLOBAL_SCORE_LIMIT,
-        { characterName: leaderboardCharacterFilter }
+        {
+          characterName: leaderboardCharacterFilter,
+          sinceISO: leaderboardScope === 'daily' ? dailySinceISO() : undefined,
+        }
       );
       leaderboard.globalStatus = 'ready';
     } catch {
@@ -1104,6 +1116,22 @@
       return;
     }
     if (run.state === RUN_STATE.LEADERBOARD) {
+      if (leaderboardScopeRects.daily && pointerInRect(leaderboardScopeRects.daily)) {
+        if (leaderboardScope !== 'daily') {
+          leaderboardScope = 'daily';
+          leaderboardScrollY = 0;
+          fetchGlobalLeaderboard();
+        }
+        return;
+      }
+      if (leaderboardScopeRects.all && pointerInRect(leaderboardScopeRects.all)) {
+        if (leaderboardScope !== 'all') {
+          leaderboardScope = 'all';
+          leaderboardScrollY = 0;
+          fetchGlobalLeaderboard();
+        }
+        return;
+      }
       if (pointerInRect(leaderboardBackRect)) {
         closeLeaderboard();
         return;
@@ -1862,33 +1890,34 @@
     const subtitleSize = isPhoneLandscape
       ? Math.max(10, Math.floor(canvas.height * 0.035))
       : Math.max(12, Math.floor(canvas.width * 0.032));
-    const bannerSize = isPhoneLandscape
-      ? Math.max(10, Math.floor(canvas.height * 0.032))
-      : Math.max(11, Math.floor(canvas.width * 0.03));
     const rowSize = isPhoneLandscape
       ? Math.max(12, Math.floor(canvas.height * 0.04))
       : Math.max(15, Math.floor(canvas.width * 0.04));
     const pad = isPhoneLandscape ? 12 : 20;
-    const bannerText = '👋 Please let Max know if your score is not registered ❤';
-    const bannerPadX = isPhoneLandscape ? 10 : 14;
-    const bannerH = bannerSize + (isPhoneLandscape ? 8 : 10);
-    const bannerY = Math.max(4, safeTop * 0.35);
-    ctx.font = `${Math.round(bannerSize)}px sans-serif`;
-    const bannerW = Math.min(canvas.width - pad * 2, Math.max(260, ctx.measureText(bannerText).width + bannerPadX * 2));
-    const bannerX = cx - bannerW / 2;
-    ctx.fillStyle = '#111126';
-    ctx.beginPath();
-    ctx.roundRect(bannerX, bannerY, bannerW, bannerH, 6);
-    ctx.fill();
-    drawText(truncateText(bannerText, bannerW - bannerPadX * 2, bannerSize), cx, bannerY + bannerH * 0.66, bannerSize, '#ffffff', 'center', false);
 
-    const titleY = bannerY + bannerH + Math.floor(pad * 0.55) + titleSize;
+    const titleY = Math.max(4, safeTop * 0.35) + titleSize;
     const subtitleY = titleY + subtitleSize + 6;
     drawText('LEADERBOARD', cx, titleY, titleSize, '#ffffff', 'center', true);
-    drawText('Showing top 100 scores', cx, subtitleY, subtitleSize, 'rgba(255,255,255,0.65)', 'center', false);
+    const subtitleText = leaderboardScope === 'daily' ? 'Top 100 — Today' : 'Top 100 — All Time';
+    drawText(subtitleText, cx, subtitleY, subtitleSize, 'rgba(255,255,255,0.65)', 'center', false);
+
+    // Scope toggle (Today / All Time)
+    const toggleH = isPhoneLandscape ? 24 : 30;
+    const toggleFont = isPhoneLandscape ? 11 : 13;
+    const toggleGap = 6;
+    const toggleW = Math.min(260, canvas.width - pad * 2);
+    const toggleY = subtitleY + 10;
+    const toggleX = cx - toggleW / 2;
+    const halfW = (toggleW - toggleGap) / 2;
+    const dailyRect = { x: toggleX, y: toggleY, w: halfW, h: toggleH };
+    const allRect = { x: toggleX + halfW + toggleGap, y: toggleY, w: halfW, h: toggleH };
+    leaderboardScopeRects.all = allRect;
+    leaderboardScopeRects.daily = dailyRect;
+    drawButton({ ...dailyRect, fontSize: toggleFont, fillStyle: leaderboardScope === 'daily' ? '#ffe600' : '#2a2a4a', textColor: leaderboardScope === 'daily' ? '#1a1a2e' : '#ffffff' }, 'Today');
+    drawButton({ ...allRect, fontSize: toggleFont, fillStyle: leaderboardScope === 'all' ? '#ffe600' : '#2a2a4a', textColor: leaderboardScope === 'all' ? '#1a1a2e' : '#ffffff' }, 'All Time');
 
     const selectFontSize = isPhoneLandscape ? 12 : 14;
-    const selectTop = subtitleY + 8;
+    const selectTop = toggleY + toggleH + 8;
     const selectH = selectFontSize + 14;
     positionLeaderboardFilterSelect(selectTop, selectFontSize);
 
