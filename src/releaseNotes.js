@@ -2,6 +2,15 @@
 // When releasing, prepend an entry here if users should see "What's New".
 const RELEASE_NOTES = [
   {
+    version: 'v0.23.1',
+    date: '2026-05-06',
+    headline: 'Polish',
+    items: [
+      'Top meter now sits below the score/lives HUD so it never overlaps.',
+      'Score-celebration phrases are now randomized.'
+    ]
+  },
+  {
     version: 'v0.23.0',
     date: '2026-05-06',
     headline: 'Settings, daily leaderboard, and celebrations',
@@ -65,4 +74,8 @@ function getLatestNote() {
   return RELEASE_NOTES[0] || null;
 }
 
-window.releaseNotes = { getLatestNote };
+function getLatestNotes(count = 3) {
+  return RELEASE_NOTES.slice(0, count);
+}
+
+window.releaseNotes = { getLatestNote, getLatestNotes };

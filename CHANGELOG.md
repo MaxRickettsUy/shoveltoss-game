@@ -4,6 +4,12 @@ All notable changes to Shovel Toss. Format follows [Keep a Changelog](https://ke
 
 ## [Unreleased]
 
+## [0.23.1] — 2026-05-06
+
+### Changed
+- Top meter position now sits below the score/lives HUD instead of overlapping it.
+- Score-celebration phrases are now picked randomly instead of by score boundary index.
+
 ## [0.23.0] — 2026-05-06
 
 ### Added

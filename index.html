@@ -129,7 +129,7 @@
   let leaderboardBackRect = null;
   let homeButtonRects = [];
   let stubBackRect = null;
-  let latestReleaseNote = window.releaseNotes ? window.releaseNotes.getLatestNote() : null;
+  let latestReleaseNotes = window.releaseNotes ? window.releaseNotes.getLatestNotes(3) : [];
   let whatsNewOverlayEl = null;
   let settingsOverlayEl = null;
   const heroImages = {};
@@ -236,7 +236,7 @@
   const HIGH_SCORE_BADGE = '👑';
   const PROD_APEX = 'shoveltoss.ing';
   // When releasing user-visible changes, prepend a note in src/releaseNotes.js.
-  const APP_VERSION_TAG = 'v0.23.0';
+  const APP_VERSION_TAG = 'v0.23.1';
   const HOF_POINTS_LEADER = { key: 'pointsLeader', label: 'Most Points' };
   const HOF_TOTAL_POINTS_LEADER = { key: 'totalPointsLeader', label: 'Most Total Points All Time' };
   const HOF_GAMES_LEADER = { key: 'gamesLeader', label: 'Most Games All Time' };
@@ -893,10 +893,10 @@
   }
 
   function openWhatsNewOverlay() {
-    if (!latestReleaseNote && window.releaseNotes) {
-      latestReleaseNote = window.releaseNotes.getLatestNote();
+    if (latestReleaseNotes.length === 0 && window.releaseNotes) {
+      latestReleaseNotes = window.releaseNotes.getLatestNotes(3);
     }
-    if (whatsNewOverlayEl || !latestReleaseNote) return;
+    if (whatsNewOverlayEl || latestReleaseNotes.length === 0) return;
 
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:1000;display:flex;align-items:center;justify-content:center;padding:24px;font-family:sans-serif;';
@@ -909,20 +909,22 @@
     title.style.cssText = 'margin:0 0 12px;font-size:22px;';
     card.appendChild(title);
 
-    const h = document.createElement('h3');
-    h.textContent = `${latestReleaseNote.version}${latestReleaseNote.headline ? ' - ' + latestReleaseNote.headline : ''}`;
-    h.style.cssText = 'margin:14px 0 6px;font-size:15px;color:#ffe600;';
-    card.appendChild(h);
+    latestReleaseNotes.forEach((note, index) => {
+      const h = document.createElement('h3');
+      h.textContent = `${note.version}${note.headline ? ' - ' + note.headline : ''}`;
+      h.style.cssText = `${index === 0 ? 'margin:14px 0 6px' : 'margin:18px 0 6px'};font-size:15px;color:#ffe600;`;
+      card.appendChild(h);
 
-    const ul = document.createElement('ul');
-    ul.style.cssText = 'margin:0 0 4px 20px;padding:0;font-size:14px;line-height:1.4;';
-    latestReleaseNote.items.forEach(item => {
-      const li = document.createElement('li');
-      li.textContent = item;
-      li.style.marginBottom = '4px';
-      ul.appendChild(li);
+      const ul = document.createElement('ul');
+      ul.style.cssText = 'margin:0 0 4px 20px;padding:0;font-size:14px;line-height:1.4;';
+      note.items.forEach(item => {
+        const li = document.createElement('li');
+        li.textContent = item;
+        li.style.marginBottom = '4px';
+        ul.appendChild(li);
+      });
+      card.appendChild(ul);
     });
-    card.appendChild(ul);
 
     const btn = document.createElement('button');
     btn.textContent = 'Got it';
