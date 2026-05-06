@@ -33,6 +33,14 @@
 <canvas id="gameCanvas"></canvas>
 <script src="src/releaseNotes.js"></script>
 <script type="module" src="src/globalScores.js"></script>
+<script type="module">
+  import confetti from 'https://esm.sh/canvas-confetti@1';
+  window.confetti = confetti;
+  window.celebrationShapes = {
+    hundred: confetti.shapeFromText({ text: '💯', scalar: 2 }),
+    crown:   confetti.shapeFromText({ text: '👑', scalar: 2 }),
+  };
+</script>
 <script>
   const canvas = document.getElementById('gameCanvas');
   const ctx = canvas.getContext('2d');
@@ -114,7 +122,9 @@
   let gameOverLeaderboardRect = null;
   let usernameNameRect = null;
   let usernameOverlayEl = null;
+  let devBannerEl = null;
   let settingsGearRect = null;
+  let devTestButtonRects = [];
   let selectHomeRect = null;
   let leaderboardBackRect = null;
   let homeButtonRects = [];
@@ -224,8 +234,9 @@
   const DEFAULT_SETTINGS = { meterPosition: 'top' };
   const GLOBAL_SCORE_LIMIT = 100;
   const HIGH_SCORE_BADGE = '👑';
+  const PROD_APEX = 'shoveltoss.ing';
   // When releasing user-visible changes, prepend a note in src/releaseNotes.js.
-  const APP_VERSION_TAG = 'v0.24.0';
+  const APP_VERSION_TAG = 'v0.25.0';
   const HOF_POINTS_LEADER = { key: 'pointsLeader', label: 'Most Points' };
   const HOF_TOTAL_POINTS_LEADER = { key: 'totalPointsLeader', label: 'Most Total Points All Time' };
   const HOF_GAMES_LEADER = { key: 'gamesLeader', label: 'Most Games All Time' };
@@ -334,6 +345,15 @@
     feedbackTimer:   0
   };
 
+  const celebration = {
+    firedHundred: false,
+    firedAllTime: false,
+    phraseText: '',
+    phraseTimer: 0
+  };
+  const CELEBRATION_PHRASES = ['LETS GO', 'SHEEEEESH', 'ON FIRE 🔥', 'INSANE', 'CRACKED', 'NO WAY', 'UNREAL', 'COOKING', 'GO OFF', 'NASTY', 'ELITE', "😳 WOAH"];
+  const CELEBRATION_PHRASE_DURATION = 1200;
+
   const dustPuff = {
     active: false,
     x: 0,
@@ -353,7 +373,9 @@
   const leaderboard = {
     globalRows: [],
     globalStatus: 'idle',
-    globalError: ''
+    globalError: '',
+    allTimeTopRow: null,
+    allTimeStatus: 'idle'
   };
 
   const gameOverSave = {
@@ -506,6 +528,19 @@
     }
   }
 
+  async function fetchAllTimeLeader() {
+    leaderboard.allTimeStatus = 'loading';
+    try {
+      if (!window.globalScores) throw new Error('offline');
+      const rows = await window.globalScores.topN(1);
+      leaderboard.allTimeTopRow = rows[0] || null;
+      leaderboard.allTimeStatus = 'ready';
+    } catch {
+      leaderboard.allTimeTopRow = null;
+      leaderboard.allTimeStatus = 'error';
+    }
+  }
+
   async function fetchHallOfFame() {
     hallOfFameStatus = 'loading';
     try {
@@ -603,11 +638,13 @@
   function fetchGlobalLeaderboardWhenReady(attemptsRemaining = 20) {
     if (window.globalScores) {
       fetchGlobalLeaderboard();
+      fetchAllTimeLeader();
       return;
     }
     if (attemptsRemaining <= 0) {
       leaderboard.globalStatus = 'error';
       leaderboard.globalError = 'offline';
+      leaderboard.allTimeStatus = 'error';
       return;
     }
     setTimeout(() => fetchGlobalLeaderboardWhenReady(attemptsRemaining - 1), 100);
@@ -623,6 +660,106 @@
     return !!leaderName && String(name || '').trim() === leaderName;
   }
 
+  function getAllTimeScoreLeaderName() {
+    if (leaderboard.allTimeStatus !== 'ready' || !leaderboard.allTimeTopRow) return null;
+    return String(leaderboard.allTimeTopRow.name || '').trim();
+  }
+
+  function isDevMode() {
+    const host = String(window.location.hostname || '').toLowerCase().replace(/\.$/, '');
+    return host !== PROD_APEX && !host.endsWith('.' + PROD_APEX);
+  }
+
+  function mountDevBanner() {
+    if (!isDevMode() || devBannerEl) return;
+    const banner = document.createElement('div');
+    banner.textContent = 'DEVELOPMENT';
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:10000;background:#d71920;color:#fff;text-align:center;font:bold 13px sans-serif;letter-spacing:0;padding:4px 0;pointer-events:none;';
+    document.body.appendChild(banner);
+    devBannerEl = banner;
+  }
+
+  function crossedBoundary(prev, next, boundary) {
+    return prev < boundary && next >= boundary;
+  }
+
+  function fireConfetti(shape, particleCount) {
+    if (!window.confetti || !shape) return;
+    window.confetti({
+      particleCount,
+      spread: 90,
+      startVelocity: 45,
+      origin: { x: 0.5, y: 0.6 },
+      shapes: [shape],
+      scalar: 2,
+      ticks: 200,
+    });
+  }
+
+  function triggerCelebrations(prev, next) {
+    if (next <= prev) return;
+
+    if (!celebration.firedHundred && crossedBoundary(prev, next, 100)) {
+      celebration.firedHundred = true;
+      fireConfetti(window.celebrationShapes?.hundred, 100);
+    }
+
+    const lastBoundary = Math.floor(next / 20) * 20;
+    if (lastBoundary >= 20 && lastBoundary > prev) {
+      const idx = (lastBoundary / 20 - 1) % CELEBRATION_PHRASES.length;
+      celebration.phraseText = CELEBRATION_PHRASES[idx];
+      celebration.phraseTimer = CELEBRATION_PHRASE_DURATION;
+    }
+  }
+
+  async function triggerGameOverCelebrations() {
+    if (celebration.firedAllTime) return;
+    if (leaderboard.allTimeStatus !== 'ready') {
+      await fetchAllTimeLeader();
+    }
+    if (celebration.firedAllTime || run.state !== RUN_STATE.GAME_OVER || leaderboard.allTimeStatus !== 'ready' || !leaderboard.allTimeTopRow) return;
+    const topScore = Number(leaderboard.allTimeTopRow.score) || 0;
+    const leaderName = getAllTimeScoreLeaderName();
+    const isSelf = !!leaderName && String(username.get() || '').trim() === leaderName;
+    if (!isSelf && topScore > 0 && scoring.score > topScore) {
+      celebration.firedAllTime = true;
+      fireConfetti(window.celebrationShapes?.crown, 120);
+    }
+  }
+
+  function triggerDevTest(action) {
+    if (!isDevMode()) return;
+    if (action === 'score20') {
+      const prevScore = scoring.score;
+      scoring.score += 20;
+      triggerCelebrations(prevScore, scoring.score);
+      return;
+    }
+    if (action === 'score100') {
+      const prevScore = scoring.score;
+      scoring.score += 100;
+      triggerCelebrations(prevScore, scoring.score);
+      return;
+    }
+    if (action === 'crown') {
+      celebration.firedAllTime = true;
+      fireConfetti(window.celebrationShapes?.crown, 120);
+      return;
+    }
+    if (action === 'resetScore') {
+      scoring.score = 0;
+      scoring.lastThrowPoints = 0;
+      scoring.lastThrowZone = '';
+      scoring.feedbackTimer = 0;
+      celebration.phraseText = '';
+      celebration.phraseTimer = 0;
+      return;
+    }
+    if (action === 'resetShovels') {
+      run.missesRemaining = MISSES_PER_RUN;
+    }
+  }
+
   async function submitGlobalScore(name, score, characterName) {
     gameOverSave.globalStatus = 'loading';
     try {
@@ -631,6 +768,8 @@
       const rows = await window.globalScores.topN(GLOBAL_SCORE_LIMIT);
       leaderboard.globalRows = rows;
       leaderboard.globalStatus = 'ready';
+      leaderboard.allTimeTopRow = rows[0] || null;
+      leaderboard.allTimeStatus = 'ready';
       const rank = rows.findIndex(row => row.id === insertedId);
       gameOverSave.globalStatus = 'ready';
       gameOverSave.globalMessage = rank === -1
@@ -651,7 +790,7 @@
     run.state       = RUN_STATE.GAME_OVER;
     run.gameOverTime = timestamp;
     resetDifficultyRamp();
-    saveGameOverScore();
+    triggerGameOverCelebrations().finally(saveGameOverScore);
   }
 
   function saveGameOverScore() {
@@ -869,6 +1008,10 @@
     scoring.lastThrowPoints = 0;
     scoring.lastThrowZone   = '';
     scoring.feedbackTimer   = 0;
+    celebration.firedHundred = false;
+    celebration.firedAllTime = false;
+    celebration.phraseText   = '';
+    celebration.phraseTimer  = 0;
     dustPuff.active = false;
     dustPuff.age    = 0;
     gameOverSave.completed     = false;
@@ -907,6 +1050,8 @@
     scoring.lastThrowPoints = basePoints;
     scoring.lastThrowZone  = zone;
     scoring.score         += scoring.lastThrowPoints;
+    const prevScore = scoring.score - scoring.lastThrowPoints;
+    triggerCelebrations(prevScore, scoring.score);
     scoring.feedbackTimer  = FEEDBACK_DURATION;
 
     run.throwCount++;
@@ -1158,6 +1303,15 @@
     if (settingsGearRect && settingsGearRect.active && pointerInRect(settingsGearRect)) {
       openSettingsOverlay();
       return;
+    }
+    if (isDevMode()) {
+      for (let i = 0; i < devTestButtonRects.length; i++) {
+        const btn = devTestButtonRects[i];
+        if (pointerInRect(btn)) {
+          triggerDevTest(btn.action);
+          return;
+        }
+      }
     }
     if (throw_.state !== STATE.IDLE) return;
     throw_.state     = STATE.CHARGING;
@@ -1446,6 +1600,9 @@
     if (scoring.feedbackTimer > 0) {
       scoring.feedbackTimer = Math.max(0, scoring.feedbackTimer - dt * 1000);
     }
+    if (celebration.phraseTimer > 0) {
+      celebration.phraseTimer = Math.max(0, celebration.phraseTimer - dt * 1000);
+    }
 
     if (dustPuff.active) {
       dustPuff.age += dt * 1000;
@@ -1698,6 +1855,7 @@
     const gearY = safeTop;
     drawText(scoring.score, HUD_PAD, hudY, hudFontSize, '#ffffff', 'left', true);
     drawLifeIcons(HUD_PAD, hudY + subFontSize + 8);
+    drawDevTestButtons(HUD_PAD, hudY + subFontSize + 18);
     const playerName = username.get();
     const highScoreBadge = isScoreLeaderUsername(playerName) ? `${HIGH_SCORE_BADGE} ` : '';
     ctx.save();
@@ -1732,6 +1890,16 @@
         drawText(`${scoring.lastThrowPoints > 0 ? '+' : ''}${scoring.lastThrowPoints}`, canvas.width / 2, groundY - 60 + fbFontSize + 4,
           Math.max(14, Math.floor(canvas.width * 0.04)), '#ffffff', 'center', false);
       }
+      ctx.globalAlpha = 1;
+    }
+
+    if (celebration.phraseTimer > 0) {
+      const t = celebration.phraseTimer / CELEBRATION_PHRASE_DURATION;
+      const alpha = Math.min(1, t * 1.4);
+      const scaleBoost = 1 + (1 - t) * 0.25;
+      const fontSize = Math.max(48, Math.floor(canvas.width * 0.13)) * scaleBoost;
+      ctx.globalAlpha = alpha;
+      drawText(celebration.phraseText, canvas.width / 2, canvas.height * 0.4, fontSize, '#ffe600', 'center', true);
       ctx.globalAlpha = 1;
     }
   }
@@ -1795,6 +1963,38 @@
     }
     drawText(label, rect.x + rect.w / 2, rect.y + rect.h * 0.64,
       fontSize, textColor, 'center', false);
+  }
+
+  function drawDevTestButtons(x, y) {
+    devTestButtonRects = [];
+    if (!isDevMode()) return;
+
+    const buttonH = Math.max(26, Math.floor(canvas.height * 0.045));
+    const buttonW = Math.max(48, Math.floor(canvas.width * 0.13));
+    const gap = 6;
+    const fontSize = Math.max(11, Math.floor(buttonH * 0.45));
+    const buttons = [
+      { label: '+20', action: 'score20' },
+      { label: '+100', action: 'score100' },
+      { label: '👑', action: 'crown' },
+      { label: '0', action: 'resetScore' },
+      { label: 'Clear', action: 'resetShovels' },
+    ];
+    buttons.forEach((button, index) => {
+      const rect = {
+        x: x + index * (buttonW + gap),
+        y,
+        w: buttonW,
+        h: buttonH,
+        fontSize,
+        centered: true,
+        fillStyle: 'rgba(20, 20, 38, 0.72)',
+        textColor: '#ffe600',
+        stroke: true,
+      };
+      devTestButtonRects.push({ ...rect, action: button.action });
+      drawButton(rect, button.label);
+    });
   }
 
   function drawCharacterFilterButton(rect, filter, count, active = false) {
@@ -2590,6 +2790,7 @@
     if (document.hidden) lastTimestamp = null;
   });
   updateLayout();
+  mountDevBanner();
   fetchGlobalLeaderboardWhenReady();
   if (run.state === RUN_STATE.USERNAME) openUsernameOverlay(RUN_STATE.HOME);
   requestAnimationFrame(gameLoop);

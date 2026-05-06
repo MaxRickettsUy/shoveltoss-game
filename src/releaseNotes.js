@@ -2,6 +2,14 @@
 // When releasing, prepend an entry here if users should see "What's New".
 const RELEASE_NOTES = [
   {
+    version: 'v0.25.0',
+    date: '2026-05-06',
+    headline: 'Score celebrations',
+    items: [
+      'Score celebrations — 100-point and high-score confetti, every-20-point hype phrases.'
+    ]
+  },
+  {
     version: 'v0.24.0',
     date: '2026-05-05',
     headline: 'Daily leaderboard',
