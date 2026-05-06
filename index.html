@@ -204,10 +204,14 @@
   const SWEET_CENTER_MIN = 0.30;
   const SWEET_CENTER_MAX = 0.85;
   const SWEET_SPOT_HALF_START = 0.10;
+  const BIG_STICK_WIDTH_RATIO = 0.5;
+  const BIG_STICK_MIN_GAP = 0.08;
+  const BIG_STICK_SPAWN_CHANCE = 0.35;
   const RESET_DELAY = 500;           // ms pause after landing
   const MISSES_PER_RUN = 3;
   const GAME_OVER_GUARD = 500;       // ms input guard after game over
   const PTS_STICK           = 3;
+  const PTS_BIG_STICK       = 6;
   const PTS_BACK_WALL       = 1;
   const PTS_IN_PIT          = 0;
   const PTS_FRONT_WALL      = 1;
@@ -244,7 +248,7 @@
   const HIGH_SCORE_BADGE = '👑';
   const PROD_APEX = 'shoveltoss.ing';
   // When releasing user-visible changes, prepend a note in src/releaseNotes.js.
-  const APP_VERSION_TAG = 'v0.23.1';
+  const APP_VERSION_TAG = 'v0.25.0';
   const HOF_POINTS_LEADER = { key: 'pointsLeader', label: 'Most Points' };
   const HOF_TOTAL_POINTS_LEADER = { key: 'totalPointsLeader', label: 'Most Total Points All Time' };
   const HOF_GAMES_LEADER = { key: 'gamesLeader', label: 'Most Games All Time' };
@@ -330,7 +334,10 @@
     meterFill:   0,
     meterDir:    1,
     sweetCenter: SWEET_SPOT_CENTER,
+    bigStickCenter: SWEET_SPOT_CENTER,
+    bigStickActive: false,
     inSweetSpot: false,
+    inBigStick: false,
     shovelX:     0,
     shovelY:     0,
     flightTime:  0,
@@ -375,7 +382,10 @@
     pitWidth:       PIT_WIDTH_LANDSCAPE,
     sweetSpotWidth: SWEET_SPOT_WIDTH,
     sweetSpotMin:   SWEET_SPOT_CENTER - SWEET_SPOT_WIDTH / 2,
-    sweetSpotMax:   SWEET_SPOT_CENTER + SWEET_SPOT_WIDTH / 2
+    sweetSpotMax:   SWEET_SPOT_CENTER + SWEET_SPOT_WIDTH / 2,
+    bigStickWidth:  SWEET_SPOT_WIDTH * BIG_STICK_WIDTH_RATIO,
+    bigStickMin:    SWEET_SPOT_CENTER - (SWEET_SPOT_WIDTH * BIG_STICK_WIDTH_RATIO) / 2,
+    bigStickMax:    SWEET_SPOT_CENTER + (SWEET_SPOT_WIDTH * BIG_STICK_WIDTH_RATIO) / 2
   };
 
   const leaderboard = {
@@ -465,6 +475,39 @@
     const half = difficulty.sweetSpotWidth / 2;
     difficulty.sweetSpotMin = throw_.sweetCenter - half;
     difficulty.sweetSpotMax = throw_.sweetCenter + half;
+
+    difficulty.bigStickWidth = difficulty.sweetSpotWidth * BIG_STICK_WIDTH_RATIO;
+    const bigHalf = difficulty.bigStickWidth / 2;
+    difficulty.bigStickMin = throw_.bigStickCenter - bigHalf;
+    difficulty.bigStickMax = throw_.bigStickCenter + bigHalf;
+  }
+
+  function rollBandCenters() {
+    const sweetHalf = difficulty.sweetSpotWidth / 2;
+    const bigHalf = (difficulty.sweetSpotWidth * BIG_STICK_WIDTH_RATIO) / 2;
+    const minGap = sweetHalf + bigHalf + BIG_STICK_MIN_GAP;
+    const range = SWEET_CENTER_MAX - SWEET_CENTER_MIN;
+
+    const sweetCenter = SWEET_CENTER_MIN + Math.random() * range;
+    const intervals = [
+      [SWEET_CENTER_MIN, sweetCenter - minGap],
+      [sweetCenter + minGap, SWEET_CENTER_MAX],
+    ].filter(([min, max]) => max >= min);
+
+    let bigCenter = SWEET_CENTER_MIN + Math.random() * range;
+    if (intervals.length > 0) {
+      const total = intervals.reduce((sum, [min, max]) => sum + (max - min), 0);
+      let pick = Math.random() * total;
+      for (const [min, max] of intervals) {
+        const width = max - min;
+        if (pick <= width) {
+          bigCenter = min + Math.random() * width;
+          break;
+        }
+        pick -= width;
+      }
+    }
+    return { sweetCenter, bigCenter };
   }
 
   function updateDifficulty() {
@@ -1023,6 +1066,8 @@
     throw_.meterFill     = 0;
     throw_.meterDir      = 1;
     throw_.sweetCenter   = SWEET_SPOT_CENTER;
+    throw_.bigStickCenter = SWEET_SPOT_CENTER;
+    throw_.bigStickActive = false;
     scoring.score           = 0;
     scoring.lastThrowPoints = 0;
     scoring.lastThrowZone   = '';
@@ -1037,6 +1082,7 @@
     gameOverSave.globalStatus  = 'idle';
     gameOverSave.globalMessage = '';
     throw_.inSweetSpot      = false;
+    throw_.inBigStick       = false;
     throw_.bounced          = false;
     throw_.angle            = 0;
     throw_.landedInPit      = false;
@@ -1057,6 +1103,8 @@
         : (result.x - pitLeft) / (pitRight - pitLeft);
       if (norm < ZONE_FRONT_WALL_MAX) {
         zone = 'front_wall'; basePoints = PTS_FRONT_WALL;
+      } else if (result.inBigStick) {
+        zone = 'big_stick';  basePoints = PTS_BIG_STICK;
       } else if (result.inSweetSpot) {
         zone = 'stick';      basePoints = PTS_STICK;
       } else if (norm > ZONE_BACK_WALL_MIN) {
@@ -1074,7 +1122,7 @@
     scoring.feedbackTimer  = FEEDBACK_DURATION;
 
     run.throwCount++;
-    if (zone === 'stick') {
+    if (zone === 'stick' || zone === 'big_stick') {
       difficulty.meterSpeed += METER_SPEED_INCREMENT_PER_THROW;
     }
     if (zone === 'miss') {
@@ -1344,21 +1392,35 @@
     throw_.state     = STATE.CHARGING;
     throw_.meterFill = 0;
     throw_.meterDir  = 1;
-    throw_.sweetCenter = SWEET_CENTER_MIN + Math.random() * (SWEET_CENTER_MAX - SWEET_CENTER_MIN);
+    const { sweetCenter, bigCenter } = rollBandCenters();
+    throw_.sweetCenter = sweetCenter;
+    throw_.bigStickCenter = bigCenter;
+    throw_.bigStickActive = Math.random() < BIG_STICK_SPAWN_CHANCE;
     updateSweetSpotBounds();
     throw_.inSweetSpot = false;
+    throw_.inBigStick = false;
   }
 
   function onPressEnd() {
     if (throw_.state !== STATE.CHARGING) return;
     const f = throw_.meterFill;
-    const sweetCenter = throw_.sweetCenter;
     throw_.inSweetSpot = f >= difficulty.sweetSpotMin && f <= difficulty.sweetSpotMax;
+    throw_.inBigStick = throw_.bigStickActive && f >= difficulty.bigStickMin && f <= difficulty.bigStickMax;
+
+    let anchorCenter;
+    if (throw_.inBigStick) anchorCenter = throw_.bigStickCenter;
+    else if (throw_.inSweetSpot) anchorCenter = throw_.sweetCenter;
+    else {
+      const dSweet = Math.abs(f - throw_.sweetCenter);
+      const dBig = throw_.bigStickActive ? Math.abs(f - throw_.bigStickCenter) : Infinity;
+      anchorCenter = dBig < dSweet ? throw_.bigStickCenter : throw_.sweetCenter;
+    }
+
     let throwMultiplier;
-    if (f < sweetCenter) {
-      throwMultiplier = THROW_MULT_MIN + (f / sweetCenter) * (1 - THROW_MULT_MIN);
+    if (f < anchorCenter) {
+      throwMultiplier = THROW_MULT_MIN + (f / anchorCenter) * (1 - THROW_MULT_MIN);
     } else {
-      const overPower = (f - sweetCenter) / (1 - sweetCenter);
+      const overPower = (f - anchorCenter) / (1 - anchorCenter);
       throwMultiplier = 1 + overPower * overPower * (THROW_MULT_MAX - 1);
     }
     throw_.state = STATE.FLYING;
@@ -1607,13 +1669,14 @@
         const result = {
           x:           throw_.shovelX,
           inPit:       throw_.shovelX >= pitLeft && throw_.shovelX <= pitRight,
-          inSweetSpot: throw_.inSweetSpot
+          inSweetSpot: throw_.inSweetSpot,
+          inBigStick:  throw_.inBigStick
         };
         if (result.inPit) {
           spawnDustPuff(result.x, groundY - getPitLandingVisualYOffset());
         }
         onThrowResult(result, timestamp);
-        if (scoring.lastThrowZone === 'stick') {
+        if (scoring.lastThrowZone === 'stick' || scoring.lastThrowZone === 'big_stick') {
           throw_.angle = SHOVEL_STICK_ANGLE;
         }
 
@@ -1908,7 +1971,8 @@
       ctx.globalAlpha = alpha;
       const fbFontSize = Math.max(18, Math.floor(canvas.width * 0.055));
       let zoneColor;
-      if      (scoring.lastThrowZone === 'stick')      zoneColor = '#ffe600';
+      if      (scoring.lastThrowZone === 'big_stick')  zoneColor = '#00e5ff';
+      else if (scoring.lastThrowZone === 'stick')      zoneColor = '#ffe600';
       else if (scoring.lastThrowZone === 'back_wall')  zoneColor = '#44dd44';
       else if (scoring.lastThrowZone === 'in_pit')     zoneColor = '#ffffff';
       else if (scoring.lastThrowZone === 'front_wall') zoneColor = '#44dd44';
@@ -1949,10 +2013,21 @@
     ctx.roundRect(sweetX, meterY, sweetW, meterHeight, r);
     ctx.fill();
 
+    if (throw_.bigStickActive) {
+      // Big-stick band
+      const bigX = meterX + meterWidth * difficulty.bigStickMin;
+      const bigW = meterWidth * (difficulty.bigStickMax - difficulty.bigStickMin);
+      ctx.fillStyle = 'rgba(0, 229, 255, 0.45)';
+      ctx.beginPath();
+      ctx.roundRect(bigX, meterY, bigW, meterHeight, r);
+      ctx.fill();
+    }
+
     // Fill bar (left-to-right)
     const fillW = meterWidth * throw_.meterFill;
-    const inSweetSpot = throw_.meterFill >= difficulty.sweetSpotMin && throw_.meterFill <= difficulty.sweetSpotMax;
-    ctx.fillStyle = inSweetSpot ? '#ffe600' : '#ff6b35';
+    const inAnyBand = throw_.meterFill >= difficulty.sweetSpotMin && throw_.meterFill <= difficulty.sweetSpotMax
+                   || (throw_.bigStickActive && throw_.meterFill >= difficulty.bigStickMin && throw_.meterFill <= difficulty.bigStickMax);
+    ctx.fillStyle = inAnyBand ? '#ffe600' : '#ff6b35';
     ctx.beginPath();
     ctx.roundRect(meterX, meterY, fillW, meterHeight, r);
     ctx.fill();

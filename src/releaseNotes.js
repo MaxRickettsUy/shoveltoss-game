@@ -2,6 +2,14 @@
 // When releasing, prepend an entry here if users should see "What's New".
 const RELEASE_NOTES = [
   {
+    version: 'v0.25.0',
+    date: '2026-05-06',
+    headline: 'Big Stick',
+    items: [
+      'Big Stick — second cyan sweet spot worth 6 points appears alongside the yellow one.'
+    ]
+  },
+  {
     version: 'v0.24.0',
     date: '2026-05-06',
     headline: 'New level, new characters, sharper UI',
