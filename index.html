@@ -1754,9 +1754,9 @@
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.roundRect(rect.x, rect.y, rect.w, rect.h, 6);
+    ctx.roundRect(rect.x, rect.y, rect.w, rect.h, rect.radius || 6);
     ctx.fill();
-    ctx.stroke();
+    if (rect.stroke) ctx.stroke();
     const fontSize = rect.fontSize || Math.max(14, Math.min(18, Math.floor(canvas.width * 0.04)));
     if (rect.centered) {
       ctx.save();
@@ -1767,6 +1767,33 @@
     }
     drawText(label, rect.x + rect.w / 2, rect.y + rect.h * 0.64,
       fontSize, textColor, 'center', false);
+  }
+
+  function drawCharacterFilterButton(rect, filter, count, active = false) {
+    const fontSize = rect.fontSize || 12;
+    ctx.fillStyle = rect.fillStyle || (active ? '#2f2f4f' : '#141426');
+    ctx.beginPath();
+    ctx.roundRect(rect.x, rect.y, rect.w, rect.h, rect.radius || rect.h / 2);
+    ctx.fill();
+
+    ctx.font = `bold ${Math.round(fontSize)}px sans-serif`;
+    const countText = String(count);
+    const badgePad = Math.max(7, Math.floor(rect.h * 0.25));
+    const badgeH = Math.max(18, rect.h - 8);
+    const badgeW = Math.max(badgeH, ctx.measureText(countText).width + badgePad * 2);
+    const badgeX = rect.x + rect.w - badgeW - 5;
+    const badgeY = rect.y + (rect.h - badgeH) / 2;
+
+    ctx.fillStyle = active ? '#10101e' : '#080812';
+    ctx.beginPath();
+    ctx.roundRect(badgeX, badgeY, badgeW, badgeH, badgeH / 2);
+    ctx.fill();
+
+    ctx.save();
+    ctx.textBaseline = 'middle';
+    drawText(filter.label, rect.x + (badgeX - rect.x) / 2, rect.y + rect.h / 2, fontSize, '#ffffff', 'center', true);
+    drawText(countText, badgeX + badgeW / 2, rect.y + rect.h / 2, fontSize, '#ffffff', 'center', true);
+    ctx.restore();
   }
 
   function drawCardBack(x, y, w, h, character) {
@@ -1781,11 +1808,11 @@
     const titleSize = Math.max(13, Math.floor(w * 0.11));
     const rowSize = Math.max(10, Math.floor(w * 0.08));
     const pad = 10;
-    drawText(character.id, x + w / 2, y + titleSize + pad, titleSize, '#ffffff', 'center', true);
+    drawText(character.id, x + pad, y + titleSize + pad, titleSize, '#ffffff', 'left', true);
 
     const contentTop = y + titleSize + pad * 2;
     const buttonH = Math.max(26, Math.floor(h * 0.14));
-    const buttonW = Math.min(w - pad * 2, Math.max(104, Math.floor(w * 0.72)));
+    const buttonW = w - pad * 2;
     const buttonRect = {
       x: x + (w - buttonW) / 2,
       y: y + h - buttonH - pad,
@@ -1865,7 +1892,6 @@
     const selectH = selectFontSize + 14;
     positionLeaderboardFilterSelect(selectTop, selectFontSize);
 
-    const backW = Math.min(140, canvas.width * 0.36);
     const backH = Math.max(30, canvas.height * 0.048);
     const rows = leaderboard.globalRows;
     const listTop = selectTop + selectH + Math.floor(pad * 0.65);
@@ -1920,7 +1946,7 @@
       ctx.restore();
     }
 
-    leaderboardBackRect = { x: cx - backW / 2, y: canvas.height - pad - backH, w: backW, h: backH };
+    leaderboardBackRect = { x: pad, y: canvas.height - pad - backH, w: canvas.width - pad * 2, h: backH };
     drawButton({ ...leaderboardBackRect, fontSize: isPhoneLandscape ? 11 : 13 }, 'Back');
   }
 
@@ -1983,7 +2009,8 @@
         w: buttonW,
         h: buttonH,
         action: button.action,
-        fontSize: isPhoneLandscape ? 13 : 16
+        fontSize: isPhoneLandscape ? 13 : 16,
+        noStroke: true
       };
       if (button.action === 'whatsNew') {
         rect.fillStyle = '#ffe600';
@@ -1993,7 +2020,7 @@
       drawButton(rect, button.label);
     });
 
-    const footerText = APP_VERSION_TAG;
+    const footerText = `${APP_VERSION_TAG} 🇺🇸`;
     ctx.font = `${Math.round(footerSize)}px sans-serif`;
     drawText(footerText, canvas.width / 2, footerY, footerSize, 'rgba(255,255,255,0.55)', 'center', false);
   }
@@ -2008,14 +2035,13 @@
     const titleSize = isPhoneLandscape
       ? Math.max(24, Math.floor(canvas.height * 0.09))
       : Math.max(30, Math.floor(canvas.width * 0.09));
-    const buttonW = Math.min(220, canvas.width * 0.5);
     const buttonH = Math.max(38, canvas.height * 0.06);
     const pad = isPhoneLandscape ? 10 : 16;
     drawText(title, cx, safeTop + titleSize + Math.floor(pad * 2), titleSize, '#ffffff', 'center', true);
     stubBackRect = {
-      x: cx - buttonW / 2,
+      x: pad,
       y: canvas.height - pad - buttonH,
-      w: buttonW,
+      w: canvas.width - pad * 2,
       h: buttonH
     };
     drawButton(stubBackRect, 'Back');
@@ -2045,7 +2071,6 @@
     drawText('HALL OF FAME', cx, titleY, titleSize, '#ffffff', 'center', true);
     drawText('Milestones and records', cx, subtitleY, subtitleSize, 'rgba(255,255,255,0.65)', 'center', false);
 
-    const backW = Math.min(140, canvas.width * 0.36);
     const backH = Math.max(30, canvas.height * 0.048);
     const listTop = subtitleY + Math.floor(pad * 1.1);
     const listBottom = canvas.height - pad * 2 - backH;
@@ -2129,7 +2154,7 @@
       ctx.restore();
     }
 
-    hallOfFameBackRect = { x: cx - backW / 2, y: canvas.height - pad - backH, w: backW, h: backH };
+    hallOfFameBackRect = { x: pad, y: canvas.height - pad - backH, w: canvas.width - pad * 2, h: backH };
     drawButton({ ...hallOfFameBackRect, fontSize: isPhoneLandscape ? 11 : 13 }, 'Back');
   }
 
@@ -2157,7 +2182,6 @@
     drawText('PLAYER STATS', cx, titleY, titleSize, '#ffffff', 'center', true);
     drawText('Sorted by total points', cx, subtitleY, subtitleSize, 'rgba(255,255,255,0.65)', 'center', false);
 
-    const backW = Math.min(140, canvas.width * 0.36);
     const backH = Math.max(30, canvas.height * 0.048);
     const headerY = subtitleY + Math.floor(pad * 1.25);
     const listTop = headerY + headerSize + Math.floor(pad * 0.45);
@@ -2214,7 +2238,7 @@
       ctx.restore();
     }
 
-    playerStatsBackRect = { x: cx - backW / 2, y: canvas.height - pad - backH, w: backW, h: backH };
+    playerStatsBackRect = { x: pad, y: canvas.height - pad - backH, w: canvas.width - pad * 2, h: backH };
     drawButton({ ...playerStatsBackRect, fontSize: isPhoneLandscape ? 11 : 13 }, 'Back');
   }
 
@@ -2266,7 +2290,7 @@
     const topOffset = titleY + 4 + nameOffset + (isPhoneLandscape ? Math.floor(pad * 0.55) : pad);
     const filterGap = isPhoneLandscape ? 6 : 8;
     const filterButtonH = isPhoneLandscape ? 26 : 30;
-    const filterButtonW = Math.min(isPhoneLandscape ? 84 : 98, (canvas.width - pad * 2 - filterGap * (CHARACTER_FILTERS.length - 1)) / CHARACTER_FILTERS.length);
+    const filterButtonW = (canvas.width - pad * 2 - filterGap * (CHARACTER_FILTERS.length - 1)) / CHARACTER_FILTERS.length;
     const filterW = filterButtonW * CHARACTER_FILTERS.length + filterGap * (CHARACTER_FILTERS.length - 1);
     const filterY = topOffset;
     filterRects = [];
@@ -2277,10 +2301,13 @@
         y: filterY,
         w: filterButtonW,
         h: filterButtonH,
-        fontSize: isPhoneLandscape ? 10 : 12
+        fontSize: isPhoneLandscape ? 10 : 12,
+        fillStyle: activeCharacterFilter === filter.id ? '#2f2f4f' : '#141426',
+        radius: filterButtonH / 2,
+        noStroke: true
       };
       filterRects.push(rect);
-      drawButton(rect, `${filter.label} (${getCharacterFilterCount(filter.id)})`, activeCharacterFilter === filter.id);
+      drawCharacterFilterButton(rect, filter, getCharacterFilterCount(filter.id), activeCharacterFilter === filter.id);
     });
 
     const targetTileW = Math.floor(Math.min(240, (canvas.width - pad * (cols + 1)) / cols));
@@ -2400,22 +2427,17 @@
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const isPhoneLandscape = canvas.width > canvas.height && canvas.height <= 500;
-    const gameTitleSize = isPhoneLandscape
+    const titleSize = isPhoneLandscape
       ? Math.max(26, Math.floor(canvas.height * 0.10))
       : Math.max(34, Math.floor(canvas.width * 0.10));
-    const titleSize = isPhoneLandscape
-      ? Math.max(14, Math.floor(canvas.height * 0.04))
-      : Math.max(16, Math.floor(canvas.width * 0.042));
-    drawText('SHOVEL TOSS', canvas.width / 2, safeTop + gameTitleSize, gameTitleSize, '#ffffff', 'center', true);
-    drawText('Choose your level', canvas.width / 2, safeTop + gameTitleSize + titleSize + 8, titleSize, '#ffffff', 'center', true);
+    drawText('Choose your level', canvas.width / 2, safeTop + titleSize, titleSize, '#ffffff', 'center', true);
 
     const pad = isPhoneLandscape ? 10 : 16;
-    const buttonW = Math.min(220, canvas.width * 0.5);
     const buttonH = Math.max(38, canvas.height * 0.06);
     levelBackRect = {
-      x: canvas.width / 2 - buttonW / 2,
+      x: pad,
       y: canvas.height - pad - buttonH,
-      w: buttonW,
+      w: canvas.width - pad * 2,
       h: buttonH
     };
     drawButton(levelBackRect, 'Back');
@@ -2423,7 +2445,7 @@
     const isPortrait = canvas.height > canvas.width;
     const cols = isPortrait ? 1 : 2;
     const rows = Math.ceil(LEVELS.length / cols);
-    const listTop = safeTop + gameTitleSize + titleSize + pad * 3;
+    const listTop = safeTop + titleSize + pad * 3;
     const listBottom = levelBackRect.y - pad;
     const tileW = Math.floor(Math.min(360, (canvas.width - pad * (cols + 1)) / cols));
     const tileH = Math.floor(Math.max(80, Math.min(tileW * 0.62, (listBottom - listTop - pad * (rows - 1)) / rows)));
