@@ -2,27 +2,14 @@
 // When releasing, prepend an entry here if users should see "What's New".
 const RELEASE_NOTES = [
   {
-    version: 'v0.25.0',
-    date: '2026-05-06',
-    headline: 'Score celebrations',
-    items: [
-      'Score celebrations — 100-point and high-score confetti, every-20-point hype phrases.'
-    ]
-  },
-  {
-    version: 'v0.24.0',
-    date: '2026-05-05',
-    headline: 'Daily leaderboard',
-    items: [
-      "Daily leaderboard — see Today's scores by default, with an All Time toggle."
-    ]
-  },
-  {
     version: 'v0.23.0',
-    date: '2026-05-05',
-    headline: 'In-game settings',
+    date: '2026-05-06',
+    headline: 'Settings, daily leaderboard, and celebrations',
     items: [
-      'In-game settings menu - choose meter position (top/middle/bottom).'
+      'Hall of Fame: new "First to N Games" milestones (10, 20, 30, 50, 75, 100, 150).',
+      'In-game settings menu — choose meter position (top/middle/bottom).',
+      "Daily leaderboard — toggle between All Time and Today's scores.",
+      'Score celebrations — 100-point and high-score confetti, every-20-point hype phrases.'
     ]
   },
   {
