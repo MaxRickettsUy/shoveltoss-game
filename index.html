@@ -233,6 +233,15 @@
     { key: 'oneFifty', label: 'First to 150 Points',  threshold: 150 },
     { key: 'twoHund',  label: 'First to 200 Points',  threshold: 200 },
   ];
+  const HOF_GAME_MILESTONES = [
+    { key: 'g10',  label: 'First to 10 Games',  threshold: 10,  kind: 'gameCount' },
+    { key: 'g20',  label: 'First to 20 Games',  threshold: 20,  kind: 'gameCount' },
+    { key: 'g30',  label: 'First to 30 Games',  threshold: 30,  kind: 'gameCount' },
+    { key: 'g50',  label: 'First to 50 Games',  threshold: 50,  kind: 'gameCount' },
+    { key: 'g75',  label: 'First to 75 Games',  threshold: 75,  kind: 'gameCount' },
+    { key: 'g100', label: 'First to 100 Games', threshold: 100, kind: 'gameCount' },
+    { key: 'g150', label: 'First to 150 Games', threshold: 150, kind: 'gameCount' },
+  ];
 
   const username = {
     get() {
@@ -455,17 +464,19 @@
     hallOfFameStatus = 'loading';
     try {
       if (!window.globalScores) throw new Error('offline');
-      const [pointsLeaders, totalPointsLeader, gamesLeader, ...results] = await Promise.all([
+      const [pointsLeaders, totalPointsLeader, gamesLeader, gameCountMap, ...results] = await Promise.all([
         window.globalScores.topN(1),
         window.globalScores.mostTotalPointsLeader(),
         window.globalScores.mostGamesLeader(),
+        window.globalScores.firstAtGameCounts(HOF_GAME_MILESTONES.map(m => m.threshold)),
         ...HOF_MILESTONES.map(m => window.globalScores.firstAtMilestone(m.threshold))
       ]);
       hallOfFameRows = [
         { milestone: HOF_POINTS_LEADER, row: pointsLeaders[0] || null },
         { milestone: HOF_TOTAL_POINTS_LEADER, row: totalPointsLeader },
         { milestone: HOF_GAMES_LEADER, row: gamesLeader },
-        ...HOF_MILESTONES.map((m, i) => ({ milestone: m, row: results[i] }))
+        ...HOF_MILESTONES.map((m, i) => ({ milestone: m, row: results[i] })),
+        ...HOF_GAME_MILESTONES.map(m => ({ milestone: m, row: gameCountMap.get(m.threshold) || null }))
       ];
       hallOfFameStatus = 'ready';
     } catch {
@@ -1961,7 +1972,7 @@
           const characterName = entry.row.character_name ? ` (${entry.row.character_name})` : '';
           const scoreDate = formatScoreDate(entry.row.created_at);
           playerText = `${entry.row.name}${characterName}`;
-          statText = ` — ${entry.row.score}`;
+          statText = entry.milestone.kind === 'gameCount' ? '' : ` — ${entry.row.score}`;
           const isAggregateRecord = entry.milestone.key === HOF_TOTAL_POINTS_LEADER.key
             || entry.milestone.key === HOF_GAMES_LEADER.key;
           if (scoreDate && !isAggregateRecord) statText += ` — ${scoreDate}`;

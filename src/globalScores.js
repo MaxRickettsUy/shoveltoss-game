@@ -94,6 +94,38 @@ window.globalScores = {
     return (data && data[0]) || null;
   },
 
+  async firstAtGameCounts(thresholds) {
+    const result = new Map();
+    const remaining = new Set(thresholds || []);
+    if (remaining.size === 0) return result;
+    const counts = new Map();
+    const pageSize = 1000;
+    let from = 0;
+    while (remaining.size > 0) {
+      const { data, error } = await getClient()
+        .from('high_scores')
+        .select('id, name, character_name, score, created_at')
+        .order('created_at', { ascending: true })
+        .order('id', { ascending: true })
+        .range(from, from + pageSize - 1);
+      if (error) throw error;
+      const rows = data || [];
+      for (const row of rows) {
+        const name = cleanName(row.name);
+        const next = (counts.get(name) || 0) + 1;
+        counts.set(name, next);
+        if (remaining.has(next)) {
+          result.set(next, row);
+          remaining.delete(next);
+          if (remaining.size === 0) break;
+        }
+      }
+      if (rows.length < pageSize) break;
+      from += pageSize;
+    }
+    return result;
+  },
+
   async mostTotalPointsLeader() {
     const pageSize = 1000;
     const totals = new Map();
