@@ -439,7 +439,16 @@
     } else if (pos === 'bottom') {
       meterY = canvas.height - meterHeight - labelGap - 12;
     } else {
-      meterY = safeTop;
+      const isPhoneLandscape = canvas.width > canvas.height && canvas.height <= 500;
+      const hudFontSize = isPhoneLandscape
+        ? Math.max(28, Math.floor(canvas.height * 0.08))
+        : Math.max(24, Math.floor(canvas.width * 0.07));
+      const subFontSize = isPhoneLandscape
+        ? Math.max(14, Math.floor(canvas.height * 0.04))
+        : Math.max(16, Math.floor(canvas.width * 0.045));
+      const devButtonH = isDevMode() ? Math.max(26, Math.floor(canvas.height * 0.045)) : 0;
+      const hudBottom = safeTop + hudFontSize + subFontSize + 18 + devButtonH;
+      meterY = hudBottom + 12;
     }
   }
 
