@@ -2,6 +2,14 @@
 // When releasing, prepend an entry here if users should see "What's New".
 const RELEASE_NOTES = [
   {
+    version: 'v0.23.0',
+    date: '2026-05-05',
+    headline: 'In-game settings',
+    items: [
+      'In-game settings menu - choose meter position (top/middle/bottom).'
+    ]
+  },
+  {
     version: 'v0.22.0',
     date: '2026-05-05',
     headline: 'New characters and pit fixes',

@@ -114,12 +114,14 @@
   let gameOverLeaderboardRect = null;
   let usernameNameRect = null;
   let usernameOverlayEl = null;
+  let settingsGearRect = null;
   let selectHomeRect = null;
   let leaderboardBackRect = null;
   let homeButtonRects = [];
   let stubBackRect = null;
   let latestReleaseNote = window.releaseNotes ? window.releaseNotes.getLatestNote() : null;
   let whatsNewOverlayEl = null;
+  let settingsOverlayEl = null;
   const heroImages = {};
   CHARACTERS.forEach(c => {
     const img = new Image();
@@ -215,10 +217,13 @@
   const PIT_FRONT_OVERLAY_ASSET_OFFSET_LEFT = 219;
   const SHOVEL_STICK_ANGLE = Math.PI / 2;
   const USERNAME_KEY = 'shoveltoss.username';
+  const SETTINGS_KEY = 'shoveltoss.settings';
+  const METER_POSITIONS = ['top', 'middle', 'bottom'];
+  const DEFAULT_SETTINGS = { meterPosition: 'top' };
   const GLOBAL_SCORE_LIMIT = 100;
   const HIGH_SCORE_BADGE = '👑';
   // When releasing user-visible changes, prepend a note in src/releaseNotes.js.
-  const APP_VERSION_TAG = 'v0.22.0';
+  const APP_VERSION_TAG = 'v0.23.0';
   const HOF_POINTS_LEADER = { key: 'pointsLeader', label: 'Most Points' };
   const HOF_TOTAL_POINTS_LEADER = { key: 'totalPointsLeader', label: 'Most Total Points All Time' };
   const HOF_GAMES_LEADER = { key: 'gamesLeader', label: 'Most Games All Time' };
@@ -253,6 +258,26 @@
       localStorage.setItem(USERNAME_KEY, clean);
       return clean;
     }
+  };
+
+  const settings = {
+    _cache: null,
+    _load() {
+      if (this._cache) return this._cache;
+      try {
+        const raw = localStorage.getItem(SETTINGS_KEY);
+        this._cache = raw ? { ...DEFAULT_SETTINGS, ...JSON.parse(raw) } : { ...DEFAULT_SETTINGS };
+      } catch {
+        this._cache = { ...DEFAULT_SETTINGS };
+      }
+      return this._cache;
+    },
+    get(key) { return this._load()[key]; },
+    set(key, value) {
+      const s = this._load();
+      s[key] = value;
+      try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch {}
+    },
   };
 
   // --- State enums ---
@@ -372,11 +397,20 @@
     pitCenterX = canvas.width * (isLilItalyLevel() ? 0.20 : 0.80);  // far end; pitLeft/pitRight set by updateDifficulty
     updateDifficulty();
 
-    // Meter: narrowed and centered at top
-    meterWidth = Math.max(220, canvas.width * METER_WIDTH_FRACTION);
-    meterX = (canvas.width - meterWidth) / 2;
-    meterY = safeTop;
+    // Meter: narrowed and centered, position by setting
+    meterWidth  = Math.max(220, canvas.width * METER_WIDTH_FRACTION);
+    meterX      = (canvas.width - meterWidth) / 2;
     meterHeight = Math.max(36, canvas.height * METER_HEIGHT_FRACTION);
+
+    const labelGap = 32; // room for POWER + SPEED below the bar
+    const pos = settings.get('meterPosition');
+    if (pos === 'middle') {
+      meterY = (canvas.height - meterHeight) / 2;
+    } else if (pos === 'bottom') {
+      meterY = canvas.height - meterHeight - labelGap - 12;
+    } else {
+      meterY = safeTop;
+    }
   }
 
   // --- Difficulty ---
@@ -750,6 +784,67 @@
     whatsNewOverlayEl = null;
   }
 
+  function openSettingsOverlay() {
+    if (settingsOverlayEl) return;
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:1000;display:flex;align-items:center;justify-content:center;padding:24px;font-family:sans-serif;';
+    const card = document.createElement('div');
+    card.style.cssText = 'background:#1a1a2e;color:#fff;border:2px solid #5555aa;border-radius:10px;max-width:360px;width:100%;padding:20px;';
+
+    const title = document.createElement('h2');
+    title.textContent = 'Settings';
+    title.style.cssText = 'margin:0 0 14px;font-size:22px;';
+    card.appendChild(title);
+
+    card.appendChild(buildMeterPositionRow());
+    // Future settings: append more rows here.
+
+    const close = document.createElement('button');
+    close.textContent = 'Done';
+    close.style.cssText = 'margin-top:18px;width:100%;padding:10px;background:#ffe600;color:#1a1a2e;border:none;border-radius:6px;font-weight:bold;font-size:15px;cursor:pointer;';
+    close.addEventListener('click', closeSettingsOverlay);
+    card.appendChild(close);
+
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeSettingsOverlay(); });
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+    settingsOverlayEl = overlay;
+  }
+
+  function closeSettingsOverlay() {
+    if (!settingsOverlayEl) return;
+    settingsOverlayEl.remove();
+    settingsOverlayEl = null;
+  }
+
+  function buildMeterPositionRow() {
+    const row = document.createElement('div');
+    row.style.cssText = 'margin:6px 0 4px;';
+    const label = document.createElement('div');
+    label.textContent = 'Meter Position';
+    label.style.cssText = 'font-size:14px;margin-bottom:8px;color:#cfcfe6;';
+    row.appendChild(label);
+
+    const group = document.createElement('div');
+    group.style.cssText = 'display:flex;gap:8px;';
+    const current = settings.get('meterPosition');
+    METER_POSITIONS.forEach(pos => {
+      const btn = document.createElement('button');
+      btn.textContent = pos[0].toUpperCase() + pos.slice(1);
+      const isActive = pos === current;
+      btn.style.cssText = `flex:1;padding:10px;border-radius:6px;border:2px solid ${isActive ? '#ffe600' : '#5555aa'};background:${isActive ? '#ffe600' : 'transparent'};color:${isActive ? '#1a1a2e' : '#fff'};font-weight:bold;font-size:14px;cursor:pointer;`;
+      btn.addEventListener('click', () => {
+        settings.set('meterPosition', pos);
+        updateLayout();
+        closeSettingsOverlay();
+        openSettingsOverlay();
+      });
+      group.appendChild(btn);
+    });
+    row.appendChild(group);
+    return row;
+  }
+
   function resetRun() {
     run.throwCount       = 0;
     run.missesRemaining  = MISSES_PER_RUN;
@@ -1032,6 +1127,10 @@
       return;
     }
     // PLAYING — throw logic
+    if (settingsGearRect && settingsGearRect.active && pointerInRect(settingsGearRect)) {
+      openSettingsOverlay();
+      return;
+    }
     if (throw_.state !== STATE.IDLE) return;
     throw_.state     = STATE.CHARGING;
     throw_.meterFill = 0;
@@ -1562,17 +1661,32 @@
     const hudFontSize = isPhoneLandscape
       ? Math.max(28, Math.floor(canvas.height * 0.08))
       : Math.max(24, Math.floor(canvas.width * 0.07));
-    const hudY = isPhoneLandscape
-      ? safeTop + hudFontSize
-      : meterY + meterHeight + HUD_PAD + hudFontSize;
+    const hudY = safeTop + hudFontSize;
     const subFontSize = isPhoneLandscape
       ? Math.max(14, Math.floor(canvas.height * 0.04))
       : Math.max(16, Math.floor(canvas.width * 0.045));
+    const gearSize = Math.max(28, Math.floor(canvas.width * 0.06));
+    const gearX = canvas.width - HUD_PAD - gearSize;
+    const gearY = safeTop;
     drawText(scoring.score, HUD_PAD, hudY, hudFontSize, '#ffffff', 'left', true);
     drawLifeIcons(HUD_PAD, hudY + subFontSize + 8);
     const playerName = username.get();
     const highScoreBadge = isScoreLeaderUsername(playerName) ? `${HIGH_SCORE_BADGE} ` : '';
-    drawText(`${highScoreBadge}${playerName}`, canvas.width - HUD_PAD, hudY, subFontSize, '#ffffff', 'right', true);
+    ctx.save();
+    ctx.textBaseline = 'middle';
+    drawText(`${highScoreBadge}${playerName}`, gearX - 8, gearY + gearSize / 2, subFontSize, '#ffffff', 'right', true);
+    ctx.restore();
+
+    // Settings gear - top-right, drawn on every PLAYING frame
+    const gearActive = throw_.state === STATE.IDLE;
+    ctx.globalAlpha = gearActive ? 1 : 0.35;
+    ctx.font = `${Math.round(gearSize * 0.82)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('⚙️', gearX + gearSize / 2, gearY + gearSize / 2);
+    ctx.textBaseline = 'alphabetic';
+    ctx.globalAlpha = 1;
+    settingsGearRect = { x: gearX, y: gearY, w: gearSize, h: gearSize, active: gearActive };
 
     // Throw feedback text
     if (scoring.feedbackTimer > 0) {
@@ -1627,8 +1741,11 @@
     ctx.stroke();
 
     // Label
-    drawText('POWER', meterX + meterWidth / 2, meterY + meterHeight + 14, 14, '#ffffff', 'center', false);
-    drawText(`SPEED ${difficulty.meterSpeed.toFixed(2)}`, meterX + meterWidth / 2, meterY + meterHeight + 30, 12, '#ffffff', 'center', false);
+    const labelAbove = settings.get('meterPosition') === 'bottom';
+    const powerY = labelAbove ? meterY - 18 : meterY + meterHeight + 14;
+    const speedY = labelAbove ? meterY - 4  : meterY + meterHeight + 30;
+    drawText('POWER', meterX + meterWidth / 2, powerY, 14, '#ffffff', 'center', false);
+    drawText(`SPEED ${difficulty.meterSpeed.toFixed(2)}`, meterX + meterWidth / 2, speedY, 12, '#ffffff', 'center', false);
   }
 
   function drawButton(rect, label, active = false) {
