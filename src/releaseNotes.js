@@ -2,6 +2,15 @@
 // When releasing, prepend an entry here if users should see "What's New".
 const RELEASE_NOTES = [
   {
+    version: 'v0.24.1',
+    date: '2026-05-07',
+    headline: 'Source link and leaderboard cleanup',
+    items: [
+      'Added a GitHub source-code link.',
+      'Leaderboard now rejects junk submissions — only real characters and realistic scores.'
+    ]
+  },
+  {
     version: 'v0.24.0',
     date: '2026-05-06',
     headline: 'New level, new characters, sharper UI',

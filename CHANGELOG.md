@@ -4,6 +4,21 @@ All notable changes to Shovel Toss. Format follows [Keep a Changelog](https://ke
 
 ## [Unreleased]
 
+## [0.24.1] — 2026-05-07
+
+### Added
+- GitHub source-code link.
+
+### Changed
+- README updated to reflect the current game (level select, settings, daily leaderboard, character filters).
+
+### Security
+- Tightened Supabase RLS and CHECK constraints: score capped at 10,000, `character_name` restricted to the in-game roster, usernames stripped of control / RTL-override / zero-width characters.
+- Added a Content-Security-Policy meta tag and an SRI hash on the Font Awesome stylesheet.
+- Narrowed the GitHub Pages artifact to `index.html`, `CNAME`, `assets/`, and `src/`.
+- Locked GitHub Actions workflow permissions: `contents: read` on the Pages build job and an empty root permissions block on the Supabase keepalive workflow.
+- Footer version tag now displays the correct release version.
+
 ## [0.24.0] — 2026-05-06
 
 ### Added
