@@ -151,20 +151,29 @@ All notable changes to Shovel Toss. Format follows [Keep a Changelog](https://ke
 
 ## [0.14.0] — 2026-04-29
 
+### Changed
+- Polished character-select screen subtitle and version footer.
+
+## [0.13.0] — 2026-04-29
+
+### Added
+- `CHANGELOG.md`.
+
+### Removed
+- Dead code: write-only state fields, debug console.log, commented-out lines, duplicate badge constant.
+
+## [0.12.0] — 2026-04-29
+
 ### Added
 - Username first-open flow (saved in `localStorage`).
 - Buck character.
 - Pit landing depth illusion.
 
 ### Changed
-- Polished character-select screen subtitle and version footer.
 - Randomized meter sweet-spot position per throw.
 - Tuned meter difficulty and high-score badge display.
 - Tuned throw parity and meter-to-power mapping.
 - Updated `README.md` with current gameplay flow and scoring table.
-
-### Removed
-- Dead code: write-only state fields, debug console.log, commented-out lines, duplicate badge constant.
 
 ## [0.11.0] — 2026-04-28
 
