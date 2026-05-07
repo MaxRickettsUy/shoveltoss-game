@@ -20,8 +20,13 @@
   <meta name="twitter:image" content="https://shoveltoss.ing/assets/share.png">
   <link rel="icon" type="image/png" href="/assets/favicon.png">
   <link rel="apple-touch-icon" href="/assets/favicon.png">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
   <meta name="theme-color" content="#1a1a2e">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://esm.sh https://cloud.umami.is; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com; img-src 'self' data:; connect-src 'self' https://*.supabase.co https://esm.sh https://cloud.umami.is; frame-ancestors 'none'; base-uri 'self';">
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+        integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A=="
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer">
   <meta name="author" content="Max Ricketts-Uy">
   <script defer src="https://cloud.umami.is/script.js" data-website-id="fcd8ac65-02a9-4054-a8b9-6809cafd04a8"></script>
   <style>
@@ -276,12 +281,20 @@
     { key: 'g150', label: 'First to 150 Games', threshold: 150, kind: 'gameCount' },
   ];
 
+  function sanitizeUsername(raw) {
+    return String(raw || '')
+      .normalize('NFKC')
+      .replace(/[\u0000-\u001F\u007F\u200B-\u200F\u202A-\u202E\uFEFF]/g, '')
+      .trim()
+      .slice(0, 20);
+  }
+
   const username = {
     get() {
-      return String(localStorage.getItem(USERNAME_KEY) || '').trim().slice(0, 20);
+      return sanitizeUsername(localStorage.getItem(USERNAME_KEY));
     },
     set(name) {
-      const clean = String(name || '').trim().slice(0, 20);
+      const clean = sanitizeUsername(name);
       if (!clean) return '';
       localStorage.setItem(USERNAME_KEY, clean);
       return clean;
@@ -886,7 +899,7 @@
 
     panel.addEventListener('submit', (e) => {
       e.preventDefault();
-      const saved = username.set(input.value);
+      const saved = username.set(sanitizeUsername(input.value));
       if (!saved) {
         error.textContent = 'Enter a username.';
         return;

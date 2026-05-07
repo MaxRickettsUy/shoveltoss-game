@@ -66,6 +66,8 @@ export const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
 
 The game imports `@supabase/supabase-js` from `https://esm.sh/@supabase/supabase-js@2`, so no bundler is required. If config is missing or the request fails, the global status shows offline. The current global #1 gets a crown badge next to their HUD name. The leaderboard screen toggles between `All Time` and `Today` (since local midnight) and can be filtered by character.
 
+The Supabase anon key in `src/config.js` is intentionally public for this browser app. Access is gated by row-level security and database constraints in the migration.
+
 The weekly keep-alive workflow in `.github/workflows/supabase-keepalive.yml` fetches one score every Monday. Add repository secrets named `SUPABASE_URL` and `SUPABASE_ANON_KEY`.
 
 ## Controls

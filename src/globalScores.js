@@ -16,7 +16,11 @@ function isProductionHost() {
 let client = null;
 
 function cleanName(name) {
-  const clean = String(name || '').trim().slice(0, 20);
+  const clean = String(name || '')
+    .normalize('NFKC')
+    .replace(/[\u0000-\u001F\u007F\u200B-\u200F\u202A-\u202E\uFEFF]/g, '')
+    .trim()
+    .slice(0, 20);
   return clean || 'Player';
 }
 
