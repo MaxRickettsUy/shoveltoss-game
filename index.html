@@ -82,6 +82,11 @@
   champShovelImg.onload = () => { champShovelReady = true; };
   champShovelImg.src = 'assets/champ-shovel.png';
 
+  const githubImg = new Image();
+  let githubReady = false;
+  githubImg.onload = () => { githubReady = true; };
+  githubImg.src = 'assets/github_dark.svg';
+
   const LEVELS = [
     { id: 'lil-italy', label: 'Lil Italy',  background: 'assets/level/lil-italy.png' },
     { id: 'the-swamp', label: 'The Swamp', background: 'assets/level/theswamp.png' },
@@ -134,6 +139,7 @@
   let selectHomeRect = null;
   let leaderboardBackRect = null;
   let homeButtonRects = [];
+  let footerGithubRect = null;
   let stubBackRect = null;
   let latestReleaseNotes = window.releaseNotes ? window.releaseNotes.getLatestNotes(3) : [];
   let whatsNewOverlayEl = null;
@@ -243,6 +249,7 @@
   const GLOBAL_SCORE_LIMIT = 100;
   const HIGH_SCORE_BADGE = '👑';
   const PROD_APEX = 'shoveltoss.ing';
+  const SOURCE_CODE_URL = 'https://github.com/MaxRickettsUy/shoveltoss-game';
   // When releasing user-visible changes, prepend a note in src/releaseNotes.js.
   const APP_VERSION_TAG = 'v0.24.0';
   const HOF_POINTS_LEADER = { key: 'pointsLeader', label: 'Most Points' };
@@ -1179,11 +1186,20 @@
       && lastPointerY >= r.y && lastPointerY <= r.y + r.h;
   }
 
+  function openSourceCode() {
+    const opened = window.open(SOURCE_CODE_URL, '_blank', 'noopener');
+    if (!opened) window.location.href = SOURCE_CODE_URL;
+  }
+
   function onPressStart() {
     if (run.state === RUN_STATE.USERNAME) return;
     if (run.state === RUN_STATE.HOME) {
       if (pointerInRect(usernameNameRect)) {
         openUsernameOverlay(RUN_STATE.HOME);
+        return;
+      }
+      if (pointerInRect(footerGithubRect)) {
+        openSourceCode();
         return;
       }
       for (let i = 0; i < homeButtonRects.length; i++) {
@@ -2289,9 +2305,25 @@
       drawButton(rect, button.label);
     });
 
-    const footerText = `${APP_VERSION_TAG} 🇺🇸`;
+    const footerFlag = '🇺🇸';
+    const iconSize = Math.max(14, Math.floor(footerSize * 1.05));
+    const gap = Math.max(7, Math.floor(footerSize * 0.45));
     ctx.font = `${Math.round(footerSize)}px sans-serif`;
-    drawText(footerText, canvas.width / 2, footerY, footerSize, 'rgba(255,255,255,0.55)', 'center', false);
+    const versionW = ctx.measureText(APP_VERSION_TAG).width;
+    const flagW = ctx.measureText(footerFlag).width;
+    const totalW = versionW + gap + iconSize + gap + flagW;
+    const startX = canvas.width / 2 - totalW / 2;
+    const textY = footerY;
+    drawText(APP_VERSION_TAG, startX, textY, footerSize, 'rgba(255,255,255,0.55)', 'left', false);
+    const iconX = startX + versionW + gap;
+    const iconY = textY - iconSize * 0.78;
+    if (githubReady) {
+      ctx.globalAlpha = 0.55;
+      ctx.drawImage(githubImg, iconX, iconY, iconSize, iconSize);
+      ctx.globalAlpha = 1;
+    }
+    drawText(footerFlag, iconX + iconSize + gap, textY, footerSize, 'rgba(255,255,255,0.55)', 'left', false);
+    footerGithubRect = { x: iconX - 6, y: iconY - 6, w: iconSize + 12, h: iconSize + 12 };
   }
 
   function drawStubScreen(title) {
