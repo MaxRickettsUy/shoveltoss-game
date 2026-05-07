@@ -20,6 +20,7 @@
   <meta name="twitter:image" content="https://shoveltoss.ing/assets/share.png">
   <link rel="icon" type="image/png" href="/assets/favicon.png">
   <link rel="apple-touch-icon" href="/assets/favicon.png">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
   <meta name="theme-color" content="#1a1a2e">
   <meta name="author" content="Max Ricketts-Uy">
   <script defer src="https://cloud.umami.is/script.js" data-website-id="fcd8ac65-02a9-4054-a8b9-6809cafd04a8"></script>
@@ -47,6 +48,8 @@
 
   let CHARACTER_FRAME_W = 0;
   let CHARACTER_FRAME_H = 0;
+  let faReady = false;
+  document.fonts.load('900 32px "Font Awesome 6 Free"').then(() => { faReady = true; });
   const characterImg = new Image();
   let characterReady = false;
   characterImg.onload = () => {
@@ -867,7 +870,7 @@
     button.style.font = '700 18px sans-serif';
     button.style.color = '#ffffff';
     button.style.background = '#2a2a4a';
-    button.style.border = '2px solid #ffffff';
+    button.style.border = '0';
     button.style.borderRadius = '6px';
 
     panel.addEventListener('submit', (e) => {
@@ -1878,10 +1881,11 @@
     // Settings gear - top-right, drawn on every PLAYING frame
     const gearActive = throw_.state === STATE.IDLE;
     ctx.globalAlpha = gearActive ? 1 : 0.35;
-    ctx.font = `${Math.round(gearSize * 0.82)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+    ctx.font = `900 ${Math.round(gearSize * 0.82)}px "Font Awesome 6 Free", "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+    ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('⚙️', gearX + gearSize / 2, gearY + gearSize / 2);
+    ctx.fillText(faReady ? '' : '⚙️', gearX + gearSize / 2, gearY + gearSize / 2);
     ctx.textBaseline = 'alphabetic';
     ctx.globalAlpha = 1;
     settingsGearRect = { x: gearX, y: gearY, w: gearSize, h: gearSize, active: gearActive };
@@ -2218,7 +2222,12 @@
       const nameW = ctx.measureText(nameText).width;
       const iconSize = nameSize * 0.9;
       const iconX = canvas.width / 2 + nameW / 2 + iconSize;
-      drawText('✏️', iconX, nameY, iconSize, '#ffffff', 'center', false);
+      ctx.save();
+      ctx.font = `900 ${Math.round(iconSize)}px "Font Awesome 6 Free", sans-serif`;
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.fillText(faReady ? '' : '✏️', iconX, nameY);
+      ctx.restore();
       usernameNameRect = { x: canvas.width / 2 - nameW / 2 - 10, y: nameY - nameSize - 8, w: nameW + iconSize * 2 + 20, h: nameSize + 14 };
     }
 
@@ -2505,7 +2514,14 @@
       fontSize: isPhoneLandscape ? 17 : 20,
       centered: true
     };
-    drawButton(selectHomeRect, '←');
+    drawButton(selectHomeRect, '');
+    ctx.save();
+    ctx.font = `900 ${Math.round(selectHomeRect.fontSize)}px "Font Awesome 6 Free", sans-serif`;
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(faReady ? '' : '←', selectHomeRect.x + selectHomeRect.w / 2, selectHomeRect.y + selectHomeRect.h / 2);
+    ctx.restore();
 
     const name = username.get();
     usernameNameRect = null;
@@ -2519,7 +2535,12 @@
       const nameW = ctx.measureText(nameText).width;
       const iconSize = nameSize * 0.9;
       const iconX = canvas.width / 2 + nameW / 2 + iconSize;
-      drawText('✏️', iconX, nameY, iconSize, '#ffffff', 'center', false);
+      ctx.save();
+      ctx.font = `900 ${Math.round(iconSize)}px "Font Awesome 6 Free", sans-serif`;
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.fillText(faReady ? '' : '✏️', iconX, nameY);
+      ctx.restore();
       usernameNameRect = { x: canvas.width / 2 - nameW / 2 - 10, y: nameY - nameSize - 8, w: nameW + iconSize * 2 + 20, h: nameSize + 14 };
     }
 
@@ -2644,13 +2665,13 @@
       const isFlippedCard = flippedCardId === character.id;
       const flipBtnX = x + tileW - flipBtnSize - 6;
       const flipBtnY = isFlippedCard ? y + 6 : y + tileH - flipBtnSize - 6;
-      ctx.fillStyle = 'rgba(0,0,0,0.55)';
-      ctx.beginPath();
-      ctx.arc(flipBtnX + flipBtnSize / 2, flipBtnY + flipBtnSize / 2, flipBtnSize / 2, 0, Math.PI * 2);
-      ctx.fill();
-      drawText(isFlippedCard ? '×' : 'i',
-        flipBtnX + flipBtnSize / 2, flipBtnY + flipBtnSize * (isFlippedCard ? 0.69 : 0.72),
-        flipBtnSize * (isFlippedCard ? 0.72 : 0.6), '#ffffff', 'center', true);
+      ctx.save();
+      ctx.font = `900 ${Math.round(flipBtnSize * (isFlippedCard ? 0.72 : 0.6))}px "Font Awesome 6 Free", sans-serif`;
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(faReady ? (isFlippedCard ? '' : '') : (isFlippedCard ? '×' : '↻'), flipBtnX + flipBtnSize / 2, flipBtnY + flipBtnSize / 2);
+      ctx.restore();
       cardFlipBtnRects.push({
         id: character.id,
         x: flipBtnX,
