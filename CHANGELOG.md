@@ -4,6 +4,16 @@ All notable changes to Shovel Toss. Format follows [Keep a Changelog](https://ke
 
 ## [Unreleased]
 
+## [0.24.0] — 2026-05-06
+
+### Added
+- New level: The Swamp.
+- Two new playable characters: Gucci and Inspector.
+
+### Changed
+- Character card flips on the character-select screen now animate.
+- Replaced the settings gear and edit pencil emoji with Font Awesome icons for crisper rendering.
+
 ## [0.23.1] — 2026-05-06
 
 ### Changed

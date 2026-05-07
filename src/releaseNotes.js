@@ -2,6 +2,17 @@
 // When releasing, prepend an entry here if users should see "What's New".
 const RELEASE_NOTES = [
   {
+    version: 'v0.24.0',
+    date: '2026-05-06',
+    headline: 'New level, new characters, sharper UI',
+    items: [
+      'New level: The Swamp.',
+      'Two new characters: Gucci and Inspector.',
+      'Character card flips now animate smoothly.',
+      'Refreshed settings and edit icons with crisper Font Awesome glyphs.'
+    ]
+  },
+  {
     version: 'v0.23.1',
     date: '2026-05-06',
     headline: 'Polish',
