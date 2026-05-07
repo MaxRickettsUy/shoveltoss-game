@@ -80,8 +80,9 @@
   champShovelImg.src = 'assets/champ-shovel.png';
 
   const LEVELS = [
-    { id: 'house',     label: "St Paul",  background: 'assets/level/shins.png' },
     { id: 'lil-italy', label: 'Lil Italy',  background: 'assets/level/lil-italy.png' },
+    { id: 'the-swamp', label: 'The Swamp', background: 'assets/level/theswamp.png' },
+    { id: 'house',     label: "St Paul",  background: 'assets/level/shins.png' },
   ];
 
   const levelImages = {};
@@ -419,7 +420,7 @@
 
     safeTop  = Math.max(20, canvas.height * 0.04);
     const isLandscape = canvas.width > canvas.height;
-    groundY  = canvas.height * (isLilItalyLevel() && isLandscape ? 0.96 : 0.82);
+    groundY  = isLandscape ? canvas.height : canvas.height * 0.82;
     wallTopY = groundY - canvas.height * WALL_HEIGHT_FRACTION;
     playerX  = canvas.width * (isLilItalyLevel() ? 0.90 : 0.10);
     playerY  = groundY;
