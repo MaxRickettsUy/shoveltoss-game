@@ -212,6 +212,10 @@
   const PTS_IN_PIT          = 0;
   const PTS_FRONT_WALL      = 1;
   const PTS_MISS            = -2;
+  const STREAK_TIER_1 = 3;
+  const STREAK_TIER_2 = 5;
+  const STREAK_MULT_1 = 1.5;
+  const STREAK_MULT_2 = 2.0;
   const ZONE_FRONT_WALL_MAX = 0.10;
   const ZONE_BACK_WALL_MIN  = 0.90;
   const SHOVEL_ROT_RATE   = 9;
@@ -322,7 +326,8 @@
     throwCount:  0,
     missesRemaining: MISSES_PER_RUN,
     gameOverTime: 0,
-    lastStateBeforeLeaderboard: RUN_STATE.HOME
+    lastStateBeforeLeaderboard: RUN_STATE.HOME,
+    stickStreak: 0
   };
 
   const throw_ = {
@@ -350,7 +355,9 @@
     score:           0,
     lastThrowPoints: 0,
     lastThrowZone:   '',
-    feedbackTimer:   0
+    feedbackTimer:   0,
+    multiplierTierReachedTimer: 0,
+    multiplierTierReached: 0
   };
 
   const celebration = {
@@ -1019,6 +1026,7 @@
     run.throwCount       = 0;
     run.missesRemaining  = MISSES_PER_RUN;
     run.state            = RUN_STATE.PLAYING;
+    run.stickStreak      = 0;
     throw_.state         = STATE.IDLE;
     throw_.meterFill     = 0;
     throw_.meterDir      = 1;
@@ -1027,6 +1035,8 @@
     scoring.lastThrowPoints = 0;
     scoring.lastThrowZone   = '';
     scoring.feedbackTimer   = 0;
+    scoring.multiplierTierReachedTimer = 0;
+    scoring.multiplierTierReached      = 0;
     celebration.firedHundred = false;
     celebration.firedAllTime = false;
     celebration.phraseText   = '';
@@ -1066,7 +1076,16 @@
       }
     }
 
-    scoring.lastThrowPoints = basePoints;
+    let mult = 1;
+    if (zone === 'stick') {
+      run.stickStreak++;
+      if (run.stickStreak >= STREAK_TIER_2) mult = STREAK_MULT_2;
+      else if (run.stickStreak >= STREAK_TIER_1) mult = STREAK_MULT_1;
+    } else {
+      run.stickStreak = 0;
+    }
+
+    scoring.lastThrowPoints = Math.round(basePoints * mult);
     scoring.lastThrowZone  = zone;
     scoring.score         += scoring.lastThrowPoints;
     const prevScore = scoring.score - scoring.lastThrowPoints;
@@ -1076,6 +1095,10 @@
     run.throwCount++;
     if (zone === 'stick') {
       difficulty.meterSpeed += METER_SPEED_INCREMENT_PER_THROW;
+      if (run.stickStreak === STREAK_TIER_1 || run.stickStreak === STREAK_TIER_2) {
+        scoring.multiplierTierReached = run.stickStreak === STREAK_TIER_2 ? 2 : 1;
+        scoring.multiplierTierReachedTimer = FEEDBACK_DURATION;
+      }
     }
     if (zone === 'miss') {
       run.missesRemaining--;
@@ -1627,6 +1650,9 @@
     if (scoring.feedbackTimer > 0) {
       scoring.feedbackTimer = Math.max(0, scoring.feedbackTimer - dt * 1000);
     }
+    if (scoring.multiplierTierReachedTimer > 0) {
+      scoring.multiplierTierReachedTimer = Math.max(0, scoring.multiplierTierReachedTimer - dt * 1000);
+    }
     if (celebration.phraseTimer > 0) {
       celebration.phraseTimer = Math.max(0, celebration.phraseTimer - dt * 1000);
     }
@@ -1919,6 +1945,23 @@
           Math.max(14, Math.floor(canvas.width * 0.04)), '#ffffff', 'center', false);
       }
       ctx.globalAlpha = 1;
+    }
+
+    if (run.stickStreak > 0) {
+      let label = `Streak ${run.stickStreak}`;
+      if (run.stickStreak >= STREAK_TIER_2) label += ' ×2';
+      else if (run.stickStreak >= STREAK_TIER_1) label += ' ×1.5';
+      drawText(label, canvas.width / 2, hudY + subFontSize, subFontSize, 'rgba(255,230,0,0.9)', 'center', true);
+    }
+
+    if (scoring.multiplierTierReachedTimer > 0 && scoring.multiplierTierReached) {
+      const alpha = Math.min(1, scoring.multiplierTierReachedTimer / 500);
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      const msg = scoring.multiplierTierReached === 2 ? '×2 STREAK!' : '×1.5 STREAK!';
+      drawText(msg, canvas.width / 2, canvas.height * 0.4,
+        Math.max(28, Math.floor(canvas.width * 0.08)), '#ffe600', 'center', true);
+      ctx.restore();
     }
 
     if (celebration.phraseTimer > 0) {
