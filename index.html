@@ -150,11 +150,18 @@
   let whatsNewOverlayEl = null;
   let settingsOverlayEl = null;
   const heroImages = {};
-  CHARACTERS.forEach(c => {
-    const img = new Image();
-    img.src = c.hero;
-    heroImages[c.id] = img;
-  });
+  let heroesRequested = false;
+
+  function loadHeroImages() {
+    if (heroesRequested) return;
+    heroesRequested = true;
+    CHARACTERS.forEach(c => {
+      const img = new Image();
+      img.src = c.hero;
+      heroImages[c.id] = img;
+    });
+  }
+
   const championImg = new Image();
   championImg.src = 'assets/champion.png';
   const CHAMPION_IDS = new Set(['Alexsama', 'Buck', 'Wagie', 'Chef', 'Chuggo']);
@@ -1220,6 +1227,7 @@
         if (pointerInRect(btn)) {
           switch (btn.action) {
             case 'play':
+              loadHeroImages();
               run.state = RUN_STATE.SELECTING;
               break;
             case 'leaderboard':
@@ -1242,6 +1250,7 @@
     }
     if (run.state === RUN_STATE.LEVEL_SELECT) {
       if (pointerInRect(levelBackRect)) {
+        loadHeroImages();
         run.state = RUN_STATE.SELECTING;
         flippedCardId = null;
         levelTileRects = [];
@@ -1306,6 +1315,7 @@
         return;
       }
       if (pointerInRect(gameOverChangeRect)) {
+        loadHeroImages();
         run.state = RUN_STATE.SELECTING;
         charSelectScrollY = 0;
         flippedCardId = null;
