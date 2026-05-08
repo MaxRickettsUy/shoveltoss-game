@@ -2,6 +2,15 @@
 // When releasing, prepend an entry here if users should see "What's New".
 const RELEASE_NOTES = [
   {
+    version: 'v0.25.1',
+    date: '2026-05-08',
+    headline: 'First-time how-to-play tutorial',
+    items: [
+      'New how-to-play dialog explains the meter, scoring zones, and misses.',
+      'Hide it permanently or reopen it later from Settings.'
+    ]
+  },
+  {
     version: 'v0.25.0',
     date: '2026-05-08',
     headline: 'Spot yourself + meme milestones',

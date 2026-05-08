@@ -149,6 +149,7 @@
   let latestReleaseNotes = window.releaseNotes ? window.releaseNotes.getLatestNotes(3) : [];
   let whatsNewOverlayEl = null;
   let settingsOverlayEl = null;
+  let howToPlayOverlayEl = null;
   const heroImages = {};
   let heroesRequested = false;
 
@@ -257,14 +258,14 @@
   const USERNAME_KEY = 'shoveltoss.username';
   const SETTINGS_KEY = 'shoveltoss.settings';
   const METER_POSITIONS = ['top', 'middle', 'bottom'];
-  const DEFAULT_SETTINGS = { meterPosition: 'top' };
+  const DEFAULT_SETTINGS = { meterPosition: 'top', hideHowToPlay: false };
   const GLOBAL_SCORE_LIMIT = 100;
   const HIGH_SCORE_BADGE = '👑';
   const HIGHLIGHT_FILL = 'rgba(255, 230, 0, 0.18)';
   const PROD_APEX = 'shoveltoss.ing';
   const SOURCE_CODE_URL = 'https://github.com/MaxRickettsUy/shoveltoss-game';
   // When releasing user-visible changes, prepend a note in src/releaseNotes.js.
-  const APP_VERSION_TAG = 'v0.25.0';
+  const APP_VERSION_TAG = 'v0.25.1';
   const HOF_POINTS_LEADER = { key: 'pointsLeader', label: 'Most Points' };
   const HOF_TOTAL_POINTS_LEADER = { key: 'totalPointsLeader', label: 'Most Total Points All Time' };
   const HOF_GAMES_LEADER = { key: 'gamesLeader', label: 'Most Games All Time' };
@@ -992,6 +993,97 @@
     whatsNewOverlayEl = null;
   }
 
+  function openHowToPlayOverlay() {
+    if (howToPlayOverlayEl) return;
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:1000;display:flex;align-items:center;justify-content:center;padding:24px;font-family:sans-serif;';
+
+    const card = document.createElement('div');
+    card.style.cssText = 'background:#1a1a2e;color:#fff;border:2px solid #5555aa;border-radius:10px;max-width:380px;width:100%;max-height:80vh;overflow-y:auto;padding:18px 20px;';
+
+    const title = document.createElement('h2');
+    title.textContent = 'How to Play';
+    title.style.cssText = 'margin:0 0 12px;font-size:22px;';
+    card.appendChild(title);
+
+    const sections = [
+      { title: 'Tap to start the meter.', body: 'A bouncing bar runs across the power gauge.' },
+      { title: 'Tap again to throw.', body: 'Stop the bar in the green sweet spot for max power.' },
+      {
+        title: 'Score zones',
+        items: [
+          ['Stick the shovel:', '+3'],
+          ['Back wall:', '+1'],
+          ['In the pit:', '0'],
+          ['Front wall:', '+1'],
+          ['Miss:', '−2'],
+        ],
+      },
+      { title: 'You get 3 misses per run.', body: 'Use them wisely — 3 misses ends the run.' },
+      { title: 'The meter speeds up', body: 'every time you stick a throw.' },
+    ];
+
+    sections.forEach(section => {
+      const h = document.createElement('h3');
+      h.textContent = section.title;
+      h.style.cssText = 'margin:10px 0 3px;font-size:15px;color:#ffe600;';
+      card.appendChild(h);
+      if (section.body) {
+        const p = document.createElement('p');
+        p.textContent = section.body;
+        p.style.cssText = 'margin:0;font-size:14px;line-height:1.28;color:#fff;';
+        card.appendChild(p);
+      }
+      if (section.items) {
+        const ul = document.createElement('ul');
+        ul.style.cssText = 'margin:0 0 0 20px;padding:0;font-size:14px;line-height:1.32;';
+        section.items.forEach(item => {
+          const li = document.createElement('li');
+          const label = document.createTextNode(`${item[0]} `);
+          const strong = document.createElement('strong');
+          strong.textContent = item[1];
+          li.appendChild(label);
+          li.appendChild(strong);
+          ul.appendChild(li);
+        });
+        card.appendChild(ul);
+      }
+    });
+
+    const btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;gap:8px;margin-top:18px;';
+
+    const dontShow = document.createElement('button');
+    dontShow.textContent = "Don't show again";
+    dontShow.style.cssText = 'flex:1;padding:10px;background:#2a2a4a;color:#fff;border:none;border-radius:6px;font-weight:bold;font-size:14px;cursor:pointer;';
+    dontShow.addEventListener('click', () => {
+      settings.set('hideHowToPlay', true);
+      closeHowToPlayOverlay();
+    });
+
+    const okay = document.createElement('button');
+    okay.textContent = 'Okay';
+    okay.style.cssText = 'flex:1;padding:10px;background:#ffe600;color:#1a1a2e;border:none;border-radius:6px;font-weight:bold;font-size:15px;cursor:pointer;';
+    okay.addEventListener('click', closeHowToPlayOverlay);
+
+    btnRow.appendChild(dontShow);
+    btnRow.appendChild(okay);
+    card.appendChild(btnRow);
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) closeHowToPlayOverlay();
+    });
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+    howToPlayOverlayEl = overlay;
+  }
+
+  function closeHowToPlayOverlay() {
+    if (!howToPlayOverlayEl) return;
+    howToPlayOverlayEl.remove();
+    howToPlayOverlayEl = null;
+  }
+
   function openSettingsOverlay() {
     if (settingsOverlayEl) return;
     const overlay = document.createElement('div');
@@ -1005,6 +1097,7 @@
     card.appendChild(title);
 
     card.appendChild(buildMeterPositionRow());
+    card.appendChild(buildHowToPlaySettingsRow());
     // Future settings: append more rows here.
 
     const close = document.createElement('button');
@@ -1053,6 +1146,20 @@
     return row;
   }
 
+  function buildHowToPlaySettingsRow() {
+    const helpRow = document.createElement('div');
+    helpRow.style.cssText = 'margin-top:14px;';
+    const helpBtn = document.createElement('button');
+    helpBtn.textContent = 'Show how to play';
+    helpBtn.style.cssText = 'width:100%;padding:10px;background:#2a2a4a;color:#fff;border:none;border-radius:6px;font-weight:bold;font-size:14px;cursor:pointer;';
+    helpBtn.addEventListener('click', () => {
+      closeSettingsOverlay();
+      openHowToPlayOverlay();
+    });
+    helpRow.appendChild(helpBtn);
+    return helpRow;
+  }
+
   function resetRun() {
     run.throwCount       = 0;
     run.missesRemaining  = MISSES_PER_RUN;
@@ -1079,6 +1186,9 @@
     throw_.angle            = 0;
     throw_.landedInPit      = false;
     resetDifficultyRamp();
+    if (!settings.get('hideHowToPlay')) {
+      openHowToPlayOverlay();
+    }
   }
 
   // --- Result hook ---

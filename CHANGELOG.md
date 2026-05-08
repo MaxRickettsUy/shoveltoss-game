@@ -4,6 +4,11 @@ All notable changes to Shovel Toss. Format follows [Keep a Changelog](https://ke
 
 ## [Unreleased]
 
+## [0.25.1] — 2026-05-08
+
+### Added
+- How-to-play dialog on the gameplay screen with a "Don't show again" option, reachable later from Settings.
+
 ## [0.25.0] — 2026-05-08
 
 ### Added
