@@ -260,6 +260,7 @@
   const DEFAULT_SETTINGS = { meterPosition: 'top' };
   const GLOBAL_SCORE_LIMIT = 100;
   const HIGH_SCORE_BADGE = '👑';
+  const HIGHLIGHT_FILL = 'rgba(255, 230, 0, 0.18)';
   const PROD_APEX = 'shoveltoss.ing';
   const SOURCE_CODE_URL = 'https://github.com/MaxRickettsUy/shoveltoss-game';
   // When releasing user-visible changes, prepend a note in src/releaseNotes.js.
@@ -294,6 +295,12 @@
       .replace(/[\u0000-\u001F\u007F\u200B-\u200F\u202A-\u202E\uFEFF]/g, '')
       .trim()
       .slice(0, 20);
+  }
+
+  function isCurrentUserRow(rowName) {
+    const me = sanitizeUsername(username.get());
+    if (!me) return false;
+    return sanitizeUsername(rowName) === me;
   }
 
   const username = {
@@ -2225,7 +2232,11 @@
       rows.forEach((row, index) => {
         const y = listTop + listInsetTop + index * lineH - leaderboardScrollY;
         if (y + lineH < listTop || y > listBottom) return;
-        if (index % 2 === 1) {
+        const isMine = isCurrentUserRow(row.name);
+        if (isMine) {
+          ctx.fillStyle = HIGHLIGHT_FILL;
+          ctx.fillRect(leftX - 8, y - rowSize - 4, scoreX - leftX + 16, lineH);
+        } else if (index % 2 === 1) {
           ctx.fillStyle = '#111126';
           ctx.fillRect(leftX - 8, y - rowSize - 4, scoreX - leftX + 16, lineH);
         }
@@ -2425,7 +2436,11 @@
       rows.forEach((entry, index) => {
         const y = listTop + listInsetTop + index * lineH - hallOfFameScrollY;
         if (y + lineH < listTop || y > listBottom) return;
-        if (index % 2 === 1) {
+        const isMine = entry.row && isCurrentUserRow(entry.row.name);
+        if (isMine) {
+          ctx.fillStyle = HIGHLIGHT_FILL;
+          ctx.fillRect(leftX - 8, y - milestoneSize - 5, rightX - leftX + 16, lineH);
+        } else if (index % 2 === 1) {
           ctx.fillStyle = '#111126';
           ctx.fillRect(leftX - 8, y - milestoneSize - 5, rightX - leftX + 16, lineH);
         }
@@ -2546,7 +2561,11 @@
       rows.forEach((row, index) => {
         const y = listTop + listInsetTop + index * lineH - playerStatsScrollY;
         if (y + lineH < listTop || y > listBottom) return;
-        if (index % 2 === 1) {
+        const isMine = isCurrentUserRow(row.name);
+        if (isMine) {
+          ctx.fillStyle = HIGHLIGHT_FILL;
+          ctx.fillRect(rankX - 8, y - rowSize - 4, gamesX - rankX + 16, lineH);
+        } else if (index % 2 === 1) {
           ctx.fillStyle = '#111126';
           ctx.fillRect(rankX - 8, y - rowSize - 4, gamesX - rankX + 16, lineH);
         }
