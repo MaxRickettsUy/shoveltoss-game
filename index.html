@@ -20,7 +20,7 @@
   <meta name="twitter:image" content="https://shoveltoss.ing/assets/share.png">
   <link rel="icon" type="image/png" href="/assets/favicon.png">
   <link rel="apple-touch-icon" href="/assets/favicon.png">
-  <meta name="theme-color" content="#1a1a2e">
+  <meta name="theme-color" content="#22281f">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://esm.sh https://cloud.umami.is; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com; img-src 'self' data:; connect-src 'self' https://*.supabase.co https://esm.sh https://cloud.umami.is; frame-ancestors 'none'; base-uri 'self';">
   <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
@@ -34,7 +34,7 @@
     @font-face { font-family: 'Archivo'; src: url('assets/fonts/archivo-regular.woff2') format('woff2'); font-weight: 400; font-display: swap; }
     @font-face { font-family: 'Archivo'; src: url('assets/fonts/archivo-bold.woff2') format('woff2'); font-weight: 700; font-display: swap; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #1a1a2e; overflow: hidden; touch-action: none; }
+    body { background: #22281f; overflow: hidden; touch-action: none; }
     canvas { display: block; }
     #landing {
       --bg-top: #22281f;
@@ -522,7 +522,21 @@
   const DEFAULT_SETTINGS = { meterPosition: 'top', hideHowToPlay: false };
   const GLOBAL_SCORE_LIMIT = 100;
   const HIGH_SCORE_BADGE = '👑';
-  const HIGHLIGHT_FILL = 'rgba(255, 230, 0, 0.18)';
+  const THEME = {
+    bgTop:         '#22281f',
+    bgBottom:      '#0a0d0a',
+    surface:       '#2c3328',
+    surface2:      '#171b15',
+    text:          '#ede8d8',
+    textMute:      'rgba(237, 232, 216, 0.62)',
+    textFaint:     'rgba(237, 232, 216, 0.42)',
+    accent:        '#d97a3c',
+    accent2:       '#f0a166',
+    secondary:     '#5e6b4a',
+    shadow:        'rgba(0, 0, 0, 0.42)',
+    selfHighlight: 'rgba(217, 122, 60, 0.18)',
+  };
+  const HIGHLIGHT_FILL = THEME.selfHighlight;
   const PROD_APEX = 'shoveltoss.ing';
   const SOURCE_CODE_URL = 'https://github.com/MaxRickettsUy/shoveltoss-game';
   // When releasing user-visible changes, prepend a note in src/releaseNotes.js.
@@ -1001,7 +1015,7 @@
       return;
     }
     const select = document.createElement('select');
-    select.style.cssText = 'position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:900;padding:6px 10px;font:14px sans-serif;background:#1a1a2e;color:#fff;border:1px solid #5555aa;border-radius:6px;';
+    select.style.cssText = `position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:900;padding:6px 10px;font:14px sans-serif;background:${THEME.bgTop};color:${THEME.text};border:1px solid ${THEME.secondary};border-radius:6px;`;
     const all = document.createElement('option');
     all.value = '';
     all.textContent = 'All Characters';
@@ -1073,7 +1087,7 @@
     if (!isDevMode() || devBannerEl) return;
     const banner = document.createElement('div');
     banner.textContent = 'DEVELOPMENT';
-    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:10000;background:#d71920;color:#fff;text-align:center;font:bold 13px sans-serif;letter-spacing:0;padding:4px 0;pointer-events:none;';
+    banner.style.cssText = `position:fixed;top:0;left:0;right:0;z-index:10000;background:#d71920;color:${THEME.text};text-align:center;font:bold 13px sans-serif;letter-spacing:0;padding:4px 0;pointer-events:none;`;
     document.body.appendChild(banner);
     devBannerEl = banner;
   }
@@ -1222,15 +1236,15 @@
     const panel = document.createElement('form');
     panel.style.width = 'min(320px, calc(100vw - 40px))';
     panel.style.padding = '18px';
-    panel.style.background = '#1a1a2e';
-    panel.style.border = '2px solid #ffffff';
+    panel.style.background = THEME.bgTop;
+    panel.style.border = `2px solid ${THEME.text}`;
     panel.style.borderRadius = '8px';
     panel.style.display = 'grid';
     panel.style.gap = '12px';
 
     const label = document.createElement('label');
     label.textContent = 'Username';
-    label.style.color = '#ffffff';
+    label.style.color = THEME.text;
     label.style.fontWeight = '700';
 
     const input = document.createElement('input');
@@ -1254,8 +1268,8 @@
     button.textContent = 'Save';
     button.style.padding = '12px';
     button.style.font = '700 18px sans-serif';
-    button.style.color = '#ffffff';
-    button.style.background = '#2a2a4a';
+    button.style.color = THEME.text;
+    button.style.background = THEME.surface;
     button.style.border = '0';
     button.style.borderRadius = '6px';
 
@@ -1292,7 +1306,7 @@
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:1000;display:flex;align-items:center;justify-content:center;padding:24px;font-family:sans-serif;';
 
     const card = document.createElement('div');
-    card.style.cssText = 'background:#1a1a2e;color:#fff;border:2px solid #5555aa;border-radius:10px;max-width:420px;width:100%;max-height:80vh;overflow-y:auto;padding:20px;';
+    card.style.cssText = `background:${THEME.bgTop};color:${THEME.text};border:2px solid ${THEME.secondary};border-radius:10px;max-width:420px;width:100%;max-height:80vh;overflow-y:auto;padding:20px;`;
 
     const title = document.createElement('h2');
     title.textContent = "What's New";
@@ -1302,7 +1316,7 @@
     latestReleaseNotes.forEach((note, index) => {
       const h = document.createElement('h3');
       h.textContent = `${note.version}${note.headline ? ' - ' + note.headline : ''}`;
-      h.style.cssText = `${index === 0 ? 'margin:14px 0 6px' : 'margin:18px 0 6px'};font-size:15px;color:#ffe600;`;
+      h.style.cssText = `${index === 0 ? 'margin:14px 0 6px' : 'margin:18px 0 6px'};font-size:15px;color:${THEME.accent};`;
       card.appendChild(h);
 
       const ul = document.createElement('ul');
@@ -1318,7 +1332,7 @@
 
     const btn = document.createElement('button');
     btn.textContent = 'Got it';
-    btn.style.cssText = 'margin-top:18px;width:100%;padding:10px;background:#ffe600;color:#1a1a2e;border:none;border-radius:6px;font-weight:bold;font-size:15px;cursor:pointer;';
+    btn.style.cssText = `margin-top:18px;width:100%;padding:10px;background:${THEME.accent};color:${THEME.bgTop};border:none;border-radius:6px;font-weight:bold;font-size:15px;cursor:pointer;`;
     btn.addEventListener('click', closeWhatsNewOverlay);
     card.appendChild(btn);
 
@@ -1432,7 +1446,7 @@
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:1000;display:flex;align-items:center;justify-content:center;padding:24px;font-family:sans-serif;';
     const card = document.createElement('div');
-    card.style.cssText = 'background:#1a1a2e;color:#fff;border:2px solid #5555aa;border-radius:10px;max-width:360px;width:100%;padding:20px;';
+    card.style.cssText = `background:${THEME.bgTop};color:${THEME.text};border:2px solid ${THEME.secondary};border-radius:10px;max-width:360px;width:100%;padding:20px;`;
 
     const title = document.createElement('h2');
     title.textContent = 'Settings';
@@ -1445,7 +1459,7 @@
 
     const close = document.createElement('button');
     close.textContent = 'Done';
-    close.style.cssText = 'margin-top:18px;width:100%;padding:10px;background:#ffe600;color:#1a1a2e;border:none;border-radius:6px;font-weight:bold;font-size:15px;cursor:pointer;';
+    close.style.cssText = `margin-top:18px;width:100%;padding:10px;background:${THEME.accent};color:${THEME.bgTop};border:none;border-radius:6px;font-weight:bold;font-size:15px;cursor:pointer;`;
     close.addEventListener('click', closeSettingsOverlay);
     card.appendChild(close);
 
@@ -1466,7 +1480,7 @@
     row.style.cssText = 'margin:6px 0 4px;';
     const label = document.createElement('div');
     label.textContent = 'Meter Position';
-    label.style.cssText = 'font-size:14px;margin-bottom:8px;color:#cfcfe6;';
+    label.style.cssText = `font-size:14px;margin-bottom:8px;color:${THEME.textMute};`;
     row.appendChild(label);
 
     const group = document.createElement('div');
@@ -1476,7 +1490,7 @@
       const btn = document.createElement('button');
       btn.textContent = pos[0].toUpperCase() + pos.slice(1);
       const isActive = pos === current;
-      btn.style.cssText = `flex:1;padding:10px;border-radius:6px;border:2px solid ${isActive ? '#ffe600' : '#5555aa'};background:${isActive ? '#ffe600' : 'transparent'};color:${isActive ? '#1a1a2e' : '#fff'};font-weight:bold;font-size:14px;cursor:pointer;`;
+      btn.style.cssText = `flex:1;padding:10px;border-radius:6px;border:2px solid ${isActive ? THEME.accent : THEME.secondary};background:${isActive ? THEME.accent : 'transparent'};color:${isActive ? THEME.bgTop : THEME.text};font-weight:bold;font-size:14px;cursor:pointer;`;
       btn.addEventListener('click', () => {
         settings.set('meterPosition', pos);
         updateLayout();
@@ -2213,7 +2227,7 @@
       if (activeShovelImg) {
         ctx.drawImage(activeShovelImg, x + i * (iconW + gap), y - iconH, iconW, iconH);
       } else {
-        ctx.fillStyle = '#c0c0c0';
+        ctx.fillStyle = THEME.textMute;
         ctx.fillRect(x + i * (iconW + gap), y - iconH, iconW, iconH);
       }
       ctx.restore();
@@ -2235,7 +2249,7 @@
         : (canvas.height - dH) / 2;
       ctx.drawImage(backgroundImg, dx, dy, dW, dH);
     } else {
-      ctx.fillStyle = '#1a1a2e';
+      ctx.fillStyle = THEME.bgTop;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
   }
@@ -2290,7 +2304,7 @@
         DUST_PUFF_W, DUST_PUFF_H
       );
     } else {
-      ctx.fillStyle = 'rgba(186, 147, 92, 0.7)';
+      ctx.fillStyle = 'rgba(94, 107, 74, 0.7)';
       ctx.beginPath();
       ctx.ellipse(dustPuff.x, dustPuff.y, DUST_PUFF_W / 2, DUST_PUFF_H / 2, 0, 0, Math.PI * 2);
       ctx.fill();
@@ -2359,7 +2373,7 @@
       } else {
         ctx.fillStyle = '#8b5a2b';
         ctx.fillRect(-14, -3, 20, 6);
-        ctx.fillStyle = '#c0c0c0';
+        ctx.fillStyle = THEME.textMute;
         ctx.fillRect(6, -5, 8, 10);
       }
       ctx.restore();
@@ -2380,7 +2394,7 @@
     // Idle hint
     if (throw_.state === STATE.IDLE) {
       drawText('Hold to charge', canvas.width / 2, canvas.height - Math.max(28, canvas.height * 0.06),
-        Math.max(16, Math.floor(canvas.width * 0.042)), 'rgba(255,255,255,0.55)', 'center', false);
+        Math.max(16, Math.floor(canvas.width * 0.042)), THEME.textMute, 'center', false);
     }
 
     // HUD: left-stacked score -> lives
@@ -2395,21 +2409,21 @@
     const gearSize = Math.max(28, Math.floor(canvas.width * 0.06));
     const gearX = canvas.width - HUD_PAD - gearSize;
     const gearY = safeTop;
-    drawText(scoring.score, HUD_PAD, hudY, hudFontSize, '#ffffff', 'left', true);
+    drawText(scoring.score, HUD_PAD, hudY, hudFontSize, THEME.text, 'left', true);
     drawLifeIcons(HUD_PAD, hudY + subFontSize + 8);
     drawDevTestButtons(HUD_PAD, hudY + subFontSize + 18);
     const playerName = username.get();
     const highScoreBadge = isScoreLeaderUsername(playerName) ? `${HIGH_SCORE_BADGE} ` : '';
     ctx.save();
     ctx.textBaseline = 'middle';
-    drawText(`${highScoreBadge}${playerName}`, gearX - 8, gearY + gearSize / 2, subFontSize, '#ffffff', 'right', true);
+    drawText(`${highScoreBadge}${playerName}`, gearX - 8, gearY + gearSize / 2, subFontSize, THEME.text, 'right', true);
     ctx.restore();
 
     // Settings gear - top-right, drawn on every PLAYING frame
     const gearActive = throw_.state === STATE.IDLE;
     ctx.globalAlpha = gearActive ? 1 : 0.35;
     ctx.font = `900 ${Math.round(gearSize * 0.82)}px "Font Awesome 6 Free", "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = THEME.text;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(faReady ? '' : '⚙️', gearX + gearSize / 2, gearY + gearSize / 2);
@@ -2423,15 +2437,15 @@
       ctx.globalAlpha = alpha;
       const fbFontSize = Math.max(18, Math.floor(canvas.width * 0.055));
       let zoneColor;
-      if      (scoring.lastThrowZone === 'stick')      zoneColor = '#ffe600';
+      if      (scoring.lastThrowZone === 'stick')      zoneColor = THEME.accent;
       else if (scoring.lastThrowZone === 'back_wall')  zoneColor = '#44dd44';
-      else if (scoring.lastThrowZone === 'in_pit')     zoneColor = '#ffffff';
+      else if (scoring.lastThrowZone === 'in_pit')     zoneColor = THEME.text;
       else if (scoring.lastThrowZone === 'front_wall') zoneColor = '#44dd44';
       else                                             zoneColor = '#ff4444';
       drawText(scoring.lastThrowZone.toUpperCase().replace('_', ' '), canvas.width / 2, groundY - 60, fbFontSize, zoneColor, 'center', true);
       if (scoring.lastThrowPoints !== 0) {
         drawText(`${scoring.lastThrowPoints > 0 ? '+' : ''}${scoring.lastThrowPoints}`, canvas.width / 2, groundY - 60 + fbFontSize + 4,
-          Math.max(14, Math.floor(canvas.width * 0.04)), '#ffffff', 'center', false);
+          Math.max(14, Math.floor(canvas.width * 0.04)), THEME.text, 'center', false);
       }
       ctx.globalAlpha = 1;
     }
@@ -2442,7 +2456,7 @@
       const scaleBoost = 1 + (1 - t) * 0.25;
       const fontSize = Math.max(48, Math.floor(canvas.width * 0.13)) * scaleBoost;
       ctx.globalAlpha = alpha;
-      drawText(celebration.phraseText, canvas.width / 2, canvas.height * 0.4, fontSize, '#ffe600', 'center', true);
+      drawText(celebration.phraseText, canvas.width / 2, canvas.height * 0.4, fontSize, THEME.accent, 'center', true);
       ctx.globalAlpha = 1;
     }
   }
@@ -2451,7 +2465,7 @@
     const r = 4;
 
     // Background track
-    ctx.fillStyle = '#2a2a2a';
+    ctx.fillStyle = THEME.surface;
     ctx.beginPath();
     ctx.roundRect(meterX, meterY, meterWidth, meterHeight, r);
     ctx.fill();
@@ -2459,7 +2473,7 @@
     // Sweet-spot band
     const sweetX = meterX + meterWidth * difficulty.sweetSpotMin;
     const sweetW = meterWidth * (difficulty.sweetSpotMax - difficulty.sweetSpotMin);
-    ctx.fillStyle = 'rgba(255, 220, 0, 0.25)';
+    ctx.fillStyle = THEME.selfHighlight;
     ctx.beginPath();
     ctx.roundRect(sweetX, meterY, sweetW, meterHeight, r);
     ctx.fill();
@@ -2467,13 +2481,13 @@
     // Fill bar (left-to-right)
     const fillW = meterWidth * throw_.meterFill;
     const inSweetSpot = throw_.meterFill >= difficulty.sweetSpotMin && throw_.meterFill <= difficulty.sweetSpotMax;
-    ctx.fillStyle = inSweetSpot ? '#ffe600' : '#ff6b35';
+    ctx.fillStyle = inSweetSpot ? THEME.accent : '#ff6b35';
     ctx.beginPath();
     ctx.roundRect(meterX, meterY, fillW, meterHeight, r);
     ctx.fill();
 
     // Border
-    ctx.strokeStyle = '#ffffff';
+    ctx.strokeStyle = THEME.text;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.roundRect(meterX, meterY, meterWidth, meterHeight, r);
@@ -2483,14 +2497,14 @@
     const labelAbove = settings.get('meterPosition') === 'bottom';
     const powerY = labelAbove ? meterY - 18 : meterY + meterHeight + 14;
     const speedY = labelAbove ? meterY - 4  : meterY + meterHeight + 30;
-    drawText('POWER', meterX + meterWidth / 2, powerY, 14, '#ffffff', 'center', false);
-    drawText(`SPEED ${difficulty.meterSpeed.toFixed(2)}`, meterX + meterWidth / 2, speedY, 12, '#ffffff', 'center', false);
+    drawText('POWER', meterX + meterWidth / 2, powerY, 14, THEME.text, 'center', false);
+    drawText(`SPEED ${difficulty.meterSpeed.toFixed(2)}`, meterX + meterWidth / 2, speedY, 12, THEME.text, 'center', false);
   }
 
   function drawButton(rect, label, active = false) {
-    const textColor = rect.textColor || '#ffffff';
-    ctx.fillStyle = rect.fillStyle || (active ? '#3f6f58' : '#2a2a4a');
-    ctx.strokeStyle = '#ffffff';
+    const textColor = rect.textColor || THEME.text;
+    ctx.fillStyle = rect.fillStyle || (active ? THEME.secondary : THEME.surface);
+    ctx.strokeStyle = THEME.text;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.roundRect(rect.x, rect.y, rect.w, rect.h, rect.radius || 6);
@@ -2531,8 +2545,8 @@
         h: buttonH,
         fontSize,
         centered: true,
-        fillStyle: 'rgba(20, 20, 38, 0.72)',
-        textColor: '#ffe600',
+        fillStyle: 'rgba(34, 40, 31, 0.72)',
+        textColor: THEME.accent,
         stroke: true,
       };
       devTestButtonRects.push({ ...rect, action: button.action });
@@ -2542,7 +2556,7 @@
 
   function drawCharacterFilterButton(rect, filter, count, active = false) {
     const fontSize = rect.fontSize || 12;
-    ctx.fillStyle = rect.fillStyle || (active ? '#2f2f4f' : '#141426');
+    ctx.fillStyle = rect.fillStyle || (active ? THEME.surface : THEME.surface2);
     ctx.beginPath();
     ctx.roundRect(rect.x, rect.y, rect.w, rect.h, rect.radius || rect.h / 2);
     ctx.fill();
@@ -2555,21 +2569,21 @@
     const badgeX = rect.x + rect.w - badgeW - 5;
     const badgeY = rect.y + (rect.h - badgeH) / 2;
 
-    ctx.fillStyle = active ? '#10101e' : '#080812';
+    ctx.fillStyle = active ? THEME.surface2 : THEME.bgBottom;
     ctx.beginPath();
     ctx.roundRect(badgeX, badgeY, badgeW, badgeH, badgeH / 2);
     ctx.fill();
 
     ctx.save();
     ctx.textBaseline = 'middle';
-    drawText(filter.label, rect.x + (badgeX - rect.x) / 2, rect.y + rect.h / 2, fontSize, '#ffffff', 'center', true);
-    drawText(countText, badgeX + badgeW / 2, rect.y + rect.h / 2, fontSize, '#ffffff', 'center', true);
+    drawText(filter.label, rect.x + (badgeX - rect.x) / 2, rect.y + rect.h / 2, fontSize, THEME.text, 'center', true);
+    drawText(countText, badgeX + badgeW / 2, rect.y + rect.h / 2, fontSize, THEME.text, 'center', true);
     ctx.restore();
   }
 
   function drawCardBack(x, y, w, h, character, registerButton = true) {
-    ctx.fillStyle = '#20203a';
-    ctx.strokeStyle = '#5555aa';
+    ctx.fillStyle = THEME.surface;
+    ctx.strokeStyle = THEME.secondary;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.roundRect(x, y, w, h, 8);
@@ -2579,7 +2593,7 @@
     const titleSize = Math.max(13, Math.floor(w * 0.11));
     const rowSize = Math.max(10, Math.floor(w * 0.08));
     const pad = 10;
-    drawText(character.id, x + pad, y + titleSize + pad, titleSize, '#ffffff', 'left', true);
+    drawText(character.id, x + pad, y + titleSize + pad, titleSize, THEME.text, 'left', true);
 
     const contentTop = y + titleSize + pad * 2;
     const buttonH = Math.max(26, Math.floor(h * 0.14));
@@ -2595,17 +2609,17 @@
     if (registerButton) cardBackLeaderboardRect = buttonRect;
 
     if (flippedCardStatus === 'loading') {
-      drawText('Loading…', x + w / 2, y + h / 2, rowSize, 'rgba(255,255,255,0.75)', 'center', false);
+      drawText('Loading…', x + w / 2, y + h / 2, rowSize, THEME.textMute, 'center', false);
     } else if (flippedCardStatus === 'error') {
       drawText('Offline', x + w / 2, y + h / 2, rowSize, '#ff8888', 'center', false);
     } else if (flippedCardStatus === 'ready') {
       if (flippedCardRows.length === 0) {
-        drawText('No scores yet', x + w / 2, y + h / 2, rowSize, 'rgba(255,255,255,0.75)', 'center', false);
+        drawText('No scores yet', x + w / 2, y + h / 2, rowSize, THEME.textMute, 'center', false);
       } else {
         const maxTextW = w - pad * 2;
         flippedCardRows.slice(0, 5).forEach((row, index) => {
           const rowText = `${index + 1}. ${row.name} — ${row.score}`;
-          drawText(truncateText(rowText, maxTextW, rowSize), x + pad, contentTop + (index + 1) * (rowSize + 6), rowSize, '#ffffff', 'left', false);
+          drawText(truncateText(rowText, maxTextW, rowSize), x + pad, contentTop + (index + 1) * (rowSize + 6), rowSize, THEME.text, 'left', false);
         });
       }
     }
@@ -2613,7 +2627,7 @@
     drawButton(buttonRect, 'Leaderboard');
     ctx.save();
     ctx.font = `900 ${Math.round(buttonRect.fontSize)}px "Font Awesome 6 Free", sans-serif`;
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = THEME.text;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     ctx.fillText(faReady ? '' : '›', buttonRect.x + buttonRect.w - buttonRect.fontSize * 1.4, buttonRect.y + buttonRect.h / 2);
@@ -2629,7 +2643,7 @@
 
   function drawLeaderboard() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#1a1a2e';
+    ctx.fillStyle = THEME.bgTop;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const cx = canvas.width / 2;
@@ -2647,9 +2661,9 @@
 
     const titleY = Math.max(4, safeTop * 0.35) + titleSize;
     const subtitleY = titleY + subtitleSize + 6;
-    drawText('LEADERBOARD', cx, titleY, titleSize, '#ffffff', 'center', true);
+    drawText('LEADERBOARD', cx, titleY, titleSize, THEME.text, 'center', true);
     const subtitleText = leaderboardScope === 'daily' ? 'Top 100 — Today' : 'Top 100 — All Time';
-    drawText(subtitleText, cx, subtitleY, subtitleSize, 'rgba(255,255,255,0.65)', 'center', false);
+    drawText(subtitleText, cx, subtitleY, subtitleSize, THEME.textMute, 'center', false);
 
     // Scope toggle (Today / All Time)
     const toggleH = isPhoneLandscape ? 24 : 30;
@@ -2663,8 +2677,8 @@
     const allRect = { x: toggleX + halfW + toggleGap, y: toggleY, w: halfW, h: toggleH };
     leaderboardScopeRects.all = allRect;
     leaderboardScopeRects.daily = dailyRect;
-    drawButton({ ...dailyRect, fontSize: toggleFont, fillStyle: leaderboardScope === 'daily' ? '#ffe600' : '#2a2a4a', textColor: leaderboardScope === 'daily' ? '#1a1a2e' : '#ffffff' }, 'Today');
-    drawButton({ ...allRect, fontSize: toggleFont, fillStyle: leaderboardScope === 'all' ? '#ffe600' : '#2a2a4a', textColor: leaderboardScope === 'all' ? '#1a1a2e' : '#ffffff' }, 'All Time');
+    drawButton({ ...dailyRect, fontSize: toggleFont, fillStyle: leaderboardScope === 'daily' ? THEME.accent : THEME.surface, textColor: leaderboardScope === 'daily' ? THEME.bgTop : THEME.text }, 'Today');
+    drawButton({ ...allRect, fontSize: toggleFont, fillStyle: leaderboardScope === 'all' ? THEME.accent : THEME.surface, textColor: leaderboardScope === 'all' ? THEME.bgTop : THEME.text }, 'All Time');
 
     const selectFontSize = isPhoneLandscape ? 12 : 14;
     const selectTop = toggleY + toggleH + 8;
@@ -2685,11 +2699,11 @@
     const maxScroll = Math.max(0, totalContentH - listH);
     leaderboardScrollY = Math.max(0, Math.min(leaderboardScrollY, maxScroll));
     if (leaderboard.globalStatus === 'loading') {
-      drawText('Loading...', cx, listTop + rowSize, rowSize, 'rgba(255,255,255,0.75)', 'center', false);
+      drawText('Loading...', cx, listTop + rowSize, rowSize, THEME.textMute, 'center', false);
     } else if (leaderboard.globalStatus === 'error') {
       drawText('offline', cx, listTop + rowSize, rowSize, '#ff8888', 'center', false);
     } else if (rows.length === 0) {
-      drawText('No scores yet', cx, listTop + rowSize, rowSize, 'rgba(255,255,255,0.75)', 'center', false);
+      drawText('No scores yet', cx, listTop + rowSize, rowSize, THEME.textMute, 'center', false);
     } else {
       const leftX = Math.max(pad, cx - Math.min(260, canvas.width * 0.42));
       const scoreX = Math.min(canvas.width - pad, cx + Math.min(260, canvas.width * 0.42));
@@ -2706,7 +2720,7 @@
           ctx.fillStyle = HIGHLIGHT_FILL;
           ctx.fillRect(leftX - 8, y - rowSize - 4, scoreX - leftX + 16, lineH);
         } else if (index % 2 === 1) {
-          ctx.fillStyle = '#111126';
+          ctx.fillStyle = THEME.surface2;
           ctx.fillRect(leftX - 8, y - rowSize - 4, scoreX - leftX + 16, lineH);
         }
         const characterName = row.character_name ? ` (${row.character_name})` : '';
@@ -2720,11 +2734,11 @@
         const nameRightX = scoreDate ? dateX - dateW - 12 : dateX;
         const nameMaxW = nameRightX - leftX - ctx.measureText(`${rankText}${characterName}${highScoreBadge}`).width;
         const nameText = truncateText(row.name, nameMaxW, rowSize);
-        drawText(`${rankText}${nameText}${characterName}${highScoreBadge}`, leftX, y, rowSize, '#ffffff', 'left', false);
+        drawText(`${rankText}${nameText}${characterName}${highScoreBadge}`, leftX, y, rowSize, THEME.text, 'left', false);
         if (scoreDate) {
-          drawText(scoreDate, dateX, y, dateSize, 'rgba(255,255,255,0.58)', 'right', false);
+          drawText(scoreDate, dateX, y, dateSize, THEME.textMute, 'right', false);
         }
-        drawText(row.score, scoreX, y, rowSize, '#ffe600', 'right', true);
+        drawText(row.score, scoreX, y, rowSize, THEME.accent, 'right', true);
       });
       ctx.restore();
     }
@@ -2735,7 +2749,7 @@
 
   function drawHome(timestamp) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#1a1a2e';
+    ctx.fillStyle = THEME.bgTop;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const isPhoneLandscape = canvas.width > canvas.height && canvas.height <= 500;
@@ -2746,7 +2760,7 @@
       ? Math.max(14, Math.floor(canvas.height * 0.04))
       : Math.max(16, Math.floor(canvas.width * 0.042));
     const homeTop = Math.max(4, safeTop * 0.45);
-    drawText('SHOVEL TOSS', canvas.width / 2, homeTop + gameTitleSize, gameTitleSize, '#ffffff', 'center', true);
+    drawText('SHOVEL TOSS', canvas.width / 2, homeTop + gameTitleSize, gameTitleSize, THEME.text, 'center', true);
 
     const name = username.get();
     usernameNameRect = null;
@@ -2756,13 +2770,13 @@
         : Math.max(15, Math.floor(canvas.width * 0.04));
       const nameText = `Player: ${name}`;
       const nameY = homeTop + gameTitleSize + subtitleGap + 12;
-      drawText(nameText, canvas.width / 2, nameY, nameSize, '#ffe600', 'center', false);
+      drawText(nameText, canvas.width / 2, nameY, nameSize, THEME.accent, 'center', false);
       const nameW = ctx.measureText(nameText).width;
       const iconSize = nameSize * 0.9;
       const iconX = canvas.width / 2 + nameW / 2 + iconSize;
       ctx.save();
       ctx.font = `900 ${Math.round(iconSize)}px "Font Awesome 6 Free", sans-serif`;
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = THEME.text;
       ctx.textAlign = 'center';
       ctx.fillText(faReady ? '' : '✏️', iconX, nameY);
       ctx.restore();
@@ -2801,8 +2815,8 @@
         noStroke: true
       };
       if (button.action === 'whatsNew') {
-        rect.fillStyle = '#ffe600';
-        rect.textColor = '#1a1a2e';
+        rect.fillStyle = THEME.accent;
+        rect.textColor = THEME.bgTop;
       }
       homeButtonRects.push(rect);
       drawButton(rect, button.label);
@@ -2817,7 +2831,7 @@
     const totalW = versionW + gap + iconSize + gap + flagW;
     const startX = canvas.width / 2 - totalW / 2;
     const textY = footerY;
-    drawText(APP_VERSION_TAG, startX, textY, footerSize, 'rgba(255,255,255,0.55)', 'left', false);
+    drawText(APP_VERSION_TAG, startX, textY, footerSize, THEME.textMute, 'left', false);
     const iconX = startX + versionW + gap;
     const iconY = textY - iconSize * 0.78;
     if (githubReady) {
@@ -2825,13 +2839,13 @@
       ctx.drawImage(githubImg, iconX, iconY, iconSize, iconSize);
       ctx.globalAlpha = 1;
     }
-    drawText(footerFlag, iconX + iconSize + gap, textY, footerSize, 'rgba(255,255,255,0.55)', 'left', false);
+    drawText(footerFlag, iconX + iconSize + gap, textY, footerSize, THEME.textMute, 'left', false);
     footerGithubRect = { x: iconX - 6, y: iconY - 6, w: iconSize + 12, h: iconSize + 12 };
   }
 
   function drawStubScreen(title) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#1a1a2e';
+    ctx.fillStyle = THEME.bgTop;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const cx = canvas.width / 2;
@@ -2841,7 +2855,7 @@
       : Math.max(30, Math.floor(canvas.width * 0.09));
     const buttonH = Math.max(38, canvas.height * 0.06);
     const pad = isPhoneLandscape ? 10 : 16;
-    drawText(title, cx, safeTop + titleSize + Math.floor(pad * 2), titleSize, '#ffffff', 'center', true);
+    drawText(title, cx, safeTop + titleSize + Math.floor(pad * 2), titleSize, THEME.text, 'center', true);
     stubBackRect = {
       x: pad,
       y: canvas.height - pad - buttonH,
@@ -2853,7 +2867,7 @@
 
   function drawHallOfFame(timestamp) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#1a1a2e';
+    ctx.fillStyle = THEME.bgTop;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const cx = canvas.width / 2;
@@ -2872,8 +2886,8 @@
 
     const titleY = Math.max(4, safeTop * 0.35) + titleSize;
     const subtitleY = titleY + subtitleSize + 6;
-    drawText('HALL OF FAME', cx, titleY, titleSize, '#ffffff', 'center', true);
-    drawText('Milestones and records', cx, subtitleY, subtitleSize, 'rgba(255,255,255,0.65)', 'center', false);
+    drawText('HALL OF FAME', cx, titleY, titleSize, THEME.text, 'center', true);
+    drawText('Milestones and records', cx, subtitleY, subtitleSize, THEME.textMute, 'center', false);
 
     const backH = Math.max(30, canvas.height * 0.048);
     const listTop = subtitleY + Math.floor(pad * 1.1);
@@ -2890,11 +2904,11 @@
     hallOfFameScrollY = Math.max(0, Math.min(hallOfFameScrollY, maxScroll));
 
     if (hallOfFameStatus === 'loading') {
-      drawText('Loading...', cx, listTop + milestoneSize, milestoneSize, 'rgba(255,255,255,0.75)', 'center', false);
+      drawText('Loading...', cx, listTop + milestoneSize, milestoneSize, THEME.textMute, 'center', false);
     } else if (hallOfFameStatus === 'error') {
       drawText('Offline', cx, listTop + milestoneSize, milestoneSize, '#ff8888', 'center', false);
     } else if (rows.length === 0) {
-      drawText('No milestones yet', cx, listTop + milestoneSize, milestoneSize, 'rgba(255,255,255,0.75)', 'center', false);
+      drawText('No milestones yet', cx, listTop + milestoneSize, milestoneSize, THEME.textMute, 'center', false);
     } else {
       const leftX = pad;
       const rightX = canvas.width - pad;
@@ -2910,14 +2924,14 @@
           ctx.fillStyle = HIGHLIGHT_FILL;
           ctx.fillRect(leftX - 8, y - milestoneSize - 5, rightX - leftX + 16, lineH);
         } else if (index % 2 === 1) {
-          ctx.fillStyle = '#111126';
+          ctx.fillStyle = THEME.surface2;
           ctx.fillRect(leftX - 8, y - milestoneSize - 5, rightX - leftX + 16, lineH);
         }
-        drawText(entry.milestone.label, leftX, y, milestoneSize, '#ffffff', 'left', true);
+        drawText(entry.milestone.label, leftX, y, milestoneSize, THEME.text, 'left', true);
         let detailText = '— unclaimed —';
         let playerText = '';
         let statText = '';
-        let detailColor = 'rgba(255,255,255,0.42)';
+        let detailColor = THEME.textFaint;
         if (entry.row) {
           const characterName = entry.row.character_name ? ` (${entry.row.character_name})` : '';
           const scoreDate = formatScoreDate(entry.row.created_at);
@@ -2927,7 +2941,7 @@
             || entry.milestone.key === HOF_GAMES_LEADER.key;
           if (scoreDate && !isAggregateRecord) statText += ` — ${scoreDate}`;
           detailText = `${playerText}${statText}`;
-          detailColor = '#ffe600';
+          detailColor = THEME.accent;
         }
         ctx.font = `bold ${Math.round(milestoneSize)}px sans-serif`;
         const labelW = ctx.measureText(entry.milestone.label).width;
@@ -2968,7 +2982,7 @@
 
   function drawPlayerStats(timestamp) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#1a1a2e';
+    ctx.fillStyle = THEME.bgTop;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const cx = canvas.width / 2;
@@ -2987,8 +3001,8 @@
 
     const titleY = Math.max(4, safeTop * 0.35) + titleSize;
     const subtitleY = titleY + subtitleSize + 6;
-    drawText('PLAYER STATS', cx, titleY, titleSize, '#ffffff', 'center', true);
-    drawText('Sorted by total points', cx, subtitleY, subtitleSize, 'rgba(255,255,255,0.65)', 'center', false);
+    drawText('PLAYER STATS', cx, titleY, titleSize, THEME.text, 'center', true);
+    drawText('Sorted by total points', cx, subtitleY, subtitleSize, THEME.textMute, 'center', false);
 
     const backH = Math.max(30, canvas.height * 0.048);
     const headerY = subtitleY + Math.floor(pad * 1.25);
@@ -3002,11 +3016,11 @@
     const avgX = gamesX - Math.max(50, canvas.width * 0.12);
     const totalX = avgX - Math.max(58, canvas.width * 0.14);
     const playerX = rankX + Math.max(34, canvas.width * 0.08);
-    drawText('#', rankX, headerY, headerSize, 'rgba(255,255,255,0.58)', 'left', true);
-    drawText('Player', playerX, headerY, headerSize, 'rgba(255,255,255,0.58)', 'left', true);
-    drawText('Total', totalX, headerY, headerSize, 'rgba(255,255,255,0.58)', 'right', true);
-    drawText('Avg', avgX, headerY, headerSize, 'rgba(255,255,255,0.58)', 'right', true);
-    drawText('Games', gamesX, headerY, headerSize, 'rgba(255,255,255,0.58)', 'right', true);
+    drawText('#', rankX, headerY, headerSize, THEME.textMute, 'left', true);
+    drawText('Player', playerX, headerY, headerSize, THEME.textMute, 'left', true);
+    drawText('Total', totalX, headerY, headerSize, THEME.textMute, 'right', true);
+    drawText('Avg', avgX, headerY, headerSize, THEME.textMute, 'right', true);
+    drawText('Games', gamesX, headerY, headerSize, THEME.textMute, 'right', true);
 
     const rows = playerStatsStatus === 'ready' ? playerStatsRows : [];
     const lineH = rowSize + 12;
@@ -3017,11 +3031,11 @@
     playerStatsScrollY = Math.max(0, Math.min(playerStatsScrollY, maxScroll));
 
     if (playerStatsStatus === 'loading') {
-      drawText('Loading...', cx, listTop + rowSize, rowSize, 'rgba(255,255,255,0.75)', 'center', false);
+      drawText('Loading...', cx, listTop + rowSize, rowSize, THEME.textMute, 'center', false);
     } else if (playerStatsStatus === 'error') {
       drawText('Offline', cx, listTop + rowSize, rowSize, '#ff8888', 'center', false);
     } else if (rows.length === 0) {
-      drawText('No players yet', cx, listTop + rowSize, rowSize, 'rgba(255,255,255,0.75)', 'center', false);
+      drawText('No players yet', cx, listTop + rowSize, rowSize, THEME.textMute, 'center', false);
     } else {
       ctx.save();
       ctx.beginPath();
@@ -3035,17 +3049,17 @@
           ctx.fillStyle = HIGHLIGHT_FILL;
           ctx.fillRect(rankX - 8, y - rowSize - 4, gamesX - rankX + 16, lineH);
         } else if (index % 2 === 1) {
-          ctx.fillStyle = '#111126';
+          ctx.fillStyle = THEME.surface2;
           ctx.fillRect(rankX - 8, y - rowSize - 4, gamesX - rankX + 16, lineH);
         }
         const rankText = `${index + 1}.`;
         ctx.font = `${Math.round(rowSize)}px sans-serif`;
         const nameMaxW = totalX - playerX - 16;
-        drawText(rankText, rankX, y, rowSize, 'rgba(255,255,255,0.68)', 'left', false);
-        drawText(truncateText(row.name, nameMaxW, rowSize), playerX, y, rowSize, '#ffffff', 'left', false);
-        drawText(row.totalPoints, totalX, y, rowSize, '#ffe600', 'right', true);
-        drawText(row.avgPoints.toFixed(1), avgX, y, rowSize, '#ffffff', 'right', false);
-        drawText(row.gamesPlayed, gamesX, y, rowSize, '#ffffff', 'right', false);
+        drawText(rankText, rankX, y, rowSize, THEME.textMute, 'left', false);
+        drawText(truncateText(row.name, nameMaxW, rowSize), playerX, y, rowSize, THEME.text, 'left', false);
+        drawText(row.totalPoints, totalX, y, rowSize, THEME.accent, 'right', true);
+        drawText(row.avgPoints.toFixed(1), avgX, y, rowSize, THEME.text, 'right', false);
+        drawText(row.gamesPlayed, gamesX, y, rowSize, THEME.text, 'right', false);
       });
       ctx.restore();
     }
@@ -3056,7 +3070,7 @@
 
   function drawCharacterSelect(timestamp) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#1a1a2e';
+    ctx.fillStyle = THEME.bgTop;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const isPhoneLandscape = canvas.width > canvas.height && canvas.height <= 500;
@@ -3065,7 +3079,7 @@
       : Math.max(16, Math.floor(canvas.width * 0.042));
     const homeTop = Math.max(4, safeTop * 0.45);
     const titleY = homeTop + titleSize;
-    drawText('Choose your character', canvas.width / 2, titleY, titleSize, '#ffffff', 'center', true);
+    drawText('Choose your character', canvas.width / 2, titleY, titleSize, THEME.text, 'center', true);
 
     const pad = isPhoneLandscape ? 10 : 16;
     selectHomeRect = {
@@ -3079,7 +3093,7 @@
     drawButton(selectHomeRect, '');
     ctx.save();
     ctx.font = `900 ${Math.round(selectHomeRect.fontSize)}px "Font Awesome 6 Free", sans-serif`;
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = THEME.text;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(faReady ? '' : '←', selectHomeRect.x + selectHomeRect.w / 2, selectHomeRect.y + selectHomeRect.h / 2);
@@ -3093,13 +3107,13 @@
         : Math.max(15, Math.floor(canvas.width * 0.04));
       const nameText = `Player: ${name}`;
       const nameY = titleY + nameSize + 8;
-      drawText(nameText, canvas.width / 2, nameY, nameSize, '#ffe600', 'center', false);
+      drawText(nameText, canvas.width / 2, nameY, nameSize, THEME.accent, 'center', false);
       const nameW = ctx.measureText(nameText).width;
       const iconSize = nameSize * 0.9;
       const iconX = canvas.width / 2 + nameW / 2 + iconSize;
       ctx.save();
       ctx.font = `900 ${Math.round(iconSize)}px "Font Awesome 6 Free", sans-serif`;
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = THEME.text;
       ctx.textAlign = 'center';
       ctx.fillText(faReady ? '' : '✏️', iconX, nameY);
       ctx.restore();
@@ -3126,7 +3140,7 @@
         w: filterButtonW,
         h: filterButtonH,
         fontSize: isPhoneLandscape ? 10 : 12,
-        fillStyle: activeCharacterFilter === filter.id ? '#2f2f4f' : '#141426',
+        fillStyle: activeCharacterFilter === filter.id ? THEME.surface : THEME.surface2,
         radius: filterButtonH / 2,
         noStroke: true
       };
@@ -3179,8 +3193,8 @@
       ctx.scale(flipScale, 1);
       ctx.translate(-(x + tileW / 2), -(y + tileH / 2));
 
-      ctx.fillStyle = '#2a2a4a';
-      ctx.strokeStyle = '#5555aa';
+      ctx.fillStyle = THEME.surface;
+      ctx.strokeStyle = THEME.secondary;
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.roundRect(x, y, tileW, tileH, 8);
@@ -3219,18 +3233,18 @@
           const badgeSize = Math.max(10, Math.floor(labelSize * 0.85));
           const badgeW = Math.max(42, badgeSize * 3.5);
           const badgeH = badgeSize + 8;
-          ctx.fillStyle = '#ffe600';
-          ctx.strokeStyle = '#111111';
+          ctx.fillStyle = THEME.accent;
+          ctx.strokeStyle = THEME.bgBottom;
           ctx.lineWidth = 2;
           ctx.beginPath();
           ctx.roundRect(x + tileW - badgeW - 7, y + 7, badgeW, badgeH, 4);
           ctx.fill();
           ctx.stroke();
-          drawText('NEW', x + tileW - badgeW / 2 - 7, y + 7 + badgeH * 0.68, badgeSize, '#111111', 'center', true);
+          drawText('NEW', x + tileW - badgeW / 2 - 7, y + 7 + badgeH * 0.68, badgeSize, THEME.bgBottom, 'center', true);
         }
 
         const isChampion = CHAMPION_IDS.has(character.id);
-        drawText(character.id, x + 8, y + labelSize + 6, labelSize, '#ffffff', 'left', false);
+        drawText(character.id, x + 8, y + labelSize + 6, labelSize, THEME.text, 'left', false);
         if (isChampion) {
           if (championImg.complete && championImg.naturalWidth > 0) {
             const badgeW = Math.floor(tileW * 0.78);
@@ -3247,7 +3261,7 @@
       const flipBtnY = isFlippedCard ? y + 6 : y + tileH - flipBtnSize - 6;
       ctx.save();
       ctx.font = `900 ${Math.round(flipBtnSize * (isFlippedCard ? 0.72 : 0.6))}px "Font Awesome 6 Free", sans-serif`;
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = THEME.text;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(faReady ? (isFlippedCard ? '' : '') : (isFlippedCard ? '×' : '↻'), flipBtnX + flipBtnSize / 2, flipBtnY + flipBtnSize / 2);
@@ -3265,14 +3279,14 @@
 
   function drawLevelSelect(timestamp) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#1a1a2e';
+    ctx.fillStyle = THEME.bgTop;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const isPhoneLandscape = canvas.width > canvas.height && canvas.height <= 500;
     const titleSize = isPhoneLandscape
       ? Math.max(26, Math.floor(canvas.height * 0.10))
       : Math.max(34, Math.floor(canvas.width * 0.10));
-    drawText('Choose your level', canvas.width / 2, safeTop + titleSize, titleSize, '#ffffff', 'center', true);
+    drawText('Choose your level', canvas.width / 2, safeTop + titleSize, titleSize, THEME.text, 'center', true);
 
     const pad = isPhoneLandscape ? 10 : 16;
     const buttonH = Math.max(38, canvas.height * 0.06);
@@ -3304,8 +3318,8 @@
       const y = gridY + row * (tileH + pad);
       levelTileRects.push({ id: LEVELS[i].id, x, y, w: tileW, h: tileH });
 
-      ctx.fillStyle = '#2a2a4a';
-      ctx.strokeStyle = '#5555aa';
+      ctx.fillStyle = THEME.surface;
+      ctx.strokeStyle = THEME.secondary;
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.roundRect(x, y, tileW, tileH, 8);
@@ -3340,7 +3354,7 @@
       const labelSize = isPhoneLandscape
         ? Math.max(14, Math.floor(canvas.height * 0.045))
         : Math.max(16, Math.floor(canvas.width * 0.042));
-      drawText(LEVELS[i].label, x + tileW / 2, y + tileH - stripH / 2 + labelSize * 0.35, labelSize, '#ffffff', 'center', true);
+      drawText(LEVELS[i].label, x + tileW / 2, y + tileH - stripH / 2 + labelSize * 0.35, labelSize, THEME.text, 'center', true);
     }
   }
 
@@ -3375,16 +3389,16 @@
       : safeTop + canvas.height * 0.77;
     const restartY = isPhoneLandscape ? topButtonY - 12 : safeTop + canvas.height * 0.61;
     drawText('GAME OVER', cx, titleY,
-      titleSize, '#ffffff', 'center', true);
+      titleSize, THEME.text, 'center', true);
     drawText(`Score: ${scoring.score}`, cx, scoreY,
-      scoreSize, '#ffe600', 'center', false);
+      scoreSize, THEME.accent, 'center', false);
     if (gameOverSave.globalMessage) {
-      const color = gameOverSave.globalStatus === 'error' ? '#ff8888' : 'rgba(255,255,255,0.78)';
+      const color = gameOverSave.globalStatus === 'error' ? '#ff8888' : THEME.textMute;
       drawText(gameOverSave.globalMessage, cx, globalY,
         statsSize, color, 'center', false);
     }
     drawText('Tap to Play Again', cx, restartY,
-      restartSize, 'rgba(255,255,255,0.7)', 'center', false);
+      restartSize, THEME.textMute, 'center', false);
     if (isPhoneLandscape) {
       const rowX = cx - buttonW - buttonGap / 2;
       gameOverLeaderboardRect = { x: rowX, y: topButtonY, w: buttonW, h: buttonH };
