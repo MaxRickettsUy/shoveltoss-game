@@ -4,6 +4,18 @@ All notable changes to Shovel Toss. Format follows [Keep a Changelog](https://ke
 
 ## [Unreleased]
 
+## [0.25.0] — 2026-05-08
+
+### Added
+- Hall of Fame milestones for first to 69 and 420 points, and first to 69 and 420 games.
+- Current-user row highlight on Leaderboard, Hall of Fame, and Player Stats.
+
+### Changed
+- Character hero images now lazy-load on the character-select transition instead of at boot, cutting cold-load weight.
+
+### Internal
+- Track `throw_complete` events via Umami (zone + points) for retention analysis.
+
 ## [0.24.1] — 2026-05-07
 
 ### Added

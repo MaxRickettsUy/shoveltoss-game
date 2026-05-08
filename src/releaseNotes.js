@@ -2,6 +2,15 @@
 // When releasing, prepend an entry here if users should see "What's New".
 const RELEASE_NOTES = [
   {
+    version: 'v0.25.0',
+    date: '2026-05-08',
+    headline: 'Spot yourself + meme milestones',
+    items: [
+      'Your leaderboard, Hall of Fame, and Player Stats rows are now highlighted so you can spot yourself fast.',
+      'New Hall of Fame milestones — first to 69 and 420 points, plus first to 69 and 420 games. Nice.'
+    ]
+  },
+  {
     version: 'v0.24.1',
     date: '2026-05-07',
     headline: 'Source link and leaderboard cleanup',
