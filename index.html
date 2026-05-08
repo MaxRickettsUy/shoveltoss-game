@@ -37,27 +37,74 @@
     body { background: #1a1a2e; overflow: hidden; touch-action: none; }
     canvas { display: block; }
     #landing {
+      --bg-top: #2b3530;
+      --bg-bottom: #0d120f;
+      --text: #f4ebd0;
+      --text-mute: rgba(244, 235, 208, 0.62);
+      --accent: #e89c4a;
+      --accent-2: #ffd180;
+      --secondary: #7c8862;
+      --shadow: rgba(0, 0, 0, 0.35);
       position: fixed;
       inset: 0;
       z-index: 5;
       display: grid;
       place-items: center;
       overflow: hidden;
-      background: radial-gradient(120% 80% at 50% 0%, #2a2a4a 0%, #1a1a2e 60%, #0d0d1a 100%);
-      color: #ffffff;
+      background: radial-gradient(120% 80% at 50% 0%, var(--bg-top) 0%, var(--bg-top) 60%, var(--bg-bottom) 100%);
+      color: var(--text);
       font-family: 'Archivo', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       opacity: 0;
       pointer-events: none;
       transition: opacity 200ms ease;
     }
+    #landing[data-theme="a"] {
+      --bg-top: #2b3530;
+      --bg-bottom: #0d120f;
+      --text: #f4ebd0;
+      --text-mute: rgba(244, 235, 208, 0.62);
+      --accent: #e89c4a;
+      --accent-2: #ffd180;
+      --secondary: #7c8862;
+      --shadow: rgba(0, 0, 0, 0.35);
+    }
+    #landing[data-theme="b"] {
+      --bg-top: #22281f;
+      --bg-bottom: #0a0d0a;
+      --text: #ede8d8;
+      --text-mute: rgba(237, 232, 216, 0.6);
+      --accent: #d97a3c;
+      --accent-2: #f0a166;
+      --secondary: #5e6b4a;
+      --shadow: rgba(0, 0, 0, 0.42);
+    }
+    #landing[data-theme="c"] {
+      --bg-top: #293330;
+      --bg-bottom: #11161a;
+      --text: #eae3d2;
+      --text-mute: rgba(234, 227, 210, 0.58);
+      --accent: #c9784a;
+      --accent-2: #e6976b;
+      --secondary: #8b9474;
+      --shadow: rgba(0, 0, 0, 0.38);
+    }
     #landing[data-state="visible"] {
       opacity: 1;
       pointer-events: auto;
+    }
+    .landing--no-anim,
+    .landing--no-anim * {
+      animation: none !important;
+      transition: opacity 200ms ease;
     }
     .landing-bg {
       position: absolute;
       inset: 0;
       overflow: hidden;
+      pointer-events: none;
+    }
+    .landing-bg::before,
+    .landing-spot {
       pointer-events: none;
     }
     .landing-bg::before {
@@ -72,7 +119,7 @@
       position: absolute;
       width: 60vmax;
       height: 30vmax;
-      background: linear-gradient(75deg, transparent, rgba(255, 230, 0, 0.06), transparent);
+      background: linear-gradient(75deg, transparent, color-mix(in oklab, var(--accent) 12%, transparent), transparent);
       filter: blur(40px);
       animation: landingDrift 60s linear infinite;
     }
@@ -93,15 +140,43 @@
       font-size: clamp(48px, 12vw, 120px);
       letter-spacing: 0.04em;
       line-height: 0.92;
-      color: #ffffff;
+      color: var(--accent);
       text-align: center;
-      text-shadow: 4px 4px 0 #ffe600, 8px 8px 0 #5555aa;
+      text-shadow:
+        3px 3px 0 var(--secondary),
+        6px 6px 0 var(--shadow);
       animation: landingTitleIn 280ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
     }
     .landing-title span {
       display: block;
-      color: #ffe600;
-      text-shadow: 4px 4px 0 #5555aa;
+      color: var(--text);
+      text-shadow:
+        3px 3px 0 var(--secondary),
+        6px 6px 0 var(--shadow);
+    }
+    .landing-themes {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 4px;
+      animation: landingFadeIn 240ms 60ms ease-out both;
+    }
+    .landing-theme {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 1px solid color-mix(in oklab, var(--text) 22%, transparent);
+      cursor: pointer;
+      transition: transform 160ms ease, border-color 160ms ease;
+    }
+    .landing-theme[data-set-theme="a"] { background: linear-gradient(135deg, #2b3530 0% 50%, #e89c4a 50% 100%); }
+    .landing-theme[data-set-theme="b"] { background: linear-gradient(135deg, #22281f 0% 50%, #d97a3c 50% 100%); }
+    .landing-theme[data-set-theme="c"] { background: linear-gradient(135deg, #293330 0% 50%, #c9784a 50% 100%); }
+    .landing-theme:hover {
+      transform: scale(1.08);
+      border-color: var(--text);
+    }
+    .landing-theme[aria-pressed="true"] {
+      border: 2px solid var(--text);
     }
     .landing-player {
       position: relative;
@@ -112,7 +187,7 @@
       padding: 8px 12px;
       border: 0;
       background: transparent;
-      color: rgba(255, 255, 255, 0.85);
+      color: color-mix(in oklab, var(--text) 85%, transparent);
       cursor: pointer;
       font-family: 'Archivo', system-ui, sans-serif;
       font-size: 14px;
@@ -125,12 +200,12 @@
       min-width: 1ch;
       max-width: min(170px, 44vw);
       overflow: hidden;
-      color: #ffe600;
+      color: var(--accent);
       text-overflow: ellipsis;
       white-space: nowrap;
     }
     .landing-player:hover {
-      color: #ffffff;
+      color: var(--text);
       text-decoration: underline;
       text-underline-offset: 4px;
     }
@@ -140,7 +215,7 @@
       top: calc(100% + 4px);
       left: 50%;
       transform: translateX(-50%);
-      color: rgba(255, 255, 255, 0.58);
+      color: var(--text-mute);
       font-size: 10px;
       letter-spacing: 0.08em;
       white-space: nowrap;
@@ -151,41 +226,49 @@
       width: min(320px, 100%);
     }
     .landing-btn {
-      height: 56px;
-      border: 2px solid #ffe600;
-      border-radius: 999px;
-      background: #1a1a2e;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
-      color: #ffffff;
+      height: 54px;
+      padding: 0 22px;
+      border: 0;
+      border-radius: 8px;
+      background: color-mix(in oklab, var(--text) 8%, transparent);
+      box-shadow: inset 0 -2px 0 var(--shadow);
+      color: var(--text);
       cursor: pointer;
       font-family: 'Archivo', system-ui, sans-serif;
       font-size: 16px;
       font-weight: 700;
       letter-spacing: 0.06em;
       text-transform: uppercase;
-      transition: transform 180ms ease, background 180ms ease, color 180ms ease, box-shadow 180ms ease;
+      transition: background 160ms ease, transform 160ms ease, color 160ms ease, box-shadow 160ms ease;
       animation: landingBtnIn 240ms var(--delay, 240ms) cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
     }
     .landing-btn:hover {
-      transform: scale(1.03);
-      background: #ffe600;
-      box-shadow: 0 8px 24px rgba(255, 230, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.12);
-      color: #1a1a2e;
+      background: color-mix(in oklab, var(--text) 14%, transparent);
+      transform: translateY(-1px);
+      box-shadow: inset 0 -2px 0 var(--shadow), 0 6px 16px var(--shadow);
     }
     .landing-btn:active {
-      transform: scale(0.97);
+      transform: translateY(0);
+      box-shadow: inset 0 2px 0 var(--shadow);
     }
     .landing-btn--primary {
-      background: #ffe600;
-      color: #1a1a2e;
+      background: var(--accent);
+      color: var(--bg-bottom);
+      box-shadow: inset 0 -2px 0 color-mix(in oklab, var(--accent) 60%, black);
     }
     .landing-btn--primary:hover {
-      background: #ffffff;
-      color: #1a1a2e;
+      background: var(--accent-2);
+      box-shadow: inset 0 -2px 0 color-mix(in oklab, var(--accent) 60%, black), 0 6px 18px color-mix(in oklab, var(--accent) 40%, transparent);
     }
     .landing-btn--ghost {
-      border-color: rgba(255, 255, 255, 0.18);
-      color: rgba(255, 255, 255, 0.72);
+      background: transparent;
+      border: 1px solid color-mix(in oklab, var(--text) 18%, transparent);
+      color: var(--text-mute);
+      box-shadow: none;
+    }
+    .landing-btn--ghost:hover {
+      background: color-mix(in oklab, var(--text) 6%, transparent);
+      color: var(--text);
     }
     .landing-footer {
       position: absolute;
@@ -196,7 +279,7 @@
       align-items: center;
       justify-content: center;
       gap: 10px;
-      color: rgba(255, 255, 255, 0.45);
+      color: var(--text-mute);
       font-family: 'Archivo', system-ui, sans-serif;
       font-size: 12px;
       font-weight: 700;
@@ -225,7 +308,7 @@
       .landing-btn { height: 52px; font-size: 14px; }
     }
     @media (prefers-reduced-motion: reduce) {
-      .landing-spot, .landing-title, .landing-player, .landing-btn { animation: none; }
+      .landing-spot, .landing-title, .landing-themes, .landing-player, .landing-btn { animation: none; }
       #landing { transition: none; }
     }
   </style>
@@ -239,6 +322,11 @@
     <div class="landing-spot landing-spot--c"></div>
   </div>
   <main class="landing-content">
+    <div class="landing-themes" role="group" aria-label="Color theme">
+      <button class="landing-theme" data-set-theme="a" aria-label="Backyard"></button>
+      <button class="landing-theme" data-set-theme="b" aria-label="Dive bar"></button>
+      <button class="landing-theme" data-set-theme="c" aria-label="Worn-in"></button>
+    </div>
     <h1 class="landing-title">SHOVEL <span>TOSS</span></h1>
     <button class="landing-player" id="landing-player" type="button">
       <span class="label">PLAYER:</span>
@@ -275,7 +363,10 @@
   const landingPlayerButton = document.getElementById('landing-player');
   const landingPlayerNameEl = document.getElementById('landing-player-name');
   const landingVersionEl = document.getElementById('landing-version');
+  const LANDING_THEME_KEY = 'shoveltoss.landingTheme';
+  const VALID_THEMES = ['a', 'b', 'c'];
   let landingHideTimer = null;
+  let landingAnimatedOnce = false;
 
   let CHARACTER_FRAME_W = 0;
   let CHARACTER_FRAME_H = 0;
@@ -559,19 +650,47 @@
     }
   }
 
+  function getLandingTheme() {
+    try {
+      const t = localStorage.getItem(LANDING_THEME_KEY);
+      return VALID_THEMES.includes(t) ? t : 'a';
+    } catch {
+      return 'a';
+    }
+  }
+
+  function setLandingTheme(theme) {
+    if (!VALID_THEMES.includes(theme)) return;
+    try { localStorage.setItem(LANDING_THEME_KEY, theme); } catch {}
+    if (landingEl) {
+      landingEl.dataset.theme = theme;
+      landingEl.querySelectorAll('[data-set-theme]').forEach(btn => {
+        btn.setAttribute('aria-pressed', btn.dataset.setTheme === theme ? 'true' : 'false');
+      });
+    }
+  }
+
   function showLanding() {
     if (!landingEl) return;
     updateLandingIdentity();
     if (landingVersionEl) landingVersionEl.textContent = APP_VERSION_TAG;
-    if (landingEl.dataset.state === 'visible') return;
+    if (landingEl.dataset.state !== 'hidden') return;
     if (landingHideTimer) {
       clearTimeout(landingHideTimer);
       landingHideTimer = null;
     }
+    landingEl.dataset.state = 'showing';
     landingEl.style.display = 'grid';
     landingEl.setAttribute('aria-hidden', 'false');
     requestAnimationFrame(() => {
+      if (landingEl.dataset.state !== 'showing') return;
       landingEl.dataset.state = 'visible';
+      if (landingAnimatedOnce) {
+        landingEl.classList.add('landing--no-anim');
+      } else {
+        landingEl.classList.remove('landing--no-anim');
+        landingAnimatedOnce = true;
+      }
     });
   }
 
@@ -661,7 +780,11 @@
 
   if (landingEl) {
     updateLandingIdentity();
+    setLandingTheme(getLandingTheme());
     if (landingVersionEl) landingVersionEl.textContent = APP_VERSION_TAG;
+    landingEl.querySelectorAll('[data-set-theme]').forEach(btn => {
+      btn.addEventListener('click', () => setLandingTheme(btn.dataset.setTheme));
+    });
     landingEl.querySelectorAll('[data-action]').forEach(btn => {
       btn.addEventListener('click', () => handleLandingAction(btn.dataset.action));
     });
