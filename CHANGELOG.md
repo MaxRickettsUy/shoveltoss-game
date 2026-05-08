@@ -4,6 +4,12 @@ All notable changes to Shovel Toss. Format follows [Keep a Changelog](https://ke
 
 ## [Unreleased]
 
+### Added
+- HTML landing page redesign with self-hosted Bungee and Archivo fonts, animated reveal, and tactile button states.
+
+### Changed
+- Level background images now lazy-load when level select opens, reducing cold-load asset weight.
+
 ## [0.25.1] — 2026-05-08
 
 ### Added

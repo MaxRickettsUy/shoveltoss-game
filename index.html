@@ -30,13 +30,234 @@
   <meta name="author" content="Max Ricketts-Uy">
   <script defer src="https://cloud.umami.is/script.js" data-website-id="fcd8ac65-02a9-4054-a8b9-6809cafd04a8"></script>
   <style>
+    @font-face { font-family: 'Bungee'; src: url('assets/fonts/bungee-regular.woff2') format('woff2'); font-display: swap; }
+    @font-face { font-family: 'Archivo'; src: url('assets/fonts/archivo-regular.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+    @font-face { font-family: 'Archivo'; src: url('assets/fonts/archivo-bold.woff2') format('woff2'); font-weight: 700; font-display: swap; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #111; overflow: hidden; touch-action: none; }
+    body { background: #1a1a2e; overflow: hidden; touch-action: none; }
     canvas { display: block; }
+    #landing {
+      position: fixed;
+      inset: 0;
+      z-index: 5;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      background: radial-gradient(120% 80% at 50% 0%, #2a2a4a 0%, #1a1a2e 60%, #0d0d1a 100%);
+      color: #ffffff;
+      font-family: 'Archivo', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 200ms ease;
+    }
+    #landing[data-state="visible"] {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .landing-bg {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    .landing-bg::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: url('assets/landing-noise.svg');
+      opacity: 0.08;
+      mix-blend-mode: overlay;
+    }
+    .landing-spot {
+      position: absolute;
+      width: 60vmax;
+      height: 30vmax;
+      background: linear-gradient(75deg, transparent, rgba(255, 230, 0, 0.06), transparent);
+      filter: blur(40px);
+      animation: landingDrift 60s linear infinite;
+    }
+    .landing-spot--a { top: -10%; left: -30%; animation-duration: 40s; }
+    .landing-spot--b { top: 30%; left: -50%; animation-duration: 80s; animation-delay: -20s; }
+    .landing-spot--c { bottom: -10%; left: -20%; animation-duration: 60s; animation-delay: -40s; }
+    .landing-content {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      gap: clamp(16px, 3vh, 30px);
+      justify-items: center;
+      width: min(360px, calc(100vw - 32px));
+      padding: 4vh 0;
+    }
+    .landing-title {
+      font-family: 'Bungee', Impact, sans-serif;
+      font-size: clamp(48px, 12vw, 120px);
+      letter-spacing: 0.04em;
+      line-height: 0.92;
+      color: #ffffff;
+      text-align: center;
+      text-shadow: 4px 4px 0 #ffe600, 8px 8px 0 #5555aa;
+      animation: landingTitleIn 280ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    }
+    .landing-title span {
+      display: block;
+      color: #ffe600;
+      text-shadow: 4px 4px 0 #5555aa;
+    }
+    .landing-player {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      max-width: 100%;
+      padding: 8px 12px;
+      border: 0;
+      background: transparent;
+      color: rgba(255, 255, 255, 0.85);
+      cursor: pointer;
+      font-family: 'Archivo', system-ui, sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      animation: landingFadeIn 240ms 120ms ease-out both;
+    }
+    .landing-player .name {
+      min-width: 1ch;
+      max-width: min(170px, 44vw);
+      overflow: hidden;
+      color: #ffe600;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .landing-player:hover {
+      color: #ffffff;
+      text-decoration: underline;
+      text-underline-offset: 4px;
+    }
+    .landing-player:hover::after {
+      content: 'tap to edit';
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255, 255, 255, 0.58);
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      white-space: nowrap;
+    }
+    .landing-actions {
+      display: grid;
+      gap: 10px;
+      width: min(320px, 100%);
+    }
+    .landing-btn {
+      height: 56px;
+      border: 2px solid #ffe600;
+      border-radius: 999px;
+      background: #1a1a2e;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      color: #ffffff;
+      cursor: pointer;
+      font-family: 'Archivo', system-ui, sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      transition: transform 180ms ease, background 180ms ease, color 180ms ease, box-shadow 180ms ease;
+      animation: landingBtnIn 240ms var(--delay, 240ms) cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+    }
+    .landing-btn:hover {
+      transform: scale(1.03);
+      background: #ffe600;
+      box-shadow: 0 8px 24px rgba(255, 230, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+      color: #1a1a2e;
+    }
+    .landing-btn:active {
+      transform: scale(0.97);
+    }
+    .landing-btn--primary {
+      background: #ffe600;
+      color: #1a1a2e;
+    }
+    .landing-btn--primary:hover {
+      background: #ffffff;
+      color: #1a1a2e;
+    }
+    .landing-btn--ghost {
+      border-color: rgba(255, 255, 255, 0.18);
+      color: rgba(255, 255, 255, 0.72);
+    }
+    .landing-footer {
+      position: absolute;
+      right: 0;
+      bottom: 12px;
+      left: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      color: rgba(255, 255, 255, 0.45);
+      font-family: 'Archivo', system-ui, sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+    @keyframes landingDrift {
+      0% { transform: translateX(0) rotate(-12deg); }
+      100% { transform: translateX(180vw) rotate(-12deg); }
+    }
+    @keyframes landingTitleIn {
+      from { opacity: 0; transform: translateY(-16px) scale(0.96); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes landingBtnIn {
+      from { opacity: 0; transform: translateY(8px) scale(0.96); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes landingFadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @media (max-width: 360px) {
+      .landing-content { width: min(320px, calc(100vw - 24px)); gap: 14px; }
+      .landing-title { font-size: clamp(44px, 17vw, 62px); }
+      .landing-btn { height: 52px; font-size: 14px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .landing-spot, .landing-title, .landing-player, .landing-btn { animation: none; }
+      #landing { transition: none; }
+    }
   </style>
 </head>
 <body>
 <canvas id="gameCanvas"></canvas>
+<div id="landing" data-state="hidden" aria-hidden="true">
+  <div class="landing-bg" aria-hidden="true">
+    <div class="landing-spot landing-spot--a"></div>
+    <div class="landing-spot landing-spot--b"></div>
+    <div class="landing-spot landing-spot--c"></div>
+  </div>
+  <main class="landing-content">
+    <h1 class="landing-title">SHOVEL <span>TOSS</span></h1>
+    <button class="landing-player" id="landing-player" type="button">
+      <span class="label">PLAYER:</span>
+      <span class="name" id="landing-player-name"></span>
+      <i class="fa-solid fa-pen-to-square"></i>
+    </button>
+    <nav class="landing-actions">
+      <button data-action="play" class="landing-btn landing-btn--primary" style="--delay: 240ms">Play Game</button>
+      <button data-action="leaderboard" class="landing-btn" style="--delay: 320ms">Leaderboard</button>
+      <button data-action="hall" class="landing-btn" style="--delay: 400ms">Hall of Fame</button>
+      <button data-action="stats" class="landing-btn" style="--delay: 480ms">Player Stats</button>
+      <button data-action="whatsNew" class="landing-btn landing-btn--ghost" style="--delay: 560ms">What's New?</button>
+    </nav>
+    <footer class="landing-footer">
+      <span id="landing-version"></span>
+      <span class="landing-flag">🇺🇸</span>
+    </footer>
+  </main>
+</div>
 <script src="src/releaseNotes.js"></script>
 <script type="module" src="src/globalScores.js"></script>
 <script type="module">
@@ -50,6 +271,11 @@
 <script>
   const canvas = document.getElementById('gameCanvas');
   const ctx = canvas.getContext('2d');
+  const landingEl = document.getElementById('landing');
+  const landingPlayerButton = document.getElementById('landing-player');
+  const landingPlayerNameEl = document.getElementById('landing-player-name');
+  const landingVersionEl = document.getElementById('landing-version');
+  let landingHideTimer = null;
 
   let CHARACTER_FRAME_W = 0;
   let CHARACTER_FRAME_H = 0;
@@ -99,13 +325,19 @@
   ];
 
   const levelImages = {};
+  let levelsRequested = false;
   let backgroundReady = false;
   let backgroundImg = null;
-  LEVELS.forEach(l => {
-    const img = new Image();
-    img.src = l.background;
-    levelImages[l.id] = img;
-  });
+
+  function loadLevelImages() {
+    if (levelsRequested) return;
+    levelsRequested = true;
+    LEVELS.forEach(l => {
+      const img = new Image();
+      img.src = l.background;
+      levelImages[l.id] = img;
+    });
+  }
 
   const CHARACTERS = [
     { id: "Alexsama", hero: 'assets/character/alexsama/hero.png', sprite: 'assets/character/alexsama/sprite-sheet.png' },
@@ -316,9 +548,72 @@
       const clean = sanitizeUsername(name);
       if (!clean) return '';
       localStorage.setItem(USERNAME_KEY, clean);
+      updateLandingIdentity();
       return clean;
     }
   };
+
+  function updateLandingIdentity() {
+    if (landingPlayerNameEl) {
+      landingPlayerNameEl.textContent = username.get() || 'NEW PLAYER';
+    }
+  }
+
+  function showLanding() {
+    if (!landingEl) return;
+    updateLandingIdentity();
+    if (landingVersionEl) landingVersionEl.textContent = APP_VERSION_TAG;
+    if (landingEl.dataset.state === 'visible') return;
+    if (landingHideTimer) {
+      clearTimeout(landingHideTimer);
+      landingHideTimer = null;
+    }
+    landingEl.style.display = 'grid';
+    landingEl.setAttribute('aria-hidden', 'false');
+    requestAnimationFrame(() => {
+      landingEl.dataset.state = 'visible';
+    });
+  }
+
+  function hideLanding() {
+    if (!landingEl || landingEl.dataset.state === 'hidden') return;
+    landingEl.dataset.state = 'hidden';
+    landingEl.setAttribute('aria-hidden', 'true');
+    if (landingHideTimer) clearTimeout(landingHideTimer);
+    landingHideTimer = setTimeout(() => {
+      if (landingEl.dataset.state === 'hidden') landingEl.style.display = 'none';
+      landingHideTimer = null;
+    }, 220);
+  }
+
+  function isLandingVisible() {
+    return landingEl && landingEl.dataset.state === 'visible';
+  }
+
+  function handleLandingAction(action) {
+    switch (action) {
+      case 'play':
+        hideLanding();
+        loadHeroImages();
+        run.state = RUN_STATE.SELECTING;
+        break;
+      case 'leaderboard':
+        hideLanding();
+        openLeaderboard(RUN_STATE.HOME);
+        break;
+      case 'hall':
+        hideLanding();
+        openHallOfFame();
+        break;
+      case 'stats':
+        hideLanding();
+        openPlayerStats();
+        break;
+      case 'whatsNew':
+        openWhatsNewOverlay();
+        break;
+    }
+  }
 
   const settings = {
     _cache: null,
@@ -363,6 +658,17 @@
     gameOverTime: 0,
     lastStateBeforeLeaderboard: RUN_STATE.HOME
   };
+
+  if (landingEl) {
+    updateLandingIdentity();
+    if (landingVersionEl) landingVersionEl.textContent = APP_VERSION_TAG;
+    landingEl.querySelectorAll('[data-action]').forEach(btn => {
+      btn.addEventListener('click', () => handleLandingAction(btn.dataset.action));
+    });
+  }
+  if (landingPlayerButton) {
+    landingPlayerButton.addEventListener('click', () => openUsernameOverlay(RUN_STATE.HOME));
+  }
 
   const throw_ = {
     state:       STATE.IDLE,
@@ -1305,12 +1611,14 @@
     selectedCharacterId = CHARACTERS[index].id;
     characterReady = false;
     characterImg.src = CHARACTERS[index].sprite;
+    loadLevelImages();
     run.state = RUN_STATE.LEVEL_SELECT;
     flippedCardId = null;
     levelTileRects = [];
   }
 
   function chooseLevel(index) {
+    loadLevelImages();
     selectedLevelId = LEVELS[index].id;
     backgroundImg = levelImages[selectedLevelId];
     backgroundReady = backgroundImg.complete && backgroundImg.naturalWidth > 0;
@@ -1335,6 +1643,7 @@
   function onPressStart() {
     if (run.state === RUN_STATE.USERNAME) return;
     if (run.state === RUN_STATE.HOME) {
+      if (isLandingVisible()) return;
       if (pointerInRect(usernameNameRect)) {
         openUsernameOverlay(RUN_STATE.HOME);
         return;
@@ -1700,25 +2009,34 @@
     lastTimestamp = timestamp;
 
     if (run.state === RUN_STATE.USERNAME) {
-      drawHome(timestamp);
+      if (landingEl) showLanding();
+      else drawHome(timestamp);
       if (!usernameOverlayEl) openUsernameOverlay(RUN_STATE.HOME);
     } else if (run.state === RUN_STATE.HOME) {
-      drawHome(timestamp);
+      if (landingEl) showLanding();
+      else drawHome(timestamp);
     } else if (run.state === RUN_STATE.SELECTING) {
+      hideLanding();
       drawCharacterSelect(timestamp);
     } else if (run.state === RUN_STATE.LEVEL_SELECT) {
+      hideLanding();
       drawLevelSelect(timestamp);
     } else if (run.state === RUN_STATE.PLAYING) {
+      hideLanding();
       update(dt, timestamp);
       draw();
     } else if (run.state === RUN_STATE.GAME_OVER) {
+      hideLanding();
       draw();
       drawGameOverOverlay();
     } else if (run.state === RUN_STATE.LEADERBOARD) {
+      hideLanding();
       drawLeaderboard();
     } else if (run.state === RUN_STATE.HALL_OF_FAME) {
+      hideLanding();
       drawHallOfFame(timestamp);
     } else if (run.state === RUN_STATE.PLAYER_STATS) {
+      hideLanding();
       drawPlayerStats(timestamp);
     }
   }
