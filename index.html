@@ -1104,10 +1104,6 @@
       }
     }
 
-    if (window.umami) {
-      umami.track('throw_complete', { zone, points: basePoints });
-    }
-
     scoring.lastThrowPoints = basePoints;
     scoring.lastThrowZone  = zone;
     scoring.score         += scoring.lastThrowPoints;
