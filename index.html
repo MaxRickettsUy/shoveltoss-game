@@ -2645,7 +2645,7 @@
     // Sweet-spot band
     const sweetX = meterX + meterWidth * difficulty.sweetSpotMin;
     const sweetW = meterWidth * (difficulty.sweetSpotMax - difficulty.sweetSpotMin);
-    ctx.fillStyle = THEME.selfHighlight;
+    ctx.fillStyle = 'rgba(255, 220, 0, 0.25)';
     ctx.beginPath();
     ctx.roundRect(sweetX, meterY, sweetW, meterHeight, r);
     ctx.fill();
@@ -2653,7 +2653,7 @@
     // Fill bar (left-to-right)
     const fillW = meterWidth * throw_.meterFill;
     const inSweetSpot = throw_.meterFill >= difficulty.sweetSpotMin && throw_.meterFill <= difficulty.sweetSpotMax;
-    ctx.fillStyle = inSweetSpot ? THEME.accent : '#ff6b35';
+    ctx.fillStyle = inSweetSpot ? '#ffe600' : '#ff6b35';
     ctx.beginPath();
     ctx.roundRect(meterX, meterY, fillW, meterHeight, r);
     ctx.fill();
