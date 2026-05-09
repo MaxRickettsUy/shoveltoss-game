@@ -4,11 +4,23 @@ All notable changes to Shovel Toss. Format follows [Keep a Changelog](https://ke
 
 ## [Unreleased]
 
+## [0.26.0] — 2026-05-08
+
 ### Added
+- Top All-Time leaderboard now shows one row per player (their best score), with each row's rank reflecting its position among every score in the database.
+- Ornate wooden picture frames around character images on the character-select screen.
+- Polished metal name plaques mounted on each character frame.
+- Loading placeholders rendered inside frames while hero images decode.
+- Tap the expand icon on any character tile to view the full hero image in a modal.
 - HTML landing page redesign with self-hosted Bungee and Archivo fonts, animated reveal, and tactile button states.
+- New warmer color palette applied across all canvas screens.
 
 ### Changed
-- Level background images now lazy-load when level select opens, reducing cold-load asset weight.
+- Character-select header re-aligned: title sits in line with the back button; the redundant player name on this screen is gone.
+- Level background images lazy-load on level select instead of at boot.
+
+### Internal
+- Removed the in-app DEVELOPMENT banner.
 
 ## [0.25.1] — 2026-05-08
 

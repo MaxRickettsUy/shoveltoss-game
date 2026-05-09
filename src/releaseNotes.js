@@ -2,12 +2,13 @@
 // When releasing, prepend an entry here if users should see "What's New".
 const RELEASE_NOTES = [
   {
-    version: 'v0.25.1',
+    version: 'v0.26.0',
     date: '2026-05-08',
-    headline: 'First-time how-to-play tutorial',
+    headline: 'New look + framed characters',
     items: [
-      'New how-to-play dialog explains the meter, scoring zones, and misses.',
-      'Hide it permanently or reopen it later from Settings.'
+      'Brand-new landing screen and a refreshed color palette across the whole game.',
+      'Character cards now have ornate wooden frames with engraved metal name plaques — tap the expand icon to see the full art.',
+      "All-Time leaderboard now shows your single best score per player, with ranks tied to where they sit among every score in the database."
     ]
   },
   {
