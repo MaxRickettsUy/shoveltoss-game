@@ -3049,8 +3049,8 @@
     } else if (rows.length === 0) {
       drawText('No scores yet', cx, listTop + rowSize, rowSize, THEME.textMute, 'center', false);
     } else {
-      const leftX = Math.max(pad, cx - Math.min(260, canvas.width * 0.42));
-      const scoreX = Math.min(canvas.width - pad, cx + Math.min(260, canvas.width * 0.42));
+      const leftX = pad;
+      const scoreX = canvas.width - pad;
       const dateX = scoreX - Math.max(72, canvas.width * 0.17);
       ctx.save();
       ctx.beginPath();
