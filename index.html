@@ -63,6 +63,9 @@
       opacity: 1;
       pointer-events: auto;
     }
+    #landing.landing--instant {
+      transition: none;
+    }
     .landing--no-anim,
     .landing--no-anim * {
       animation: none !important;
@@ -611,18 +614,21 @@
       clearTimeout(landingHideTimer);
       landingHideTimer = null;
     }
-    landingEl.dataset.state = 'showing';
     landingEl.style.display = 'grid';
     landingEl.setAttribute('aria-hidden', 'false');
+    if (landingAnimatedOnce) {
+      landingEl.classList.add('landing--instant');
+      landingEl.classList.add('landing--no-anim');
+      landingEl.dataset.state = 'visible';
+      return;
+    }
+    landingEl.classList.remove('landing--instant');
+    landingEl.classList.remove('landing--no-anim');
+    landingEl.dataset.state = 'showing';
     requestAnimationFrame(() => {
       if (landingEl.dataset.state !== 'showing') return;
       landingEl.dataset.state = 'visible';
-      if (landingAnimatedOnce) {
-        landingEl.classList.add('landing--no-anim');
-      } else {
-        landingEl.classList.remove('landing--no-anim');
-        landingAnimatedOnce = true;
-      }
+      landingAnimatedOnce = true;
     });
   }
 
@@ -631,6 +637,12 @@
     landingEl.dataset.state = 'hidden';
     landingEl.setAttribute('aria-hidden', 'true');
     if (landingHideTimer) clearTimeout(landingHideTimer);
+    if (landingAnimatedOnce) {
+      landingEl.classList.add('landing--instant');
+      landingEl.style.display = 'none';
+      landingHideTimer = null;
+      return;
+    }
     landingHideTimer = setTimeout(() => {
       if (landingEl.dataset.state === 'hidden') landingEl.style.display = 'none';
       landingHideTimer = null;
