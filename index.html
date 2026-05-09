@@ -405,6 +405,20 @@
   const FRAME_GRAIN = 'rgba(255, 220, 170, 0.06)';
   const FRAME_ORNAMENT = '#caa05a';
   const FRAME_ORNAMENT_MIN_TILE_W = 110;
+  const PLAQUE_WIDTH_RATIO = 0.62;
+  const PLAQUE_HEIGHT_RATIO = 0.16;
+  const PLAQUE_MIN_HEIGHT = 14;
+  const PLAQUE_RADIUS = 4;
+  const PLAQUE_METAL_LIGHT = '#f4f1e8';
+  const PLAQUE_METAL_BRIGHT = '#d8d4c4';
+  const PLAQUE_METAL_MID = '#9d9788';
+  const PLAQUE_METAL_DARK = '#5a5448';
+  const PLAQUE_RIVET = '#3a3528';
+  const PLAQUE_ENGRAVE_DARK = '#1f1a12';
+  const PLAQUE_ENGRAVE_LIGHT = 'rgba(255, 245, 220, 0.55)';
+  const PLAQUE_HIGHLIGHT = 'rgba(255, 255, 255, 0.55)';
+  const PLAQUE_SHADOW = 'rgba(0, 0, 0, 0.55)';
+  const PLAQUE_MIN_TILE_W = 90;
 
   let selectedCharacterId = null;
   let selectedLevelId = null;
@@ -2720,6 +2734,57 @@
     ctx.restore();
   }
 
+  function drawNamePlaque(ctx, cx, topY, w, h, label) {
+    ctx.save();
+
+    const x = cx - w / 2;
+    const y = topY;
+    const centerY = y + h / 2;
+    const radius = Math.min(PLAQUE_RADIUS, h / 2);
+    const gradient = ctx.createLinearGradient(x, y, x, y + h);
+    gradient.addColorStop(0, PLAQUE_METAL_LIGHT);
+    gradient.addColorStop(0.35, PLAQUE_METAL_BRIGHT);
+    gradient.addColorStop(0.65, PLAQUE_METAL_MID);
+    gradient.addColorStop(1, PLAQUE_METAL_DARK);
+
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, radius);
+    ctx.fill();
+
+    ctx.strokeStyle = PLAQUE_HIGHLIGHT;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y + 0.5);
+    ctx.lineTo(x + w - radius, y + 0.5);
+    ctx.stroke();
+    ctx.strokeStyle = PLAQUE_SHADOW;
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y + h - 0.5);
+    ctx.lineTo(x + w - radius, y + h - 0.5);
+    ctx.stroke();
+
+    const rivetR = Math.max(2, h * 0.14);
+    const rivetInset = h * 0.45;
+    [x + rivetInset, x + w - rivetInset].forEach(rivetX => {
+      ctx.fillStyle = PLAQUE_RIVET;
+      ctx.beginPath();
+      ctx.arc(rivetX, centerY, rivetR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = PLAQUE_HIGHLIGHT;
+      ctx.beginPath();
+      ctx.arc(rivetX - rivetR * 0.35, centerY - rivetR * 0.35, Math.max(1, rivetR * 0.3), 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    const fontSize = Math.max(9, Math.floor(h * 0.62));
+    const text = truncateText(label, w - h * 1.6, fontSize);
+    drawText(text, cx, centerY + fontSize * 0.35 + 1, fontSize, PLAQUE_ENGRAVE_LIGHT, 'center', true);
+    drawText(text, cx, centerY + fontSize * 0.35, fontSize, PLAQUE_ENGRAVE_DARK, 'center', true);
+
+    ctx.restore();
+  }
+
   function drawCardBack(x, y, w, h, character, registerButton = true) {
     ctx.fillStyle = THEME.surface;
     ctx.strokeStyle = THEME.secondary;
@@ -3272,7 +3337,8 @@
     const targetTileW = Math.floor(Math.min(240, (canvas.width - pad * (cols + 1)) / cols));
     const tileW = targetTileW;
     const tileH = Math.floor(tileW * 1.25);
-    charSelectGridTop = filterY + filterButtonH + pad;
+    const gridTopPadding = isPhoneLandscape ? 6 : 10;
+    charSelectGridTop = filterY + filterButtonH + pad + gridTopPadding;
     charSelectGridBottom = canvas.height - pad;
     const gridViewportH = charSelectGridBottom - charSelectGridTop;
     const totalContentH = rows * tileH + (rows - 1) * pad;
@@ -3333,6 +3399,14 @@
         const innerR = Math.max(2, 6 - Math.floor(t / 4));
 
         drawWoodFrame(ctx, x, y, tileW, tileH, t, character.id);
+        const hasNamePlaque = tileW >= PLAQUE_MIN_TILE_W;
+        if (hasNamePlaque) {
+          const plaqueW = Math.floor(tileW * PLAQUE_WIDTH_RATIO);
+          const plaqueH = Math.max(PLAQUE_MIN_HEIGHT, Math.floor(t * PLAQUE_HEIGHT_RATIO * 6));
+          const plaqueInsetY = Math.max(2, Math.floor((t - plaqueH) / 2));
+          const plaqueTopY = y + plaqueInsetY;
+          drawNamePlaque(ctx, x + tileW / 2, plaqueTopY, plaqueW, plaqueH, character.id);
+        }
 
         const labelSize = isPhoneLandscape
           ? Math.max(12, Math.floor(canvas.height * 0.035))
@@ -3389,7 +3463,9 @@
         }
 
         const isChampion = CHAMPION_IDS.has(character.id);
-        drawText(character.id, innerX + 6, innerY + labelSize + 4, labelSize, THEME.text, 'left', false);
+        if (!hasNamePlaque) {
+          drawText(character.id, innerX + 6, innerY + labelSize + 4, labelSize, THEME.text, 'left', false);
+        }
         if (isChampion) {
           if (championImg.complete && championImg.naturalWidth > 0) {
             const badgeW = Math.floor(tileW * 0.78);
