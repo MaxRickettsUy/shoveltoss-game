@@ -926,13 +926,18 @@
     leaderboard.globalError = '';
     try {
       if (!window.globalScores) throw new Error('offline');
-      leaderboard.globalRows = await window.globalScores.topN(
-        GLOBAL_SCORE_LIMIT,
-        {
-          characterName: leaderboardCharacterFilter,
-          sinceISO: leaderboardScope === 'daily' ? dailySinceISO() : undefined,
-        }
-      );
+      leaderboard.globalRows = leaderboardScope === 'all'
+        ? await window.globalScores.topNPerPlayer(
+          GLOBAL_SCORE_LIMIT,
+          { characterName: leaderboardCharacterFilter }
+        )
+        : await window.globalScores.topN(
+          GLOBAL_SCORE_LIMIT,
+          {
+            characterName: leaderboardCharacterFilter,
+            sinceISO: dailySinceISO(),
+          }
+        );
       leaderboard.globalStatus = 'ready';
     } catch {
       leaderboard.globalRows = [];
@@ -2653,8 +2658,9 @@
     const titleY = Math.max(4, safeTop * 0.35) + titleSize;
     const subtitleY = titleY + subtitleSize + 6;
     drawText('LEADERBOARD', cx, titleY, titleSize, THEME.text, 'center', true);
-    const subtitleText = leaderboardScope === 'daily' ? 'Top 100 — Today' : 'Top 100 — All Time';
-    drawText(subtitleText, cx, subtitleY, subtitleSize, THEME.textMute, 'center', false);
+    if (leaderboardScope === 'daily') {
+      drawText('Top 100 — Today', cx, subtitleY, subtitleSize, THEME.textMute, 'center', false);
+    }
 
     // Scope toggle (Today / All Time)
     const toggleH = isPhoneLandscape ? 24 : 30;
@@ -2717,7 +2723,8 @@
         const characterName = row.character_name ? ` (${row.character_name})` : '';
         const highScoreBadge = index === 0 ? ` ${HIGH_SCORE_BADGE}` : '';
         const scoreDate = formatScoreDate(row.created_at);
-        const rankText = `${index + 1}. `;
+        const displayRank = Object.prototype.hasOwnProperty.call(row, 'rank') ? row.rank : index + 1;
+        const rankText = `${displayRank}. `;
         ctx.font = `${Math.round(rowSize)}px sans-serif`;
         ctx.font = `${Math.round(dateSize)}px sans-serif`;
         const dateW = scoreDate ? ctx.measureText(scoreDate).width : 0;

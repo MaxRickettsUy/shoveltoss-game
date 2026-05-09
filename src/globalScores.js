@@ -79,6 +79,51 @@ window.globalScores = {
     return data || [];
   },
 
+  async topNPerPlayer(n = 100, opts = {}) {
+    const pageSize = 1000;
+    const maxRows = 10000;
+    const seen = new Set();
+    const output = [];
+    let from = 0;
+    let globalRank = 1;
+    let scanned = 0;
+
+    while (output.length < n && scanned < maxRows) {
+      let query = getClient()
+        .from('high_scores')
+        .select('id, name, character_name, score, created_at');
+      if (opts.characterName) {
+        query = query.eq('character_name', opts.characterName);
+      }
+      if (opts.sinceISO) {
+        query = query.gte('created_at', opts.sinceISO);
+      }
+      const { data, error } = await query
+        .order('score', { ascending: false })
+        .order('created_at', { ascending: true })
+        .order('id', { ascending: true })
+        .range(from, from + pageSize - 1);
+      if (error) throw error;
+
+      const rows = data || [];
+      for (const row of rows) {
+        const name = cleanName(row.name);
+        if (!seen.has(name)) {
+          output.push({ ...row, rank: globalRank });
+          seen.add(name);
+        }
+        globalRank += 1;
+        scanned += 1;
+        if (output.length >= n) break;
+        if (scanned >= maxRows) break;
+      }
+      if (rows.length < pageSize) break;
+      from += pageSize;
+    }
+
+    return output.slice(0, n);
+  },
+
   async allScores(maxRows = 5000) {
     const { data, error } = await getClient()
       .from('high_scores')
