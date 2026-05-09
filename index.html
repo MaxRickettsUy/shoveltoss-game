@@ -395,6 +395,17 @@
     { id: "Xena", hero: 'assets/character/xena/hero.png', sprite: 'assets/character/xena/sprite-sheet.png' },
   ];
 
+  const FRAME_THICKNESS_RATIO = 0.10;
+  const FRAME_MIN_THICKNESS = 10;
+  const FRAME_WOOD_DARK = '#3e2614';
+  const FRAME_WOOD_MID = '#6a4226';
+  const FRAME_WOOD_LIGHT = '#8a5a33';
+  const FRAME_HIGHLIGHT = 'rgba(255, 220, 170, 0.35)';
+  const FRAME_SHADOW = 'rgba(0, 0, 0, 0.55)';
+  const FRAME_GRAIN = 'rgba(255, 220, 170, 0.06)';
+  const FRAME_ORNAMENT = '#caa05a';
+  const FRAME_ORNAMENT_MIN_TILE_W = 110;
+
   let selectedCharacterId = null;
   let selectedLevelId = null;
   let levelTileRects = [];
@@ -2589,6 +2600,126 @@
     ctx.restore();
   }
 
+  function hashString(value) {
+    let hash = 0;
+    for (let i = 0; i < value.length; i++) {
+      hash = ((hash << 5) - hash + value.charCodeAt(i)) | 0;
+    }
+    return Math.abs(hash);
+  }
+
+  function drawRoundedBand(outerX, outerY, outerW, outerH, outerR, innerX, innerY, innerW, innerH, innerR, fillStyle) {
+    ctx.fillStyle = fillStyle;
+    ctx.beginPath();
+    ctx.roundRect(outerX, outerY, outerW, outerH, outerR);
+    ctx.roundRect(innerX, innerY, innerW, innerH, innerR);
+    ctx.fill('evenodd');
+  }
+
+  function drawDiamond(cx, cy, size) {
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - size);
+    ctx.lineTo(cx + size, cy);
+    ctx.lineTo(cx, cy + size);
+    ctx.lineTo(cx - size, cy);
+    ctx.closePath();
+  }
+
+  function drawWoodFrame(ctx, x, y, w, h, t, seed = '') {
+    ctx.save();
+
+    const tOuter = Math.max(2, Math.floor(t * 0.30));
+    const tInner = Math.max(2, Math.floor(t * 0.20));
+    const tMid = Math.max(2, t - tOuter - tInner);
+    const outerR = 8;
+    const midX = x + tOuter;
+    const midY = y + tOuter;
+    const midW = w - tOuter * 2;
+    const midH = h - tOuter * 2;
+    const midR = Math.max(2, outerR - tOuter);
+    const innerBandX = midX + tMid;
+    const innerBandY = midY + tMid;
+    const innerBandW = midW - tMid * 2;
+    const innerBandH = midH - tMid * 2;
+    const innerBandR = Math.max(2, midR - tMid);
+    const openingX = innerBandX + tInner;
+    const openingY = innerBandY + tInner;
+    const openingW = innerBandW - tInner * 2;
+    const openingH = innerBandH - tInner * 2;
+    const openingR = Math.max(2, innerBandR - tInner);
+
+    drawRoundedBand(x, y, w, h, outerR, midX, midY, midW, midH, midR, FRAME_WOOD_DARK);
+
+    const midGradient = ctx.createLinearGradient(x, midY, x, midY + midH);
+    midGradient.addColorStop(0, FRAME_WOOD_LIGHT);
+    midGradient.addColorStop(0.5, FRAME_WOOD_MID);
+    midGradient.addColorStop(1, FRAME_WOOD_DARK);
+    drawRoundedBand(midX, midY, midW, midH, midR, innerBandX, innerBandY, innerBandW, innerBandH, innerBandR, midGradient);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(midX, midY, midW, midH, midR);
+    ctx.roundRect(innerBandX, innerBandY, innerBandW, innerBandH, innerBandR);
+    ctx.clip('evenodd');
+    ctx.strokeStyle = FRAME_GRAIN;
+    ctx.lineWidth = 1;
+    const hash = hashString(seed);
+    const grainCount = 3 + (hash % 3);
+    for (let i = 0; i < grainCount; i++) {
+      const offset = ((hash >> (i * 3)) & 15) / 16;
+      const gy = midY + 2 + ((i + offset) / grainCount) * Math.max(1, midH - 4);
+      ctx.beginPath();
+      ctx.moveTo(midX + 2, gy);
+      ctx.lineTo(midX + midW - 2, gy);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    drawRoundedBand(innerBandX, innerBandY, innerBandW, innerBandH, innerBandR, openingX, openingY, openingW, openingH, openingR, FRAME_WOOD_LIGHT);
+
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = FRAME_HIGHLIGHT;
+    ctx.beginPath();
+    ctx.roundRect(x + 0.5, y + 0.5, w - 1, h - 1, outerR);
+    ctx.stroke();
+    ctx.strokeStyle = FRAME_SHADOW;
+    ctx.beginPath();
+    ctx.roundRect(midX + 0.5, midY + 0.5, midW - 1, midH - 1, midR);
+    ctx.stroke();
+    ctx.strokeStyle = FRAME_HIGHLIGHT;
+    ctx.beginPath();
+    ctx.roundRect(innerBandX + 0.5, innerBandY + 0.5, innerBandW - 1, innerBandH - 1, innerBandR);
+    ctx.stroke();
+    ctx.strokeStyle = FRAME_SHADOW;
+    ctx.beginPath();
+    ctx.roundRect(openingX + 0.5, openingY + 0.5, openingW - 1, openingH - 1, openingR);
+    ctx.stroke();
+
+    if (w >= FRAME_ORNAMENT_MIN_TILE_W) {
+      const ornamentSize = Math.max(4, Math.floor(t * 0.28));
+      const centers = [
+        [midX, midY],
+        [midX + midW, midY],
+        [midX + midW, midY + midH],
+        [midX, midY + midH],
+      ];
+      centers.forEach(([cx, cy]) => {
+        drawDiamond(cx, cy, ornamentSize);
+        ctx.fillStyle = FRAME_ORNAMENT;
+        ctx.fill();
+        ctx.strokeStyle = FRAME_SHADOW;
+        ctx.stroke();
+        ctx.strokeStyle = FRAME_HIGHLIGHT;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - ornamentSize);
+        ctx.lineTo(cx - ornamentSize, cy);
+        ctx.stroke();
+      });
+    }
+
+    ctx.restore();
+  }
+
   function drawCardBack(x, y, w, h, character, registerButton = true) {
     ctx.fillStyle = THEME.surface;
     ctx.strokeStyle = THEME.secondary;
@@ -3194,23 +3325,32 @@
       if (faceFlipped) {
         drawCardBack(x, y, tileW, tileH, character, character.id === flippedCardId);
       } else {
+        const t = Math.max(FRAME_MIN_THICKNESS, Math.floor(Math.min(tileW, tileH) * FRAME_THICKNESS_RATIO));
+        const innerX = x + t;
+        const innerY = y + t;
+        const innerW = tileW - 2 * t;
+        const innerH = tileH - 2 * t;
+        const innerR = Math.max(2, 6 - Math.floor(t / 4));
+
+        drawWoodFrame(ctx, x, y, tileW, tileH, t, character.id);
+
         const heroImg = heroImages[character.id];
         if (heroImg && heroImg.complete && heroImg.naturalWidth > 0) {
           const imgAspect = heroImg.naturalWidth / heroImg.naturalHeight;
-          const tileAspect = tileW / tileH;
+          const innerAspect = innerW / innerH;
           let drawW, drawH, drawX, drawY;
-          if (imgAspect > tileAspect) {
-            drawH = tileH - 8;
+          if (imgAspect > innerAspect) {
+            drawH = innerH;
             drawW = drawH * imgAspect;
           } else {
-            drawW = tileW - 8;
+            drawW = innerW;
             drawH = drawW / imgAspect;
           }
-          drawX = x + (tileW - drawW) / 2;
-          drawY = y + 4;
+          drawX = innerX + (innerW - drawW) / 2;
+          drawY = innerY + (innerH - drawH) / 2;
           ctx.save();
           ctx.beginPath();
-          ctx.roundRect(x, y, tileW, tileH, 8);
+          ctx.roundRect(innerX, innerY, innerW, innerH, innerR);
           ctx.clip();
           ctx.drawImage(heroImg, drawX, drawY, drawW, drawH);
           ctx.restore();
@@ -3227,14 +3367,14 @@
           ctx.strokeStyle = THEME.bgBottom;
           ctx.lineWidth = 2;
           ctx.beginPath();
-          ctx.roundRect(x + tileW - badgeW - 7, y + 7, badgeW, badgeH, 4);
+          ctx.roundRect(innerX + innerW - badgeW - 7, innerY + 7, badgeW, badgeH, 4);
           ctx.fill();
           ctx.stroke();
-          drawText('NEW', x + tileW - badgeW / 2 - 7, y + 7 + badgeH * 0.68, badgeSize, THEME.bgBottom, 'center', true);
+          drawText('NEW', innerX + innerW - badgeW / 2 - 7, innerY + 7 + badgeH * 0.68, badgeSize, THEME.bgBottom, 'center', true);
         }
 
         const isChampion = CHAMPION_IDS.has(character.id);
-        drawText(character.id, x + 8, y + labelSize + 6, labelSize, THEME.text, 'left', false);
+        drawText(character.id, innerX + 6, innerY + labelSize + 4, labelSize, THEME.text, 'left', false);
         if (isChampion) {
           if (championImg.complete && championImg.naturalWidth > 0) {
             const badgeW = Math.floor(tileW * 0.78);
