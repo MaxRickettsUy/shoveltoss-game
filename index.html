@@ -3334,6 +3334,9 @@
 
         drawWoodFrame(ctx, x, y, tileW, tileH, t, character.id);
 
+        const labelSize = isPhoneLandscape
+          ? Math.max(12, Math.floor(canvas.height * 0.035))
+          : Math.max(12, Math.floor(canvas.width * 0.03));
         const heroImg = heroImages[character.id];
         if (heroImg && heroImg.complete && heroImg.naturalWidth > 0) {
           const imgAspect = heroImg.naturalWidth / heroImg.naturalHeight;
@@ -3354,11 +3357,23 @@
           ctx.clip();
           ctx.drawImage(heroImg, drawX, drawY, drawW, drawH);
           ctx.restore();
+        } else {
+          const idSize = labelSize;
+          const captionSize = Math.max(9, Math.floor(idSize * 0.7));
+          const idText = truncateText(character.id, innerW - 12, idSize);
+          ctx.save();
+          ctx.beginPath();
+          ctx.roundRect(innerX, innerY, innerW, innerH, innerR);
+          ctx.clip();
+          ctx.fillStyle = THEME.surface2;
+          ctx.fillRect(innerX, innerY, innerW, innerH);
+          drawText(idText, innerX + innerW / 2, innerY + innerH / 2 + idSize * 0.35, idSize, THEME.textMute, 'center', false);
+          if (!isPhoneLandscape) {
+            drawText('Loading…', innerX + innerW / 2, innerY + innerH / 2 + idSize * 1.25, captionSize, THEME.textFaint, 'center', false);
+          }
+          ctx.restore();
         }
 
-        const labelSize = isPhoneLandscape
-          ? Math.max(12, Math.floor(canvas.height * 0.035))
-          : Math.max(12, Math.floor(canvas.width * 0.03));
         if (NEW_CHARACTER_IDS.has(character.id)) {
           const badgeSize = Math.max(10, Math.floor(labelSize * 0.85));
           const badgeW = Math.max(42, badgeSize * 3.5);
