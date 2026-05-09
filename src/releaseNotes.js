@@ -2,6 +2,15 @@
 // When releasing, prepend an entry here if users should see "What's New".
 const RELEASE_NOTES = [
   {
+    version: 'v0.27.0',
+    date: '2026-05-08',
+    headline: 'Player profiles + meter polish',
+    items: [
+      'Tap any player on Player Stats to see their profile — top characters, stats, and top 10 scores.',
+      'Meter sweet spot is back to yellow.'
+    ]
+  },
+  {
     version: 'v0.26.0',
     date: '2026-05-08',
     headline: 'New look + framed characters',

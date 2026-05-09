@@ -4,6 +4,17 @@ All notable changes to Shovel Toss. Format follows [Keep a Changelog](https://ke
 
 ## [Unreleased]
 
+## [0.27.0] — 2026-05-08
+
+### Added
+- Tap any player on the Player Stats screen to open their profile: top 3 characters, summary stats, and top 10 scores.
+
+### Changed
+- Leaderboard rows now span the full screen width to line up with Hall of Fame and Player Stats.
+
+### Fixed
+- Meter sweet spot and the in-spot fill are yellow again (had picked up the new orange accent during the palette refresh).
+
 ## [0.26.0] — 2026-05-08
 
 ### Added
