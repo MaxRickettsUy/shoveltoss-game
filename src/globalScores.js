@@ -134,6 +134,20 @@ window.globalScores = {
     return data || [];
   },
 
+  async playerScores(name, maxRows = 1000) {
+    const cleaned = cleanName(name);
+    const { data, error } = await getClient()
+      .from('high_scores')
+      .select('id, name, character_name, score, created_at')
+      .eq('name', cleaned)
+      .order('score', { ascending: false })
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true })
+      .limit(maxRows);
+    if (error) throw error;
+    return data || [];
+  },
+
   async firstAtMilestone(threshold) {
     const { data, error } = await getClient()
       .from('high_scores')
