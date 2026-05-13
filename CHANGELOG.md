@@ -4,12 +4,20 @@ All notable changes to Shovel Toss. Format follows [Keep a Changelog](https://ke
 
 ## [Unreleased]
 
+## [0.28.0] — 2026-05-12
+
 ### Added
-- Versus mode beta for async 9-throw head-to-head matches.
-- Leaderboard challenge buttons, invite-link generation, join-by-code, waiting, and result screens.
-- Supabase `matches` table migration and client API helpers for creating, joining, polling, and submitting matches.
-- Versus phase 2: per-player W/L/T record shown on the Versus home screen, level chosen by the challenger, character chosen by each player. Result screen now shows both players' portraits.
-- Supabase migration adds `level_id`, `challenger_character_id`, `recipient_character_id` to `matches`; trigger locks the new fields once set.
+- 1v1 Toss-Off (Versus) async multiplayer: 9-throw head-to-head matches, invite links, join-by-code, opponent picker, rankings, history, and result screens.
+- 1v1 home screen polish: per-player W/L/T records, challenger-picked level, per-player character selection, opponent portraits on the result screen, and a How to Play dialog (toggleable via a `?` icon).
+- Challenger now sees match results once the opponent finishes; waiting screen shows the opponent's score and the match-record score after a refresh.
+- Score celebration phrases fire on every stick in 1v1 mode.
+- Refresh-during-play warning; stale 1v1 matches are forfeited.
+- Supabase `matches` table plus migrations adding `level_id`, `challenger_character_id`, `recipient_character_id`, and a trigger that locks score fields once set.
+- Local Supabase dev stack (`supabase/config.toml`, migrations, README) and prod deploy docs.
+- `CLAUDE.md` with codebase guidance for Claude Code.
+
+### Changed
+- Renamed "Versus" → "1v1 Toss-Off" and "Play Game" → "Solo Mode".
 
 ## [0.27.0] — 2026-05-08
 

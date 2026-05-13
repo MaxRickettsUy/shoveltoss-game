@@ -2,6 +2,14 @@
 // When releasing, prepend an entry here if users should see "What's New".
 const RELEASE_NOTES = [
   {
+    version: 'v0.28.0',
+    date: '2026-05-12',
+    headline: '1v1 Toss-Off is live',
+    items: [
+      'Challenge anyone to an async 9-throw 1v1 Toss-Off — pick a level, pick your character, and the result lands when they finish.'
+    ]
+  },
+  {
     version: 'v0.27.0',
     date: '2026-05-08',
     headline: 'Player profiles + meter polish',
