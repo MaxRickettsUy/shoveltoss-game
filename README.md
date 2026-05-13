@@ -4,10 +4,6 @@
 
 # Shovel Toss
 
-[![Deploy Pages](https://github.com/MaxRickettsUy/shoveltoss-game/actions/workflows/pages.yaml/badge.svg)](https://github.com/MaxRickettsUy/shoveltoss-game/actions/workflows/pages.yaml)
-[![CodeQL](https://github.com/MaxRickettsUy/shoveltoss-game/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/MaxRickettsUy/shoveltoss-game/actions/workflows/github-code-scanning/codeql)
-[![Supabase Keepalive](https://github.com/MaxRickettsUy/shoveltoss-game/actions/workflows/supabase-keepalive.yml/badge.svg)](https://github.com/MaxRickettsUy/shoveltoss-game/actions/workflows/supabase-keepalive.yml)
-
 A mobile-first 2D arcade timing game. Hold to charge a power meter, release to launch a shovel into the pit.
 
 ## Local Development

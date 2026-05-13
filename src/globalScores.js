@@ -24,6 +24,13 @@ function cleanName(name) {
   return clean || 'Player';
 }
 
+function generateInviteCode() {
+  const alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  let s = '';
+  for (let i = 0; i < 8; i++) s += alphabet[Math.floor(Math.random() * alphabet.length)];
+  return s;
+}
+
 function cleanCharacterName(characterName) {
   const clean = String(characterName || '').trim().slice(0, 20);
   return clean || 'Unknown';
@@ -242,5 +249,224 @@ window.globalScores = {
     }
     return Array.from(totals.values())
       .sort((a, b) => b.score - a.score || new Date(a.created_at) - new Date(b.created_at) || a.name.localeCompare(b.name))[0] || null;
+  },
+
+  async fetchVersusLeaderboard(maxRows = 5000) {
+    const { data, error } = await getClient()
+      .from('matches')
+      .select('challenger_name,recipient_name,challenger_score,recipient_score')
+      .eq('status', 'complete')
+      .not('challenger_score', 'is', null)
+      .not('recipient_score', 'is', null)
+      .limit(maxRows);
+    if (error) throw error;
+    const stats = new Map();
+    const bump = (raw) => {
+      const name = cleanName(raw);
+      const key = name.toLowerCase();
+      let row = stats.get(key);
+      if (!row) {
+        row = { name, wins: 0, losses: 0, ties: 0, total: 0 };
+        stats.set(key, row);
+      }
+      return row;
+    };
+    for (const m of data || []) {
+      if (m.challenger_score == null || m.recipient_score == null) continue;
+      if (!m.challenger_name || !m.recipient_name) continue;
+      const a = bump(m.challenger_name);
+      const b = bump(m.recipient_name);
+      if (m.challenger_score > m.recipient_score) { a.wins++; b.losses++; }
+      else if (m.challenger_score < m.recipient_score) { a.losses++; b.wins++; }
+      else { a.ties++; b.ties++; }
+      a.total++; b.total++;
+    }
+    return Array.from(stats.values()).sort((x, y) => {
+      const dx = x.wins - x.losses;
+      const dy = y.wins - y.losses;
+      if (dy !== dx) return dy - dx;
+      if (y.wins !== x.wins) return y.wins - x.wins;
+      if (y.total !== x.total) return y.total - x.total;
+      return x.name.localeCompare(y.name, undefined, { sensitivity: 'base' });
+    });
+  },
+
+  async fetchKnownPlayers(maxRows = 5000) {
+    const { data, error } = await getClient()
+      .from('high_scores')
+      .select('name')
+      .order('id', { ascending: false })
+      .limit(maxRows);
+    if (error) throw error;
+    const seen = new Set();
+    const names = [];
+    for (const row of data || []) {
+      const n = cleanName(row.name);
+      const key = n.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      names.push(n);
+    }
+    names.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+    return names;
+  },
+
+  async createInviteMatch(challengerName, opts = {}) {
+    const code = generateInviteCode();
+    const insert = {
+      invite_code: code,
+      challenger_name: cleanName(challengerName),
+      recipient_name: null,
+    };
+    if (opts.levelId) insert.level_id = String(opts.levelId).slice(0, 32);
+    if (opts.characterId) insert.challenger_character_id = String(opts.characterId).slice(0, 32);
+    const { data, error } = await getClient()
+      .from('matches')
+      .insert(insert)
+      .select('*')
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  async createDirectChallenge(challengerName, recipientName, opts = {}) {
+    const code = generateInviteCode();
+    const insert = {
+      invite_code: code,
+      challenger_name: cleanName(challengerName),
+      recipient_name: cleanName(recipientName),
+    };
+    if (opts.levelId) insert.level_id = String(opts.levelId).slice(0, 32);
+    if (opts.characterId) insert.challenger_character_id = String(opts.characterId).slice(0, 32);
+    const { data, error } = await getClient()
+      .from('matches')
+      .insert(insert)
+      .select('*')
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  async fetchMatchByCode(code) {
+    const { data, error } = await getClient()
+      .from('matches')
+      .select('*')
+      .eq('invite_code', String(code || '').trim().toUpperCase())
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  async fetchPendingForUser(name) {
+    const clean = cleanName(name);
+    const { data, error } = await getClient()
+      .from('matches')
+      .select('*')
+      .or(`recipient_name.eq.${clean},challenger_name.eq.${clean}`)
+      .not('recipient_name', 'is', null)
+      .in('status', ['pending', 'playing'])
+      .gt('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  },
+
+  async joinMatch(matchId, recipientName, opts = {}) {
+    const update = { recipient_name: cleanName(recipientName), status: 'playing' };
+    if (opts.characterId) update.recipient_character_id = String(opts.characterId).slice(0, 32);
+    const { data, error } = await getClient()
+      .from('matches')
+      .update(update)
+      .eq('id', matchId)
+      .is('recipient_name', null)
+      .select('*')
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  async setRecipientCharacter(matchId, characterId) {
+    const id = String(characterId || '').slice(0, 32);
+    if (!id) return null;
+    const { data, error } = await getClient()
+      .from('matches')
+      .update({ recipient_character_id: id })
+      .eq('id', matchId)
+      .is('recipient_character_id', null)
+      .select('*')
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  async fetchRecentResultsForUser(name, sinceMs = 14 * 24 * 60 * 60 * 1000) {
+    const clean = cleanName(name);
+    const since = new Date(Date.now() - sinceMs).toISOString();
+    const { data, error } = await getClient()
+      .from('matches')
+      .select('*')
+      .or(`recipient_name.eq.${clean},challenger_name.eq.${clean}`)
+      .eq('status', 'complete')
+      .gt('created_at', since)
+      .order('created_at', { ascending: false })
+      .limit(50);
+    if (error) throw error;
+    return data || [];
+  },
+
+  async fetchHistoryForUser(name) {
+    const clean = cleanName(name);
+    const { data, error } = await getClient()
+      .from('matches')
+      .select('*')
+      .or(`recipient_name.eq.${clean},challenger_name.eq.${clean}`)
+      .eq('status', 'complete')
+      .order('created_at', { ascending: false })
+      .limit(50);
+    if (error) throw error;
+    return data || [];
+  },
+
+  async fetchVersusRecord(name) {
+    const cleaned = cleanName(name);
+    const { data, error } = await getClient()
+      .from('matches')
+      .select('challenger_name,recipient_name,challenger_score,recipient_score')
+      .or(`challenger_name.eq.${cleaned},recipient_name.eq.${cleaned}`)
+      .eq('status', 'complete');
+    if (error) throw error;
+    let wins = 0, losses = 0, ties = 0;
+    for (const m of data || []) {
+      const mine = m.challenger_name === cleaned ? m.challenger_score : m.recipient_score;
+      const theirs = m.challenger_name === cleaned ? m.recipient_score : m.challenger_score;
+      if (mine == null || theirs == null) continue;
+      if (mine > theirs) wins++;
+      else if (mine < theirs) losses++;
+      else ties++;
+    }
+    return { wins, losses, ties, total: wins + losses + ties };
+  },
+
+  async submitMatchScore(matchId, side, score) {
+    const update = side === 'challenger'
+      ? { challenger_score: score, challenger_finished_at: new Date().toISOString() }
+      : { recipient_score: score, recipient_finished_at: new Date().toISOString() };
+    const { data: row, error: readErr } = await getClient()
+      .from('matches')
+      .select('*')
+      .eq('id', matchId)
+      .single();
+    if (readErr) throw readErr;
+    const otherDone = side === 'challenger' ? row.recipient_score != null : row.challenger_score != null;
+    update.status = otherDone ? 'complete' : 'playing';
+    const { data, error } = await getClient()
+      .from('matches')
+      .update(update)
+      .eq('id', matchId)
+      .is(side === 'challenger' ? 'challenger_score' : 'recipient_score', null)
+      .select('*')
+      .single();
+    if (error) throw error;
+    return data;
   }
 };

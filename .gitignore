@@ -2,3 +2,5 @@ node_modules
 .reviews
 .claude
 .DS_Store
+supabase/.branches
+supabase/.temp

@@ -4,6 +4,67 @@
 
 Ship an async head-to-head mode that lets friends play matches without coordinating timing. Validate the social loop before the Phaser migration. Acknowledge that this code will be replaced in Phaser — keep scope tight.
 
+---
+
+## Update 2026-05-10: Challenge-by-username on Versus home
+
+### Why
+
+Right now the only way to open a direct challenge is the "Challenge" button on a leaderboard row. Two problems surfaced during local testing:
+
+1. Brand-new accounts (and the test accounts being used to verify the MVP) have no leaderboard entries, so they have no way to send or receive a direct challenge — the only options are invite links, which require copy-pasting between browsers.
+2. Even for real users, "scroll the leaderboard until you find your friend" is a poor entry point. Most challenges should start from the Versus screen itself.
+
+### UI change
+
+Add a third button to `drawVersusHome` (`index.html:3735`) alongside "Generate invite link" and "Join via code":
+
+- **"Challenge by username"** — opens an overlay with a single text input (placeholder `Opponent's username`), Submit and Cancel buttons.
+
+Layout: re-flow the existing two-button row into a three-button row when there's horizontal space, or stack as 1×3 / 2+1 on phone-portrait. Keep button heights consistent with the other two; reuse `smallSize` font.
+
+### Overlay behavior
+
+Reuse `makeOverlayCard`, `styleModalButton`, and the existing input pattern from `openInviteLinkOverlay` / `openUsernameOverlay`. On submit:
+
+1. Sanitize the typed name via `sanitizeUsername` (same as elsewhere — trims, NFKC, max 20 chars).
+2. Validate: not empty, not equal to the current user's own username (toast/inline error: "Pick someone other than yourself.").
+3. Check `canSendChallengeToday()`. If false, inline error "Challenge limit reached for today." (mirrors the leaderboard flow at `index.html:1889`).
+4. Call `window.globalScores.createDirectChallenge(username.get(), typedName)`.
+5. On success: `recordChallengeSent()`, close overlay, `showToast("Challenge sent to {name}")`, `fetchVersusHome(true)` so the new pending row appears.
+6. On Supabase error: inline message "You already have an open challenge against this player." (same string as leaderboard path — most likely cause is the unique-pair index).
+
+### Differences from the leaderboard challenge overlay
+
+- **No duplicate-name warning.** The leaderboard overlay uses `leaderboard.globalRows` to count name collisions; from Versus home we don't have that list (and fetching it just to count would be wasteful). Replace with a single mute-color caption under the input: *"If multiple players share this name, only the first to open the app receives it."* This communicates the same risk without the count.
+- **No row context.** The leaderboard version is anchored on a row object. Here the only input is the typed name.
+
+### State / glue
+
+No new run-state, no new data-model changes, no new API methods. The full flow piggybacks on:
+
+- `createDirectChallenge(challengerName, recipientName)` (already exists in `src/globalScores.js`)
+- `canSendChallengeToday` / `recordChallengeSent` (already in `index.html`)
+- `fetchVersusHome` for refresh
+- `showToast` for confirmation
+
+Add one new pointer rect (`versusChallengeByNameRect`) and a hit test in the `RUN_STATE.VERSUS_HOME` branch of the pointer handler (`index.html:2401`).
+
+### Acceptance
+
+- Two browser contexts with usernames `TestA` / `TestB`, neither on the leaderboard.
+- From `TestA`: tap Versus → "Challenge by username" → type `TestB` → Send. Toast appears; `TestB` shows up as an outgoing pending row immediately.
+- From `TestB`: open Versus, see the incoming challenge from `TestA`, tap to play through 9 throws.
+- Submitting the same name twice in a row from `TestA` surfaces the "already have an open challenge" inline error (not a generic Supabase error).
+- Typing your own username inline-errors before any network call.
+- Daily soft-cap (10/day) still applies and is shared with the leaderboard challenge button (same `localStorage` key).
+
+### Estimate
+
+~30 min: one new overlay function (most of it cribbed from `openChallengeOverlay`), one new button rect on Versus home, one hit test.
+
+---
+
 ## Format (locked)
 
 - **9 throws per player.** No "innings" framing in the UI.

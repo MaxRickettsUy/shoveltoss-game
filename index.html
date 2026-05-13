@@ -21,7 +21,7 @@
   <link rel="icon" type="image/png" href="/assets/favicon.png">
   <link rel="apple-touch-icon" href="/assets/favicon.png">
   <meta name="theme-color" content="#22281f">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://esm.sh https://cloud.umami.is; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com; img-src 'self' data:; connect-src 'self' https://*.supabase.co https://esm.sh https://cloud.umami.is; frame-ancestors 'none'; base-uri 'self';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://esm.sh https://cloud.umami.is; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com; img-src 'self' data:; connect-src 'self' http://*:54321 https://*.supabase.co https://esm.sh https://cloud.umami.is; frame-ancestors 'none'; base-uri 'self';">
   <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
         integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A=="
@@ -278,11 +278,12 @@
       <i class="fa-solid fa-pen-to-square"></i>
     </button>
     <nav class="landing-actions">
-      <button data-action="play" class="landing-btn landing-btn--primary" style="--delay: 240ms">Play Game</button>
-      <button data-action="leaderboard" class="landing-btn" style="--delay: 320ms">Leaderboard</button>
-      <button data-action="hall" class="landing-btn" style="--delay: 400ms">Hall of Fame</button>
-      <button data-action="stats" class="landing-btn" style="--delay: 480ms">Player Stats</button>
-      <button data-action="whatsNew" class="landing-btn landing-btn--ghost" style="--delay: 560ms">What's New?</button>
+      <button data-action="play" class="landing-btn landing-btn--primary" style="--delay: 240ms">Solo Mode</button>
+      <button data-action="versus" id="landing-versus-button" class="landing-btn landing-btn--primary" style="--delay: 320ms">1v1 Toss-Off</button>
+      <button data-action="leaderboard" class="landing-btn" style="--delay: 400ms">Leaderboard</button>
+      <button data-action="hall" class="landing-btn" style="--delay: 480ms">Hall of Fame</button>
+      <button data-action="stats" class="landing-btn" style="--delay: 560ms">Player Stats</button>
+      <button data-action="whatsNew" class="landing-btn landing-btn--ghost" style="--delay: 640ms">What's New?</button>
     </nav>
   </main>
   <footer class="landing-footer">
@@ -307,6 +308,7 @@
   const landingPlayerButton = document.getElementById('landing-player');
   const landingPlayerNameEl = document.getElementById('landing-player-name');
   const landingVersionEl = document.getElementById('landing-version');
+  const landingVersusButton = document.getElementById('landing-versus-button');
   let landingHideTimer = null;
   let landingAnimatedOnce = false;
 
@@ -439,6 +441,8 @@
   let whatsNewOverlayEl = null;
   let settingsOverlayEl = null;
   let howToPlayOverlayEl = null;
+  let versusHowToPlayOverlayEl = null;
+  let versusHelpRect = null;
   const heroImages = {};
   let heroesRequested = false;
 
@@ -507,6 +511,37 @@
   let cardExpandBtnRects = [];
   let cardBackLeaderboardRect = null;
   let imageZoomOverlayEl = null;
+  let toastText = '';
+  let toastUntil = 0;
+  let versusHomeBackRect = null;
+  let versusChallengeByNameRect = null;
+  let versusRecordRect = null;
+  let versusHistoryOpenRect = null;
+  let versusHistoryBackRect = null;
+  let versusHistoryRows = [];
+  let versusHistoryStatus = 'idle';
+  let versusHistoryError = '';
+  let versusHistoryScrollY = 0;
+  let versusHistoryListTop = 0;
+  let versusHistoryListBottom = 0;
+  let versusMatchRects = [];
+  let versusWaitingBackRect = null;
+  let versusResultBackRect = null;
+  let versusRows = [];
+  let versusRecord = { wins: 0, losses: 0, ties: 0, total: 0 };
+  let versusRecordFetchedFor = '';
+  let versusStatus = 'idle';
+  let versusRankRows = [];
+  let versusRankStatus = 'idle';
+  let versusRankRects = [];
+  let versusError = '';
+  let versusLastFetch = 0;
+  let versusPendingCount = 0;
+  let versusPendingFetchedAt = 0;
+  let versusCurrentMatch = null;
+  let versusPollTimer = null;
+  let versusLastPolledMatchId = null;
+  let matchParamHandled = false;
 
   // --- Constants ---
   const ASPECT_LANDSCAPE = 0.6;
@@ -558,8 +593,12 @@
   const CARD_FLIP_DURATION = 260;
   const USERNAME_KEY = 'shoveltoss.username';
   const SETTINGS_KEY = 'shoveltoss.settings';
+  const CHALLENGE_COUNT_KEY = 'shoveltoss.challengesSentToday';
+  const SEEN_RESULTS_KEY = 'shoveltoss.versus.seenResults';
+  const SEEN_RESULTS_LIMIT = 200;
+  const IN_PROGRESS_MATCH_KEY = 'shoveltoss.versus.inProgressMatch';
   const METER_POSITIONS = ['top', 'middle', 'bottom'];
-  const DEFAULT_SETTINGS = { meterPosition: 'top', hideHowToPlay: false };
+  const DEFAULT_SETTINGS = { meterPosition: 'top', hideHowToPlay: false, hideVersusHowToPlay: false };
   const GLOBAL_SCORE_LIMIT = 100;
   const HIGH_SCORE_BADGE = '👑';
   const THEME = {
@@ -576,8 +615,12 @@
     shadow:        'rgba(0, 0, 0, 0.42)',
     selfHighlight: 'rgba(217, 122, 60, 0.18)',
   };
+  const ERROR_COLOR = '#ff8888';
   const HIGHLIGHT_FILL = THEME.selfHighlight;
   const PROD_APEX = 'shoveltoss.ing';
+  const VERSUS_ENABLED = true;
+  const VERSUS_THROWS_PER_PLAYER = 9;
+  const VERSUS_POLL_MS = 30000;
   const SOURCE_CODE_URL = 'https://github.com/MaxRickettsUy/shoveltoss-game';
   // When releasing user-visible changes, prepend a note in src/releaseNotes.js.
   const APP_VERSION_TAG = 'v0.27.0';
@@ -632,6 +675,7 @@
       if (!clean) return '';
       localStorage.setItem(USERNAME_KEY, clean);
       updateLandingIdentity();
+      refreshVersusBadge(true);
       return clean;
     }
   };
@@ -642,9 +686,17 @@
     }
   }
 
+  function updateLandingVersusButton() {
+    if (!landingVersusButton) return;
+    landingVersusButton.style.display = VERSUS_ENABLED ? '' : 'none';
+    landingVersusButton.textContent = `1v1 Toss-Off${versusPendingCount > 0 ? ` (${versusPendingCount})` : ''}`;
+  }
+
   function showLanding() {
     if (!landingEl) return;
     updateLandingIdentity();
+    updateLandingVersusButton();
+    refreshVersusBadge();
     if (landingVersionEl) landingVersionEl.textContent = APP_VERSION_TAG;
     if (landingEl.dataset.state !== 'hidden') return;
     if (landingHideTimer) {
@@ -701,6 +753,10 @@
         hideLanding();
         openLeaderboard(RUN_STATE.HOME);
         break;
+      case 'versus':
+        hideLanding();
+        openVersusHome();
+        break;
       case 'hall':
         hideLanding();
         openHallOfFame();
@@ -742,7 +798,7 @@
   }
 
   // --- State enums ---
-  const RUN_STATE = { USERNAME: 'username', HOME: 'home', SELECTING: 'selecting', LEVEL_SELECT: 'level_select', PLAYING: 'playing', GAME_OVER: 'game_over', LEADERBOARD: 'leaderboard', HALL_OF_FAME: 'hall_of_fame', PLAYER_STATS: 'player_stats', PLAYER_DETAIL: 'player_detail' };
+  const RUN_STATE = { USERNAME: 'username', HOME: 'home', SELECTING: 'selecting', LEVEL_SELECT: 'level_select', PLAYING: 'playing', GAME_OVER: 'game_over', LEADERBOARD: 'leaderboard', HALL_OF_FAME: 'hall_of_fame', PLAYER_STATS: 'player_stats', PLAYER_DETAIL: 'player_detail', VERSUS_HOME: 'versus_home', VERSUS_PLAYING: 'versus_playing', VERSUS_WAITING: 'versus_waiting', VERSUS_RESULT: 'versus_result', VERSUS_HISTORY: 'versus_history' };
   const STATE = {
     IDLE:      'idle',
     CHARGING:  'charging',
@@ -756,7 +812,8 @@
     throwCount:  0,
     missesRemaining: MISSES_PER_RUN,
     gameOverTime: 0,
-    lastStateBeforeLeaderboard: RUN_STATE.HOME
+    lastStateBeforeLeaderboard: RUN_STATE.HOME,
+    versusContext: null
   };
 
   if (landingEl) {
@@ -804,7 +861,7 @@
     phraseText: '',
     phraseTimer: 0
   };
-  const CELEBRATION_PHRASES = ['LETS GO', 'SHEEEEESH', 'ON FIRE 🔥', 'INSANE', 'CRACKED', 'NO WAY', 'UNREAL', 'COOKING', 'GO OFF', 'NASTY', 'ELITE', "😳 WOAH", "YES 🙂‍↕️", "SLAY 💅", "CHYEA BOIII", "YOOO", "WILD"];
+  const CELEBRATION_PHRASES = ['LETS GO', 'SHEEEEESH', 'ON FIRE 🔥', 'INSANE', 'CRACKED', 'NO WAY', 'UNREAL', 'COOKING', 'GO OFF', 'NASTY', 'ELITE', "😳 WOAH"];
   const CELEBRATION_PHRASE_DURATION = 1200;
 
   const dustPuff = {
@@ -1101,6 +1158,209 @@
       .slice(0, n);
   }
 
+  async function fetchVersusHome(force = false) {
+    if (!VERSUS_ENABLED) return;
+    const name = username.get();
+    if (!name || !window.globalScores) return;
+    const now = Date.now();
+    if (!force && versusStatus === 'loading') return;
+    if (!force && versusStatus === 'ready' && now - versusLastFetch < 60000) return;
+    versusStatus = 'loading';
+    versusError = '';
+    try {
+      const [pending, recent] = await Promise.all([
+        window.globalScores.fetchPendingForUser(name),
+        window.globalScores.fetchRecentResultsForUser
+          ? window.globalScores.fetchRecentResultsForUser(name)
+          : Promise.resolve([]),
+      ]);
+      const seenIds = new Set(pending.map(m => m.id));
+      const unseenCompleted = recent.filter(m => !seenIds.has(m.id) && isUnseenCompletedMatch(m));
+      versusRows = [...unseenCompleted, ...pending];
+      const owedThrows = versusRows.filter(row => !isMyMatchScoreDone(row)).length;
+      const unseenResults = versusRows.filter(isUnseenCompletedMatch).length;
+      versusPendingCount = owedThrows + unseenResults;
+      versusPendingFetchedAt = now;
+      versusLastFetch = now;
+      versusStatus = 'ready';
+      updateLandingVersusButton();
+      fetchVersusRecord(name);
+      fetchVersusRankings();
+    } catch {
+      versusRows = [];
+      versusPendingCount = 0;
+      versusStatus = 'error';
+      versusError = 'offline';
+      updateLandingVersusButton();
+    }
+  }
+
+  async function fetchVersusRecord(name) {
+    if (!VERSUS_ENABLED || !name || !window.globalScores) return;
+    try {
+      const record = await window.globalScores.fetchVersusRecord(name);
+      versusRecord = record;
+      versusRecordFetchedFor = name;
+    } catch {}
+  }
+
+  async function fetchVersusRankings() {
+    if (!VERSUS_ENABLED || !window.globalScores) return;
+    versusRankStatus = 'loading';
+    try {
+      versusRankRows = await window.globalScores.fetchVersusLeaderboard();
+      versusRankStatus = 'ready';
+    } catch {
+      versusRankRows = [];
+      versusRankStatus = 'error';
+    }
+  }
+
+  function refreshVersusBadge(force = false) {
+    if (!VERSUS_ENABLED) return;
+    if (!force && versusStatus === 'loading') return;
+    const now = Date.now();
+    if (!force && now - versusPendingFetchedAt < 60000) return;
+    fetchVersusHome(force);
+  }
+
+  function openVersusHome() {
+    if (!VERSUS_ENABLED) {
+      showToast('1v1 Toss-Off beta is live-site only');
+      return;
+    }
+    run.state = RUN_STATE.VERSUS_HOME;
+    stopVersusPolling();
+    fetchVersusHome(true);
+    startVersusHomePolling();
+    if (!settings.get('hideVersusHowToPlay')) {
+      openVersusHowToPlayOverlay();
+    }
+  }
+
+  async function openVersusHistory() {
+    run.state = RUN_STATE.VERSUS_HISTORY;
+    stopVersusPolling();
+    versusHistoryScrollY = 0;
+    versusHistoryStatus = 'loading';
+    versusHistoryError = '';
+    versusHistoryRows = [];
+    const me = username.get();
+    if (!me || !window.globalScores) {
+      versusHistoryStatus = 'ready';
+      return;
+    }
+    try {
+      const rows = await window.globalScores.fetchHistoryForUser(me);
+      if (run.state !== RUN_STATE.VERSUS_HISTORY) return;
+      versusHistoryRows = rows;
+      versusHistoryStatus = 'ready';
+    } catch (err) {
+      if (run.state !== RUN_STATE.VERSUS_HISTORY) return;
+      versusHistoryStatus = 'error';
+      versusHistoryError = (err && err.message) || 'offline';
+    }
+  }
+
+  function startVersusMatch(match, side, opts = {}) {
+    versusCurrentMatch = match;
+    const myCharacterId = opts.characterId
+      || (side === 'challenger' ? match.challenger_character_id : match.recipient_character_id)
+      || selectedCharacterId;
+    if (myCharacterId) {
+      const charIndex = CHARACTERS.findIndex(c => c.id === myCharacterId);
+      if (charIndex >= 0) {
+        selectedCharacterId = CHARACTERS[charIndex].id;
+        characterReady = false;
+        characterImg.src = CHARACTERS[charIndex].sprite;
+      }
+    }
+    const levelId = match.level_id && LEVELS.some(l => l.id === match.level_id)
+      ? match.level_id
+      : (selectedLevelId || LEVELS[0].id);
+    loadLevelImages();
+    selectedLevelId = levelId;
+    backgroundImg = levelImages[levelId];
+    backgroundReady = backgroundImg && backgroundImg.complete && backgroundImg.naturalWidth > 0;
+    if (backgroundImg && !backgroundReady) {
+      backgroundImg.onload = () => { backgroundReady = true; };
+    }
+    updateLayout();
+    resetRun();
+    run.versusContext = {
+      matchId: match.id,
+      side,
+      throwsRemaining: VERSUS_THROWS_PER_PLAYER,
+      scoreSoFar: 0,
+    };
+    saveInProgressMatch(run.versusContext);
+    run.state = RUN_STATE.VERSUS_PLAYING;
+  }
+
+  async function finishVersusRun() {
+    const context = run.versusContext;
+    if (!context || !window.globalScores) return;
+    context.scoreSoFar = scoring.score;
+    try {
+      const match = await window.globalScores.submitMatchScore(context.matchId, context.side, scoring.score);
+      clearInProgressMatch();
+      versusCurrentMatch = match;
+      resetDifficultyRamp();
+      run.state = bothScoresDone(match) ? RUN_STATE.VERSUS_RESULT : RUN_STATE.VERSUS_WAITING;
+      if (run.state === RUN_STATE.VERSUS_WAITING) startVersusPolling(match.id);
+      else stopVersusPolling();
+      if (run.state === RUN_STATE.VERSUS_RESULT) {
+        markResultSeen(match.id);
+        fetchVersusRecord(username.get());
+      }
+      fetchVersusHome(true);
+    } catch {
+      showToast('Could not submit score');
+      resetDifficultyRamp();
+      run.state = RUN_STATE.VERSUS_WAITING;
+      startVersusPolling(context.matchId);
+    }
+  }
+
+  async function pollMatch(matchId) {
+    if (!matchId || !window.globalScores) return;
+    try {
+      const match = await window.globalScores.fetchMatchByCode(versusCurrentMatch?.invite_code || '');
+      if (match.id !== matchId) return;
+      versusCurrentMatch = match;
+      if (bothScoresDone(match)) {
+        stopVersusPolling();
+        run.state = RUN_STATE.VERSUS_RESULT;
+        markResultSeen(match.id);
+        fetchVersusHome(true);
+        fetchVersusRecord(username.get());
+      }
+    } catch {}
+  }
+
+  function startVersusPolling(matchId) {
+    if (!matchId) return;
+    stopVersusPolling();
+    versusLastPolledMatchId = matchId;
+    if (!document.hidden) {
+      pollMatch(matchId);
+      versusPollTimer = setInterval(() => pollMatch(matchId), VERSUS_POLL_MS);
+    }
+  }
+
+  function stopVersusPolling() {
+    if (versusPollTimer) clearInterval(versusPollTimer);
+    versusPollTimer = null;
+    versusLastPolledMatchId = null;
+  }
+
+  function startVersusHomePolling() {
+    stopVersusPolling();
+    if (!document.hidden) {
+      versusPollTimer = setInterval(() => fetchVersusHome(true), VERSUS_POLL_MS);
+    }
+  }
+
   function mountLeaderboardFilterSelect() {
     if (leaderboardFilterSelectEl) {
       leaderboardFilterSelectEl.value = leaderboardCharacterFilter || '';
@@ -1173,6 +1433,136 @@
   function isDevMode() {
     const host = String(window.location.hostname || '').toLowerCase().replace(/\.$/, '');
     return host !== PROD_APEX && !host.endsWith('.' + PROD_APEX);
+  }
+
+  function showToast(message) {
+    toastText = String(message || '');
+    toastUntil = performance.now() + 2200;
+  }
+
+  function drawToast(timestamp) {
+    if (!toastText || timestamp > toastUntil) return;
+    const fontSize = Math.max(13, Math.floor(canvas.width * 0.035));
+    const padX = 14;
+    const h = fontSize + 18;
+    ctx.font = `bold ${Math.round(fontSize)}px sans-serif`;
+    const w = Math.min(canvas.width - 32, ctx.measureText(toastText).width + padX * 2);
+    const x = (canvas.width - w) / 2;
+    const y = safeTop + 12;
+    ctx.fillStyle = 'rgba(10,10,20,0.88)';
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, 6);
+    ctx.fill();
+    drawText(truncateText(toastText, w - padX * 2, fontSize, true), x + w / 2, y + h * 0.65, fontSize, THEME.accent, 'center', true);
+  }
+
+  function isSameName(a, b) {
+    return sanitizeUsername(a) === sanitizeUsername(b);
+  }
+
+  function getMatchSide(match) {
+    const me = username.get();
+    if (isSameName(match.challenger_name, me)) return 'challenger';
+    if (isSameName(match.recipient_name, me)) return 'recipient';
+    return null;
+  }
+
+  function getOpponentName(match) {
+    const side = getMatchSide(match);
+    if (side === 'challenger') return match.recipient_name || 'invite link';
+    if (side === 'recipient') return match.challenger_name || 'opponent';
+    return match.recipient_name || match.challenger_name || 'opponent';
+  }
+
+  function isMyMatchScoreDone(match) {
+    const side = getMatchSide(match);
+    return side === 'challenger' ? match.challenger_score != null : match.recipient_score != null;
+  }
+
+  function isOpponentScoreDone(match) {
+    const side = getMatchSide(match);
+    return side === 'challenger' ? match.recipient_score != null : match.challenger_score != null;
+  }
+
+  function bothScoresDone(match) {
+    return match && match.challenger_score != null && match.recipient_score != null;
+  }
+
+  function formatMatchAge(match) {
+    const created = new Date(match.created_at).getTime();
+    if (!created) return '';
+    const mins = Math.max(0, Math.floor((Date.now() - created) / 60000));
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 48) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
+  }
+
+  function challengeCountRecord() {
+    const today = new Date().toISOString().slice(0, 10);
+    try {
+      const parsed = JSON.parse(localStorage.getItem(CHALLENGE_COUNT_KEY) || '{}');
+      if (parsed.date === today) return parsed;
+    } catch {}
+    return { date: today, count: 0 };
+  }
+
+  function canSendChallengeToday() {
+    return challengeCountRecord().count < 10;
+  }
+
+  function recordChallengeSent() {
+    const rec = challengeCountRecord();
+    rec.count += 1;
+    try { localStorage.setItem(CHALLENGE_COUNT_KEY, JSON.stringify(rec)); } catch {}
+  }
+
+  function loadSeenResults() {
+    try {
+      const arr = JSON.parse(localStorage.getItem(SEEN_RESULTS_KEY) || '[]');
+      return Array.isArray(arr) ? arr : [];
+    } catch { return []; }
+  }
+  function isResultSeen(matchId) {
+    if (!matchId) return true;
+    return loadSeenResults().includes(matchId);
+  }
+  function markResultSeen(matchId) {
+    if (!matchId) return;
+    const arr = loadSeenResults();
+    if (arr.includes(matchId)) return;
+    arr.push(matchId);
+    while (arr.length > SEEN_RESULTS_LIMIT) arr.shift();
+    try { localStorage.setItem(SEEN_RESULTS_KEY, JSON.stringify(arr)); } catch {}
+  }
+  function isUnseenCompletedMatch(match) {
+    return !!match && bothScoresDone(match) && !!getMatchSide(match) && !isResultSeen(match.id);
+  }
+
+  function saveInProgressMatch(ctx) {
+    if (!ctx || !ctx.matchId || !ctx.side) {
+      try { localStorage.removeItem(IN_PROGRESS_MATCH_KEY); } catch {}
+      return;
+    }
+    try {
+      localStorage.setItem(IN_PROGRESS_MATCH_KEY, JSON.stringify({
+        matchId: ctx.matchId,
+        side: ctx.side,
+        scoreSoFar: ctx.scoreSoFar || 0,
+      }));
+    } catch {}
+  }
+  function loadInProgressMatch() {
+    try {
+      const raw = localStorage.getItem(IN_PROGRESS_MATCH_KEY);
+      if (!raw) return null;
+      const obj = JSON.parse(raw);
+      if (!obj || !obj.matchId || !obj.side) return null;
+      return obj;
+    } catch { return null; }
+  }
+  function clearInProgressMatch() {
+    try { localStorage.removeItem(IN_PROGRESS_MATCH_KEY); } catch {}
   }
 
   function crossedBoundary(prev, next, boundary) {
@@ -1343,7 +1733,7 @@
 
     const error = document.createElement('div');
     error.style.minHeight = '18px';
-    error.style.color = '#ff8888';
+    error.style.color = ERROR_COLOR;
     error.style.font = '13px sans-serif';
 
     const button = document.createElement('button');
@@ -1366,6 +1756,7 @@
       overlay.remove();
       usernameOverlayEl = null;
       run.state = returnState;
+      handleMatchParam();
     });
 
     label.appendChild(input);
@@ -1524,6 +1915,74 @@
     howToPlayOverlayEl = null;
   }
 
+  function openVersusHowToPlayOverlay() {
+    if (versusHowToPlayOverlayEl) return;
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:1000;display:flex;align-items:center;justify-content:center;padding:24px;font-family:sans-serif;';
+
+    const card = document.createElement('div');
+    card.style.cssText = `background:${THEME.bgTop};color:${THEME.text};border:2px solid ${THEME.secondary};border-radius:10px;max-width:420px;width:100%;max-height:80vh;overflow-y:auto;padding:18px 20px;`;
+
+    const title = document.createElement('h2');
+    title.textContent = 'How 1v1 Toss-Off Works';
+    title.style.cssText = 'margin:0 0 12px;font-size:22px;';
+    card.appendChild(title);
+
+    const sections = [
+      { title: 'Async head-to-head', body: 'You and your opponent each take 9 throws. Highest total wins. No live timing — play whenever you want and the match completes once both sides finish.' },
+      { title: 'Starting a match', body: 'Tap "Challenge by username" to call out a specific player, or tap any name under "Ranked players" to challenge them. Challenges expire if left unanswered.' },
+      { title: 'Accepting a challenge', body: 'Pending challenges show up at the top of this screen. Tap one to pick your character and play your 9 throws.' },
+      { title: 'Throws & scoring', body: 'Tap and hold to start the meter, tap to throw. Stick +3, back wall +2, in the pit +1, front wall 0, miss −2. There are no lives in 1v1 — you always get all 9 throws.' },
+      { title: 'Results', body: 'When both players finish, the match moves to your history with W / L / T. Your overall record shows at the top of this screen.' },
+    ];
+
+    sections.forEach(section => {
+      const h = document.createElement('h3');
+      h.textContent = section.title;
+      h.style.cssText = `margin:10px 0 3px;font-size:15px;color:${THEME.accent};`;
+      card.appendChild(h);
+      if (section.body) {
+        const p = document.createElement('p');
+        p.textContent = section.body;
+        p.style.cssText = `margin:0;font-size:14px;line-height:1.32;color:${THEME.text};`;
+        card.appendChild(p);
+      }
+    });
+
+    const btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;gap:8px;margin-top:18px;';
+
+    const dontShow = document.createElement('button');
+    dontShow.textContent = "Don't show again";
+    dontShow.style.cssText = `flex:1;padding:10px;background:transparent;color:${THEME.text};border:2px solid ${THEME.secondary};border-radius:6px;font-weight:bold;font-size:14px;cursor:pointer;`;
+    dontShow.addEventListener('click', () => {
+      settings.set('hideVersusHowToPlay', true);
+      closeVersusHowToPlayOverlay();
+    });
+
+    const okay = document.createElement('button');
+    okay.textContent = 'Got it';
+    okay.style.cssText = `flex:1;padding:10px;background:${THEME.accent};color:${THEME.bgTop};border:none;border-radius:6px;font-weight:bold;font-size:15px;cursor:pointer;`;
+    okay.addEventListener('click', closeVersusHowToPlayOverlay);
+
+    btnRow.appendChild(dontShow);
+    btnRow.appendChild(okay);
+    card.appendChild(btnRow);
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) closeVersusHowToPlayOverlay();
+    });
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+    versusHowToPlayOverlayEl = overlay;
+  }
+
+  function closeVersusHowToPlayOverlay() {
+    if (!versusHowToPlayOverlayEl) return;
+    versusHowToPlayOverlayEl.remove();
+    versusHowToPlayOverlayEl = null;
+  }
+
   function openImageZoomOverlay(characterId) {
     if (imageZoomOverlayEl) return;
     const character = CHARACTERS.find(c => c.id === characterId);
@@ -1603,6 +2062,317 @@
     settingsOverlayEl = null;
   }
 
+  function makeOverlayCard(titleText) {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:1000;display:flex;align-items:center;justify-content:center;padding:24px;font-family:sans-serif;';
+    const card = document.createElement('div');
+    card.style.cssText = `background:${THEME.bgTop};color:${THEME.text};border:2px solid ${THEME.secondary};border-radius:10px;max-width:420px;width:100%;padding:20px;display:grid;gap:12px;`;
+    const title = document.createElement('h2');
+    title.textContent = titleText;
+    title.style.cssText = 'margin:0;font-size:22px;';
+    card.appendChild(title);
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+    return { overlay, card };
+  }
+
+  function styleModalButton(btn, primary = false) {
+    btn.style.cssText = `padding:10px;background:${primary ? THEME.accent : THEME.surface};color:${primary ? THEME.bgTop : THEME.text};border:none;border-radius:6px;font-weight:bold;font-size:15px;cursor:pointer;`;
+  }
+
+  function buildVersusLevelPicker(card, defaultLevelId) {
+    const label = document.createElement('div');
+    label.textContent = 'Level';
+    label.style.cssText = `font-size:13px;color:${THEME.textMute};margin-bottom:-4px;`;
+    card.appendChild(label);
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;';
+    let selectedId = defaultLevelId && LEVELS.some(l => l.id === defaultLevelId) ? defaultLevelId : LEVELS[0].id;
+    const tiles = [];
+    const repaint = () => {
+      tiles.forEach(({ btn, id }) => {
+        const active = id === selectedId;
+        btn.style.background = active ? THEME.accent : THEME.surface;
+        btn.style.color = active ? THEME.bgTop : THEME.text;
+        btn.style.borderColor = active ? THEME.accent : THEME.secondary;
+      });
+    };
+    LEVELS.forEach(l => {
+      const btn = document.createElement('button');
+      btn.textContent = l.label;
+      btn.style.cssText = `flex:1 1 auto;min-width:80px;padding:10px 8px;border:2px solid ${THEME.secondary};border-radius:6px;font-weight:bold;font-size:14px;cursor:pointer;background:${THEME.surface};color:${THEME.text};`;
+      btn.addEventListener('click', () => { selectedId = l.id; repaint(); });
+      row.appendChild(btn);
+      tiles.push({ btn, id: l.id });
+    });
+    repaint();
+    card.appendChild(row);
+    return { get: () => selectedId };
+  }
+
+  function buildVersusCharacterPicker(card, defaultCharacterId) {
+    const label = document.createElement('div');
+    label.textContent = 'Your character';
+    label.style.cssText = `font-size:13px;color:${THEME.textMute};margin-bottom:-4px;`;
+    card.appendChild(label);
+    const strip = document.createElement('div');
+    strip.style.cssText = `display:flex;gap:6px;overflow-x:auto;padding:4px 2px;background:${THEME.surface};border-radius:6px;`;
+    let selectedId = defaultCharacterId && CHARACTERS.some(c => c.id === defaultCharacterId)
+      ? defaultCharacterId : CHARACTERS[0].id;
+    const tiles = [];
+    const repaint = () => {
+      tiles.forEach(({ btn, id }) => {
+        const active = id === selectedId;
+        btn.style.borderColor = active ? THEME.accent : 'transparent';
+        btn.style.outline = active ? `2px solid ${THEME.accent}` : 'none';
+      });
+    };
+    CHARACTERS.forEach(c => {
+      const btn = document.createElement('button');
+      btn.title = c.id;
+      btn.style.cssText = `flex:0 0 auto;width:56px;height:56px;border:2px solid transparent;border-radius:6px;padding:0;background:${THEME.bgTop};cursor:pointer;overflow:hidden;`;
+      const img = document.createElement('img');
+      img.src = c.hero;
+      img.alt = c.id;
+      img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
+      btn.appendChild(img);
+      btn.addEventListener('click', () => { selectedId = c.id; repaint(); });
+      strip.appendChild(btn);
+      tiles.push({ btn, id: c.id });
+    });
+    repaint();
+    card.appendChild(strip);
+    return { get: () => selectedId };
+  }
+
+  function openChallengePlayerOverlay(rawName) {
+    if (!VERSUS_ENABLED || !window.globalScores) return;
+    const name = sanitizeUsername(rawName);
+    if (!name) return;
+    if (isSameName(name, username.get())) {
+      showToast('Pick someone other than yourself.');
+      return;
+    }
+    const { overlay, card } = makeOverlayCard(`Challenge ${name}?`);
+    const message = document.createElement('p');
+    message.textContent = 'Send a 9-throw async match challenge. You pick the level for both players.';
+    message.style.cssText = `margin:0;color:${THEME.textMute};font-size:14px;`;
+    card.appendChild(message);
+    const levelPicker = buildVersusLevelPicker(card, selectedLevelId);
+    const characterPicker = buildVersusCharacterPicker(card, selectedCharacterId);
+    const error = document.createElement('div');
+    error.style.cssText = `min-height:18px;color:${ERROR_COLOR};font-size:13px;`;
+    card.appendChild(error);
+    const confirm = document.createElement('button');
+    confirm.textContent = 'Send challenge';
+    styleModalButton(confirm, true);
+    const cancel = document.createElement('button');
+    cancel.textContent = 'Cancel';
+    styleModalButton(cancel);
+    confirm.addEventListener('click', async () => {
+      if (!canSendChallengeToday()) {
+        error.textContent = 'Challenge limit reached for today.';
+        return;
+      }
+      confirm.disabled = true;
+      try {
+        await window.globalScores.createDirectChallenge(username.get(), name, {
+          levelId: levelPicker.get(),
+          characterId: characterPicker.get(),
+        });
+        recordChallengeSent();
+        overlay.remove();
+        showToast(`Challenge sent to ${name}`);
+        fetchVersusHome(true);
+      } catch {
+        error.textContent = 'You already have an open challenge against this player.';
+        confirm.disabled = false;
+      }
+    });
+    cancel.addEventListener('click', () => overlay.remove());
+    card.appendChild(confirm);
+    card.appendChild(cancel);
+  }
+
+  function openChallengeByUsernameOverlay() {
+    if (!VERSUS_ENABLED || !window.globalScores) return;
+    const { overlay, card } = makeOverlayCard('Challenge by username');
+    const select = document.createElement('select');
+    select.style.cssText = `width:100%;padding:12px;border:0;border-radius:6px;font:16px sans-serif;background:${THEME.surface};color:${THEME.text};`;
+    const loadingOpt = document.createElement('option');
+    loadingOpt.value = '';
+    loadingOpt.textContent = 'Loading players…';
+    select.appendChild(loadingOpt);
+    select.disabled = true;
+    const caption = document.createElement('p');
+    caption.textContent = 'If multiple players share this name, only the first to open the app receives it.';
+    caption.style.cssText = `margin:0;color:${THEME.textMute};font-size:13px;line-height:1.35;`;
+    card.appendChild(select);
+    card.appendChild(caption);
+    const levelPicker = buildVersusLevelPicker(card, selectedLevelId);
+    const characterPicker = buildVersusCharacterPicker(card, selectedCharacterId);
+    const error = document.createElement('div');
+    error.style.cssText = `min-height:18px;color:${ERROR_COLOR};font-size:13px;`;
+    const submit = document.createElement('button');
+    submit.textContent = 'Submit';
+    styleModalButton(submit, true);
+    submit.disabled = true;
+    const cancel = document.createElement('button');
+    cancel.textContent = 'Cancel';
+    styleModalButton(cancel);
+
+    (async () => {
+      try {
+        const names = await window.globalScores.fetchKnownPlayers();
+        const me = username.get();
+        const others = names.filter(n => !isSameName(n, me));
+        select.innerHTML = '';
+        if (others.length === 0) {
+          const opt = document.createElement('option');
+          opt.value = '';
+          opt.textContent = 'No other players yet';
+          select.appendChild(opt);
+          select.disabled = true;
+          return;
+        }
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = 'Select an opponent…';
+        placeholder.disabled = true;
+        placeholder.selected = true;
+        select.appendChild(placeholder);
+        others.forEach(n => {
+          const opt = document.createElement('option');
+          opt.value = n;
+          opt.textContent = n;
+          select.appendChild(opt);
+        });
+        select.disabled = false;
+        submit.disabled = false;
+      } catch {
+        select.innerHTML = '';
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = 'Could not load players';
+        select.appendChild(opt);
+        select.disabled = true;
+      }
+    })();
+
+    const sendChallenge = async () => {
+      const name = sanitizeUsername(select.value);
+      error.textContent = '';
+      if (!name) {
+        error.textContent = 'Select an opponent.';
+        return;
+      }
+      if (isSameName(name, username.get())) {
+        error.textContent = 'Pick someone other than yourself.';
+        return;
+      }
+      if (!canSendChallengeToday()) {
+        error.textContent = 'Challenge limit reached for today.';
+        return;
+      }
+      submit.disabled = true;
+      try {
+        await window.globalScores.createDirectChallenge(username.get(), name, {
+          levelId: levelPicker.get(),
+          characterId: characterPicker.get(),
+        });
+        recordChallengeSent();
+        overlay.remove();
+        showToast(`Challenge sent to ${name}`);
+        fetchVersusHome(true);
+      } catch {
+        error.textContent = 'You already have an open challenge against this player.';
+        submit.disabled = false;
+      }
+    };
+
+    submit.addEventListener('click', sendChallenge);
+    cancel.addEventListener('click', () => overlay.remove());
+    card.appendChild(error);
+    card.appendChild(submit);
+    card.appendChild(cancel);
+  }
+
+  function openAcceptMatchOverlay(match) {
+    const levelLabel = (LEVELS.find(l => l.id === match.level_id) || {}).label;
+    const heading = levelLabel
+      ? `${match.challenger_name} challenged you on ${levelLabel}`
+      : `Join match against ${match.challenger_name}?`;
+    const { overlay, card } = makeOverlayCard(heading);
+    const text = document.createElement('p');
+    text.textContent = 'This is a 9-throw async match. Opponent scores stay hidden until both players finish.';
+    text.style.cssText = `margin:0;color:${THEME.textMute};font-size:14px;line-height:1.35;`;
+    card.appendChild(text);
+    const characterPicker = buildVersusCharacterPicker(card, selectedCharacterId);
+    const error = document.createElement('div');
+    error.style.cssText = `min-height:18px;color:${ERROR_COLOR};font-size:13px;`;
+    const accept = document.createElement('button');
+    accept.textContent = 'Play';
+    styleModalButton(accept, true);
+    const decline = document.createElement('button');
+    decline.textContent = 'Decline';
+    styleModalButton(decline);
+    accept.addEventListener('click', async () => {
+      accept.disabled = true;
+      const characterId = characterPicker.get();
+      try {
+        const joined = await window.globalScores.joinMatch(match.id, username.get(), { characterId });
+        overlay.remove();
+        startVersusMatch(joined, 'recipient', { characterId });
+      } catch {
+        error.textContent = 'Could not join match.';
+        accept.disabled = false;
+      }
+    });
+    decline.addEventListener('click', () => overlay.remove());
+    card.appendChild(error);
+    card.appendChild(accept);
+    card.appendChild(decline);
+  }
+
+  function openVersusRecipientPickOverlay(match) {
+    const levelLabel = (LEVELS.find(l => l.id === match.level_id) || {}).label;
+    const heading = levelLabel
+      ? `${match.challenger_name} challenged you on ${levelLabel}`
+      : `${match.challenger_name} challenged you`;
+    const { overlay, card } = makeOverlayCard(heading);
+    const text = document.createElement('p');
+    text.textContent = 'Pick a character and tap Play. 9 throws each.';
+    text.style.cssText = `margin:0;color:${THEME.textMute};font-size:14px;line-height:1.35;`;
+    card.appendChild(text);
+    const characterPicker = buildVersusCharacterPicker(card, selectedCharacterId);
+    const error = document.createElement('div');
+    error.style.cssText = `min-height:18px;color:${ERROR_COLOR};font-size:13px;`;
+    const play = document.createElement('button');
+    play.textContent = 'Play';
+    styleModalButton(play, true);
+    const decline = document.createElement('button');
+    decline.textContent = 'Decline';
+    styleModalButton(decline);
+    play.addEventListener('click', async () => {
+      play.disabled = true;
+      const characterId = characterPicker.get();
+      try {
+        if (window.globalScores && !match.recipient_character_id) {
+          await window.globalScores.setRecipientCharacter(match.id, characterId).catch(() => null);
+        }
+        overlay.remove();
+        startVersusMatch(match, 'recipient', { characterId });
+      } catch {
+        error.textContent = 'Could not start match.';
+        play.disabled = false;
+      }
+    });
+    decline.addEventListener('click', () => overlay.remove());
+    card.appendChild(error);
+    card.appendChild(play);
+    card.appendChild(decline);
+  }
+
   function buildMeterPositionRow() {
     const row = document.createElement('div');
     row.style.cssText = 'margin:6px 0 4px;';
@@ -1649,6 +2419,7 @@
     run.throwCount       = 0;
     run.missesRemaining  = MISSES_PER_RUN;
     run.state            = RUN_STATE.PLAYING;
+    run.versusContext    = null;
     throw_.state         = STATE.IDLE;
     throw_.meterFill     = 0;
     throw_.meterDir      = 1;
@@ -1689,13 +2460,13 @@
         ? (pitRight - result.x) / (pitRight - pitLeft)
         : (result.x - pitLeft) / (pitRight - pitLeft);
       if (norm < ZONE_FRONT_WALL_MAX) {
-        zone = 'front_wall'; basePoints = PTS_FRONT_WALL;
+        zone = 'front_wall'; basePoints = run.state === RUN_STATE.VERSUS_PLAYING ? 0 : PTS_FRONT_WALL;
       } else if (result.inSweetSpot) {
         zone = 'stick';      basePoints = PTS_STICK;
       } else if (norm > ZONE_BACK_WALL_MIN) {
-        zone = 'back_wall';  basePoints = PTS_BACK_WALL;
+        zone = 'back_wall';  basePoints = run.state === RUN_STATE.VERSUS_PLAYING ? 2 : PTS_BACK_WALL;
       } else {
-        zone = 'in_pit';     basePoints = PTS_IN_PIT;
+        zone = 'in_pit';     basePoints = run.state === RUN_STATE.VERSUS_PLAYING ? 1 : PTS_IN_PIT;
       }
     }
 
@@ -1704,11 +2475,25 @@
     scoring.score         += scoring.lastThrowPoints;
     const prevScore = scoring.score - scoring.lastThrowPoints;
     triggerCelebrations(prevScore, scoring.score);
+    if (run.state === RUN_STATE.VERSUS_PLAYING && zone === 'stick') {
+      const idx = Math.floor(Math.random() * CELEBRATION_PHRASES.length);
+      celebration.phraseText = CELEBRATION_PHRASES[idx];
+      celebration.phraseTimer = CELEBRATION_PHRASE_DURATION;
+    }
     scoring.feedbackTimer  = FEEDBACK_DURATION;
 
     run.throwCount++;
     if (zone === 'stick') {
       difficulty.meterSpeed += METER_SPEED_INCREMENT_PER_THROW;
+    }
+    if (run.state === RUN_STATE.VERSUS_PLAYING && run.versusContext) {
+      run.versusContext.throwsRemaining = Math.max(0, run.versusContext.throwsRemaining - 1);
+      run.versusContext.scoreSoFar = scoring.score;
+      saveInProgressMatch(run.versusContext);
+      if (run.versusContext.throwsRemaining === 0) {
+        finishVersusRun();
+      }
+      return;
     }
     if (zone === 'miss') {
       run.missesRemaining--;
@@ -1842,6 +2627,9 @@
             case 'leaderboard':
               openLeaderboard(RUN_STATE.HOME);
               break;
+            case 'versus':
+              openVersusHome();
+              break;
             case 'hall':
               openHallOfFame();
               break;
@@ -1965,6 +2753,84 @@
       }
       return;
     }
+    if (run.state === RUN_STATE.VERSUS_HOME) {
+      if (pointerInRect(versusHelpRect)) {
+        openVersusHowToPlayOverlay();
+        return;
+      }
+      if (pointerInRect(versusHomeBackRect)) {
+        run.state = RUN_STATE.HOME;
+        stopVersusPolling();
+        return;
+      }
+      if (pointerInRect(versusChallengeByNameRect)) {
+        openChallengeByUsernameOverlay();
+        return;
+      }
+      if (pointerInRect(versusHistoryOpenRect)) {
+        openVersusHistory();
+        return;
+      }
+      for (let i = 0; i < versusRankRects.length; i++) {
+        const item = versusRankRects[i];
+        if (pointerInRect(item)) {
+          openChallengePlayerOverlay(item.name);
+          return;
+        }
+      }
+      for (let i = 0; i < versusMatchRects.length; i++) {
+        const item = versusMatchRects[i];
+        if (pointerInRect(item)) {
+          const match = item.match;
+          const side = getMatchSide(match);
+          if (!side && !match.recipient_name) {
+            openAcceptMatchOverlay(match);
+          } else if (side && !isMyMatchScoreDone(match)) {
+            if (side === 'recipient' && !match.recipient_character_id) {
+              openVersusRecipientPickOverlay(match);
+            } else {
+              startVersusMatch(match, side);
+            }
+          } else if (bothScoresDone(match)) {
+            versusCurrentMatch = match;
+            run.state = RUN_STATE.VERSUS_RESULT;
+            markResultSeen(match.id);
+            fetchVersusHome(true);
+          } else {
+            versusCurrentMatch = match;
+            run.state = RUN_STATE.VERSUS_WAITING;
+            startVersusPolling(match.id);
+          }
+          return;
+        }
+      }
+      return;
+    }
+    if (run.state === RUN_STATE.VERSUS_WAITING) {
+      if (pointerInRect(versusWaitingBackRect)) {
+        run.state = RUN_STATE.VERSUS_HOME;
+        stopVersusPolling();
+        fetchVersusHome(true);
+        startVersusHomePolling();
+      }
+      return;
+    }
+    if (run.state === RUN_STATE.VERSUS_HISTORY) {
+      if (pointerInRect(versusHistoryBackRect)) {
+        run.state = RUN_STATE.VERSUS_HOME;
+        fetchVersusHome(true);
+        startVersusHomePolling();
+      }
+      return;
+    }
+    if (run.state === RUN_STATE.VERSUS_RESULT) {
+      if (pointerInRect(versusResultBackRect)) {
+        run.state = RUN_STATE.VERSUS_HOME;
+        fetchVersusHome(true);
+        startVersusHomePolling();
+      }
+      return;
+    }
     if (run.state === RUN_STATE.HALL_OF_FAME) {
       if (pointerInRect(hallOfFameBackRect)) {
         run.state = RUN_STATE.HOME;
@@ -1999,6 +2865,7 @@
       return;
     }
     // PLAYING — throw logic
+    if (run.state !== RUN_STATE.PLAYING && run.state !== RUN_STATE.VERSUS_PLAYING) return;
     if (settingsGearRect && settingsGearRect.active && pointerInRect(settingsGearRect)) {
       openSettingsOverlay();
       return;
@@ -2111,7 +2978,8 @@
     leaderboardDragStartedInList = (run.state === RUN_STATE.LEADERBOARD && isInLeaderboardList(y))
       || (run.state === RUN_STATE.HALL_OF_FAME && isInHallOfFameList(y))
       || (run.state === RUN_STATE.PLAYER_STATS && isInPlayerStatsList(y))
-      || (run.state === RUN_STATE.PLAYER_DETAIL && isInPlayerDetailList(y));
+      || (run.state === RUN_STATE.PLAYER_DETAIL && isInPlayerDetailList(y))
+      || (run.state === RUN_STATE.VERSUS_HISTORY && y >= versusHistoryListTop && y <= versusHistoryListBottom);
     leaderboardDragScrolling = false;
     leaderboardDragLastY = y;
     leaderboardDragTotal = 0;
@@ -2129,6 +2997,8 @@
       playerStatsScrollY -= dy;
     } else if (run.state === RUN_STATE.PLAYER_DETAIL) {
       playerDetailScrollY -= dy;
+    } else if (run.state === RUN_STATE.VERSUS_HISTORY) {
+      versusHistoryScrollY -= dy;
     } else {
       leaderboardScrollY -= dy;
     }
@@ -2206,6 +3076,8 @@
       playerStatsScrollY += e.deltaY;
     } else if (run.state === RUN_STATE.PLAYER_DETAIL) {
       playerDetailScrollY += e.deltaY;
+    } else if (run.state === RUN_STATE.VERSUS_HISTORY) {
+      versusHistoryScrollY += e.deltaY;
     } else {
       return;
     }
@@ -2245,6 +3117,9 @@
       hideLanding();
       update(dt, timestamp);
       draw();
+    } else if (run.state === RUN_STATE.VERSUS_PLAYING) {
+      update(dt, timestamp);
+      draw();
     } else if (run.state === RUN_STATE.GAME_OVER) {
       hideLanding();
       draw();
@@ -2252,6 +3127,14 @@
     } else if (run.state === RUN_STATE.LEADERBOARD) {
       hideLanding();
       drawLeaderboard();
+    } else if (run.state === RUN_STATE.VERSUS_HOME) {
+      drawVersusHome(timestamp);
+    } else if (run.state === RUN_STATE.VERSUS_WAITING) {
+      drawVersusWaiting(timestamp);
+    } else if (run.state === RUN_STATE.VERSUS_RESULT) {
+      drawVersusResult(timestamp);
+    } else if (run.state === RUN_STATE.VERSUS_HISTORY) {
+      drawVersusHistory(timestamp);
     } else if (run.state === RUN_STATE.HALL_OF_FAME) {
       hideLanding();
       drawHallOfFame(timestamp);
@@ -2582,7 +3465,11 @@
     const gearX = canvas.width - HUD_PAD - gearSize;
     const gearY = safeTop;
     drawText(scoring.score, HUD_PAD, hudY, hudFontSize, THEME.text, 'left', true);
-    drawLifeIcons(HUD_PAD, hudY + subFontSize + 8);
+    if (run.state === RUN_STATE.VERSUS_PLAYING && run.versusContext) {
+      drawText(`${run.versusContext.throwsRemaining} throws`, HUD_PAD, hudY + subFontSize + 8, subFontSize, THEME.textMute, 'left', false);
+    } else {
+      drawLifeIcons(HUD_PAD, hudY + subFontSize + 8);
+    }
     drawDevTestButtons(HUD_PAD, hudY + subFontSize + 18);
     const playerName = username.get();
     const highScoreBadge = isScoreLeaderUsername(playerName) ? `${HIGH_SCORE_BADGE} ` : '';
@@ -2954,7 +3841,7 @@
     if (flippedCardStatus === 'loading') {
       drawText('Loading…', x + w / 2, y + h / 2, rowSize, THEME.textMute, 'center', false);
     } else if (flippedCardStatus === 'error') {
-      drawText('Offline', x + w / 2, y + h / 2, rowSize, '#ff8888', 'center', false);
+      drawText('Offline', x + w / 2, y + h / 2, rowSize, ERROR_COLOR, 'center', false);
     } else if (flippedCardStatus === 'ready') {
       if (flippedCardRows.length === 0) {
         drawText('No scores yet', x + w / 2, y + h / 2, rowSize, THEME.textMute, 'center', false);
@@ -3045,13 +3932,14 @@
     if (leaderboard.globalStatus === 'loading') {
       drawText('Loading...', cx, listTop + rowSize, rowSize, THEME.textMute, 'center', false);
     } else if (leaderboard.globalStatus === 'error') {
-      drawText('offline', cx, listTop + rowSize, rowSize, '#ff8888', 'center', false);
+      drawText('offline', cx, listTop + rowSize, rowSize, ERROR_COLOR, 'center', false);
     } else if (rows.length === 0) {
       drawText('No scores yet', cx, listTop + rowSize, rowSize, THEME.textMute, 'center', false);
     } else {
       const leftX = pad;
       const scoreX = canvas.width - pad;
-      const dateX = scoreX - Math.max(72, canvas.width * 0.17);
+      const actualScoreX = scoreX;
+      const dateX = actualScoreX - Math.max(62, canvas.width * 0.15);
       ctx.save();
       ctx.beginPath();
       ctx.rect(0, listTop, canvas.width, listH);
@@ -3083,13 +3971,14 @@
         if (scoreDate) {
           drawText(scoreDate, dateX, y, dateSize, THEME.textMute, 'right', false);
         }
-        drawText(row.score, scoreX, y, rowSize, THEME.accent, 'right', true);
+        drawText(row.score, actualScoreX, y, rowSize, THEME.accent, 'right', true);
       });
       ctx.restore();
     }
 
     leaderboardBackRect = { x: pad, y: canvas.height - pad - backH, w: canvas.width - pad * 2, h: backH };
     drawButton({ ...leaderboardBackRect, fontSize: isPhoneLandscape ? 11 : 13 }, 'Back');
+    drawToast(performance.now());
   }
 
   function drawHome(timestamp) {
@@ -3132,7 +4021,8 @@
     const buttonH = Math.max(isPhoneLandscape ? 34 : 42, canvas.height * (isPhoneLandscape ? 0.075 : 0.06));
     const buttonGap = Math.max(isPhoneLandscape ? 8 : 12, canvas.height * 0.018);
     const buttons = [
-      { label: '🪏 Play Game', action: 'play' },
+      { label: '🪏 Solo Mode', action: 'play' },
+      ...(VERSUS_ENABLED ? [{ label: `⚔️ 1v1 Toss-Off${versusPendingCount > 0 ? ` (${versusPendingCount})` : ''}`, action: 'versus' }] : []),
       { label: '👑 Leaderboard', action: 'leaderboard' },
       { label: '🏛 Hall of Fame', action: 'hall' },
       { label: '📊 Player Stats', action: 'stats' },
@@ -3186,6 +4076,353 @@
     }
     drawText(footerFlag, iconX + iconSize + gap, textY, footerSize, THEME.textMute, 'left', false);
     footerGithubRect = { x: iconX - 6, y: iconY - 6, w: iconSize + 12, h: iconSize + 12 };
+    refreshVersusBadge();
+    drawToast(timestamp);
+  }
+
+  function formatVersusRecord(record) {
+    const r = record || { wins: 0, losses: 0, ties: 0, total: 0 };
+    if (!r.total) return 'Record: no matches yet';
+    const base = `Record: ${r.wins}W · ${r.losses}L`;
+    return r.ties > 0 ? `${base} · ${r.ties}T` : base;
+  }
+
+  function versusRowStatus(match) {
+    const side = getMatchSide(match);
+    if (bothScoresDone(match)) return isUnseenCompletedMatch(match) ? 'Click to view' : 'complete';
+    if (!side && !match.recipient_name) return 'Click to accept';
+    if (!side) return 'pending';
+    if (!isMyMatchScoreDone(match)) return 'Click to play';
+    if (!isOpponentScoreDone(match)) return `waiting for ${getOpponentName(match)}`;
+    return 'complete';
+  }
+
+  function drawVersusHome(timestamp) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = THEME.bgTop;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const cx = canvas.width / 2;
+    const isPhoneLandscape = canvas.width > canvas.height && canvas.height <= 500;
+    const pad = isPhoneLandscape ? 12 : 20;
+    const titleSize = isPhoneLandscape ? Math.max(24, canvas.height * 0.09) : Math.max(30, canvas.width * 0.09);
+    const rowSize = isPhoneLandscape ? Math.max(12, canvas.height * 0.04) : Math.max(15, Math.min(28, canvas.width * 0.04));
+    const smallSize = Math.max(10, Math.min(16, rowSize * 0.75));
+    const titleY = Math.max(4, safeTop * 0.35) + titleSize;
+    drawText('1V1 TOSS-OFF', cx, titleY, titleSize, THEME.text, 'center', true);
+    const recordY = titleY + smallSize + 16;
+    const recordText = formatVersusRecord(versusRecord);
+    drawText(recordText, cx, recordY, smallSize, THEME.accent, 'center', true);
+    versusRecordRect = null;
+
+    const btnH = Math.max(32, canvas.height * 0.052);
+    const btnW = Math.min(320, canvas.width - pad * 2);
+    const historyBtnY = recordY + smallSize + 10;
+    versusHistoryOpenRect = { x: cx - btnW / 2, y: historyBtnY, w: btnW, h: btnH, fontSize: smallSize, centered: true };
+    drawButton(versusHistoryOpenRect, 'View challenge history');
+
+    const btnY = historyBtnY + btnH + 8;
+    versusChallengeByNameRect = { x: cx - btnW / 2, y: btnY, w: btnW, h: btnH, fontSize: smallSize, centered: true };
+    drawButton(versusChallengeByNameRect, 'Challenge by username');
+
+    const backH = Math.max(30, canvas.height * 0.048);
+    const listTop = btnY + btnH + pad;
+    const listBottom = canvas.height - pad * 2 - backH;
+    versusMatchRects = [];
+    versusRankRects = [];
+    let matchesEndY = listTop;
+    if (versusStatus === 'loading') {
+      drawText('Loading...', cx, listTop + rowSize, rowSize, THEME.textMute, 'center', false);
+      matchesEndY = listTop + rowSize * 1.5;
+    } else if (versusStatus === 'error') {
+      drawText(versusError || 'offline', cx, listTop + rowSize, rowSize, ERROR_COLOR, 'center', false);
+      matchesEndY = listTop + rowSize * 1.5;
+    } else if (versusRows.length === 0) {
+      drawText('No challenges waiting', cx, listTop + rowSize, rowSize, THEME.textMute, 'center', false);
+      matchesEndY = listTop + rowSize * 1.5;
+    } else {
+      const rowH = Math.max(64, rowSize * 3.2);
+      versusRows.forEach((match, index) => {
+        const y = listTop + index * (rowH + 8);
+        if (y + rowH > listBottom) return;
+        matchesEndY = y + rowH;
+        const rect = { x: pad, y, w: canvas.width - pad * 2, h: rowH, match };
+        versusMatchRects.push(rect);
+        ctx.fillStyle = index % 2 === 0 ? THEME.surface2 : THEME.surface;
+        ctx.beginPath();
+        ctx.roundRect(rect.x, rect.y, rect.w, rect.h, 6);
+        ctx.fill();
+
+        const textX = rect.x + 12;
+        const nameMaxW = rect.w - 24 - canvas.width * 0.22;
+        const side = getMatchSide(match);
+        const directionLabel = side === 'recipient' ? 'CHALLENGED BY' : 'YOU CHALLENGED';
+        const labelY = y + smallSize + 6;
+        const nameY = labelY + rowSize + 2;
+        drawText(directionLabel, textX, labelY, smallSize, THEME.textMute, 'left', true);
+        drawText(truncateText(getOpponentName(match), nameMaxW, rowSize, true), textX, nameY, rowSize, THEME.text, 'left', true);
+        drawText(versusRowStatus(match), rect.x + rect.w - 12, nameY, smallSize, THEME.accent, 'right', false);
+        drawText(formatMatchAge(match), textX, y + rowH - 10, smallSize, THEME.textFaint, 'left', false);
+
+        const showOpponentScore = bothScoresDone(match);
+        const myScore = getMatchSide(match) === 'challenger' ? match.challenger_score : match.recipient_score;
+        const theirScore = getMatchSide(match) === 'challenger' ? match.recipient_score : match.challenger_score;
+        let scoreText = '';
+        if (showOpponentScore && myScore != null && theirScore != null) {
+          scoreText = `${myScore} – ${theirScore}`;
+        } else if (myScore != null) {
+          scoreText = `you: ${myScore}`;
+        }
+        if (scoreText) {
+          drawText(scoreText, rect.x + rect.w - 12, y + rowH - 10, smallSize, THEME.text, 'right', true);
+        }
+      });
+    }
+
+    const me = username.get();
+    const rankRows = (versusRankRows || []).filter(r => !isSameName(r.name, me));
+    if (rankRows.length > 0) {
+      const headerY = matchesEndY + pad;
+      const rankRowH = Math.max(28, rowSize * 1.4);
+      const headerSize = smallSize;
+      if (headerY + headerSize + rankRowH <= listBottom) {
+        drawText('RANKED PLAYERS', pad, headerY + headerSize, headerSize, THEME.textMute, 'left', true);
+        ctx.font = `bold ${Math.round(headerSize)}px sans-serif`;
+        const rankedHeaderW = ctx.measureText('RANKED PLAYERS').width;
+        drawText('(Click to challenge)', pad + rankedHeaderW + 8, headerY + headerSize, headerSize, THEME.textFaint, 'left', false);
+        const rowsTop = headerY + headerSize + 8;
+        rankRows.forEach((r, index) => {
+          const y = rowsTop + index * (rankRowH + 4);
+          if (y + rankRowH > listBottom) return;
+          const rect = { x: pad, y, w: canvas.width - pad * 2, h: rankRowH, name: r.name };
+          versusRankRects.push(rect);
+          ctx.fillStyle = index % 2 === 0 ? THEME.surface2 : THEME.surface;
+          ctx.beginPath();
+          ctx.roundRect(rect.x, rect.y, rect.w, rect.h, 6);
+          ctx.fill();
+          const textY = y + rankRowH / 2 + rowSize * 0.35;
+          const rankText = `${index + 1}.`;
+          ctx.font = `bold ${Math.round(rowSize)}px sans-serif`;
+          const rankW = ctx.measureText(rankText).width;
+          drawText(rankText, pad + 10, textY, rowSize, THEME.textMute, 'left', true);
+          const recordText = r.ties > 0
+            ? `${r.wins}W · ${r.losses}L · ${r.ties}T`
+            : `${r.wins}W · ${r.losses}L`;
+          ctx.font = `${Math.round(smallSize)}px sans-serif`;
+          const recordW = ctx.measureText(recordText).width;
+          const nameLeftX = pad + 10 + rankW + 10;
+          const nameMaxW = rect.w - (nameLeftX - rect.x) - recordW - 24;
+          const nameText = truncateText(r.name, nameMaxW, rowSize);
+          drawText(nameText, nameLeftX, textY, rowSize, THEME.text, 'left', false);
+          drawText(recordText, rect.x + rect.w - 12, textY, smallSize, THEME.accent, 'right', true);
+        });
+      }
+    }
+
+    const bottomY = canvas.height - pad - backH;
+    const bottomW = canvas.width - pad * 2;
+    const bottomGap = 8;
+    const helpW = backH;
+    const backW = bottomW - helpW - bottomGap;
+    versusHelpRect = { x: pad, y: bottomY, w: helpW, h: backH };
+    drawButton({ ...versusHelpRect, fontSize: Math.floor(backH * 0.55), centered: true, radius: Math.floor(backH / 2) }, '?');
+    versusHomeBackRect = { x: pad + helpW + bottomGap, y: bottomY, w: backW, h: backH };
+    drawButton({ ...versusHomeBackRect, fontSize: isPhoneLandscape ? 11 : 13 }, 'Back');
+    drawToast(timestamp);
+  }
+
+  function drawVersusWaiting(timestamp) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = THEME.bgTop;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const cx = canvas.width / 2;
+    const titleSize = Math.max(30, Math.min(54, canvas.width * 0.12));
+    const scoreSize = Math.max(42, Math.min(72, canvas.width * 0.18));
+    const textSize = Math.max(15, Math.min(20, canvas.width * 0.045));
+    const opponent = versusCurrentMatch ? getOpponentName(versusCurrentMatch) : 'opponent';
+    const mySide = versusCurrentMatch ? getMatchSide(versusCurrentMatch) : null;
+    const theirScore = versusCurrentMatch
+      ? (mySide === 'challenger' ? versusCurrentMatch.recipient_score : versusCurrentMatch.challenger_score)
+      : null;
+    const myScore = versusCurrentMatch
+      ? (mySide === 'challenger' ? versusCurrentMatch.challenger_score : versusCurrentMatch.recipient_score)
+      : null;
+    drawText('WAITING', cx, safeTop + canvas.height * 0.24, titleSize, THEME.text, 'center', true);
+    drawText(String(myScore ?? run.versusContext?.scoreSoFar ?? scoring.score), cx, safeTop + canvas.height * 0.42, scoreSize, THEME.accent, 'center', true);
+    const opponentCharId = versusCurrentMatch && (mySide === 'challenger'
+      ? versusCurrentMatch.recipient_character_id
+      : versusCurrentMatch.challenger_character_id);
+    const heroImg = getVersusHeroImage(opponentCharId);
+    const opponentLabel = theirScore != null ? `${opponent}: ${theirScore}` : `waiting for ${opponent}`;
+    if (heroImg && heroImg.complete && heroImg.naturalWidth > 0) {
+      const opSize = Math.max(72, Math.min(140, canvas.width * 0.28));
+      const opY = safeTop + canvas.height * 0.56;
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(cx - opSize / 2, opY, opSize, opSize, 8);
+      ctx.clip();
+      const s = Math.max(opSize / heroImg.naturalWidth, opSize / heroImg.naturalHeight);
+      const w = heroImg.naturalWidth * s;
+      const h = heroImg.naturalHeight * s;
+      ctx.drawImage(heroImg, cx - w / 2, opY + opSize / 2 - h / 2, w, h);
+      ctx.restore();
+      drawText(opponentLabel, cx, opY + opSize + textSize + 6, textSize, THEME.textMute, 'center', false);
+    } else {
+      drawText(opponentLabel, cx, safeTop + canvas.height * 0.52, textSize, THEME.textMute, 'center', false);
+    }
+    const pad = 20;
+    const backH = Math.max(38, canvas.height * 0.06);
+    versusWaitingBackRect = { x: pad, y: canvas.height - pad - backH, w: canvas.width - pad * 2, h: backH };
+    drawButton(versusWaitingBackRect, 'Back to home');
+    drawToast(timestamp);
+  }
+
+  const versusHeroCache = new Map();
+  function getVersusHeroImage(characterId) {
+    if (!characterId) return null;
+    const existingPreload = heroImages[characterId];
+    if (existingPreload) return existingPreload;
+    if (versusHeroCache.has(characterId)) return versusHeroCache.get(characterId);
+    const def = CHARACTERS.find(c => c.id === characterId);
+    if (!def) { versusHeroCache.set(characterId, null); return null; }
+    const img = new Image();
+    img.src = def.hero;
+    versusHeroCache.set(characterId, img);
+    return img;
+  }
+
+  function drawVersusResult(timestamp) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = THEME.bgTop;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const match = versusCurrentMatch || {};
+    const mySide = getMatchSide(match) || run.versusContext?.side || 'challenger';
+    const myScore = mySide === 'challenger' ? match.challenger_score : match.recipient_score;
+    const theirScore = mySide === 'challenger' ? match.recipient_score : match.challenger_score;
+    let headline = 'TIE';
+    if (myScore > theirScore) headline = 'WIN';
+    if (myScore < theirScore) headline = 'LOSS';
+    const cx = canvas.width / 2;
+    const titleSize = Math.max(38, Math.min(66, canvas.width * 0.15));
+    const scoreSize = Math.max(26, Math.min(44, canvas.width * 0.09));
+    const nameSize = Math.max(14, Math.min(18, canvas.width * 0.04));
+    drawText(headline, cx, safeTop + canvas.height * 0.24, titleSize, THEME.accent, 'center', true);
+    loadHeroImages();
+    const myCharacterId = (mySide === 'challenger' ? match.challenger_character_id : match.recipient_character_id)
+      || selectedCharacterId;
+    const theirCharacterId = mySide === 'challenger' ? match.recipient_character_id : match.challenger_character_id;
+    const pad = 20;
+    const backH = Math.max(38, canvas.height * 0.06);
+    const headlineBottom = safeTop + canvas.height * 0.24 + titleSize * 0.4;
+    const bottomLimit = canvas.height - pad - backH - 12;
+    const availableH = bottomLimit - headlineBottom;
+    const portraitSize = Math.max(96, Math.min(canvas.width * 0.4, availableH - nameSize - scoreSize - 24));
+    const colW = Math.max(portraitSize + 16, Math.min(220, canvas.width * 0.44));
+    const leftX = cx - colW / 2;
+    const rightX = cx + colW / 2;
+    const portraitY = headlineBottom + 16;
+    [[myCharacterId, leftX], [theirCharacterId, rightX]].forEach(([id, x]) => {
+      const img = getVersusHeroImage(id);
+      if (img && img.complete && img.naturalWidth > 0) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(x - portraitSize / 2, portraitY, portraitSize, portraitSize, 8);
+        ctx.clip();
+        const s = Math.max(portraitSize / img.naturalWidth, portraitSize / img.naturalHeight);
+        const w = img.naturalWidth * s;
+        const h = img.naturalHeight * s;
+        ctx.drawImage(img, x - w / 2, portraitY + portraitSize / 2 - h / 2, w, h);
+        ctx.restore();
+      } else {
+        ctx.fillStyle = THEME.surface;
+        ctx.beginPath();
+        ctx.roundRect(x - portraitSize / 2, portraitY, portraitSize, portraitSize, 8);
+        ctx.fill();
+      }
+    });
+    const nameY = portraitY + portraitSize + nameSize + 8;
+    drawText(username.get(), leftX, nameY, nameSize, THEME.text, 'center', true);
+    drawText(getOpponentName(match), rightX, nameY, nameSize, THEME.text, 'center', true);
+    const resultScoreY = nameY + scoreSize + 6;
+    drawText(String(myScore ?? '-'), leftX, resultScoreY, scoreSize, THEME.accent, 'center', true);
+    drawText(String(theirScore ?? '-'), rightX, resultScoreY, scoreSize, THEME.accent, 'center', true);
+    versusResultBackRect = { x: pad, y: canvas.height - pad - backH, w: canvas.width - pad * 2, h: backH };
+    drawButton(versusResultBackRect, 'Back to home');
+    drawToast(timestamp);
+  }
+
+  function drawVersusHistory(timestamp) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = THEME.bgTop;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const cx = canvas.width / 2;
+    const isPhoneLandscape = canvas.width > canvas.height && canvas.height <= 500;
+    const pad = isPhoneLandscape ? 12 : 20;
+    const titleSize = isPhoneLandscape ? Math.max(22, canvas.height * 0.08) : Math.max(28, canvas.width * 0.08);
+    const subtitleSize = Math.max(11, Math.min(16, titleSize * 0.4));
+    const rowSize = isPhoneLandscape ? Math.max(12, canvas.height * 0.04) : Math.max(14, Math.min(20, canvas.width * 0.038));
+    const smallSize = Math.max(10, Math.min(14, rowSize * 0.78));
+    const titleY = Math.max(4, safeTop * 0.35) + titleSize;
+    drawText('CHALLENGE HISTORY', cx, titleY, titleSize, THEME.text, 'center', true);
+    drawText(formatVersusRecord(versusRecord), cx, titleY + subtitleSize + 8, subtitleSize, THEME.accent, 'center', true);
+    const backH = Math.max(30, canvas.height * 0.048);
+    const listTop = titleY + subtitleSize + 24;
+    const listBottom = canvas.height - pad * 2 - backH;
+    versusHistoryListTop = listTop;
+    versusHistoryListBottom = listBottom;
+    const me = username.get();
+    if (versusHistoryStatus === 'loading') {
+      drawText('Loading...', cx, listTop + rowSize, rowSize, THEME.textMute, 'center', false);
+    } else if (versusHistoryStatus === 'error') {
+      drawText(versusHistoryError || 'offline', cx, listTop + rowSize, rowSize, ERROR_COLOR, 'center', false);
+    } else if (versusHistoryRows.length === 0) {
+      drawText('No completed matches yet', cx, listTop + rowSize, rowSize, THEME.textMute, 'center', false);
+    } else {
+      const rowH = Math.max(64, rowSize * 3.2);
+      const rowGap = 6;
+      const listH = Math.max(0, listBottom - listTop);
+      const contentH = versusHistoryRows.length * rowH + Math.max(0, versusHistoryRows.length - 1) * rowGap;
+      const maxScroll = Math.max(0, contentH - listH);
+      versusHistoryScrollY = Math.max(0, Math.min(versusHistoryScrollY, maxScroll));
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, listTop, canvas.width, listH);
+      ctx.clip();
+      versusHistoryRows.forEach((match, index) => {
+        const y = listTop + index * (rowH + rowGap) - versusHistoryScrollY;
+        if (y + rowH < listTop || y > listBottom) return;
+        const isChallenger = isSameName(match.challenger_name, me);
+        const myScore = isChallenger ? match.challenger_score : match.recipient_score;
+        const theirScore = isChallenger ? match.recipient_score : match.challenger_score;
+        let resultText = 'TIE';
+        let resultColor = THEME.textMute;
+        if (myScore != null && theirScore != null) {
+          if (myScore > theirScore) { resultText = 'WIN'; resultColor = THEME.accent; }
+          else if (myScore < theirScore) { resultText = 'LOSS'; resultColor = ERROR_COLOR; }
+        }
+        ctx.fillStyle = index % 2 === 0 ? THEME.surface2 : THEME.surface;
+        ctx.beginPath();
+        ctx.roundRect(pad, y, canvas.width - pad * 2, rowH, 6);
+        ctx.fill();
+        const opponentName = isChallenger
+          ? (match.recipient_name || 'opponent')
+          : (match.challenger_name || 'opponent');
+        const directionLabel = isChallenger ? 'YOU CHALLENGED' : 'CHALLENGED BY';
+        const textX = pad + 12;
+        const labelY = y + smallSize + 6;
+        const nameY = labelY + rowSize + 2;
+        const nameMaxW = canvas.width - pad * 2 - 24 - canvas.width * 0.28;
+        drawText(directionLabel, textX, labelY, smallSize, THEME.textMute, 'left', true);
+        drawText(truncateText(opponentName, nameMaxW, rowSize, true), textX, nameY, rowSize, THEME.text, 'left', true);
+        drawText(resultText, canvas.width - pad - 12, labelY, smallSize, resultColor, 'right', true);
+        const scoreText = `${myScore ?? '-'} – ${theirScore ?? '-'}`;
+        drawText(scoreText, canvas.width - pad - 12, nameY, rowSize, THEME.text, 'right', true);
+        drawText(formatMatchAge(match), textX, nameY + smallSize + 4, smallSize, THEME.textFaint, 'left', false);
+      });
+      ctx.restore();
+    }
+    versusHistoryBackRect = { x: pad, y: canvas.height - pad - backH, w: canvas.width - pad * 2, h: backH };
+    drawButton({ ...versusHistoryBackRect, fontSize: isPhoneLandscape ? 11 : 13 }, 'Back');
+    drawToast(timestamp);
   }
 
   function drawStubScreen(title) {
@@ -3251,7 +4488,7 @@
     if (hallOfFameStatus === 'loading') {
       drawText('Loading...', cx, listTop + milestoneSize, milestoneSize, THEME.textMute, 'center', false);
     } else if (hallOfFameStatus === 'error') {
-      drawText('Offline', cx, listTop + milestoneSize, milestoneSize, '#ff8888', 'center', false);
+      drawText('Offline', cx, listTop + milestoneSize, milestoneSize, ERROR_COLOR, 'center', false);
     } else if (rows.length === 0) {
       drawText('No milestones yet', cx, listTop + milestoneSize, milestoneSize, THEME.textMute, 'center', false);
     } else {
@@ -3379,7 +4616,7 @@
     if (playerStatsStatus === 'loading') {
       drawText('Loading...', cx, listTop + rowSize, rowSize, THEME.textMute, 'center', false);
     } else if (playerStatsStatus === 'error') {
-      drawText('Offline', cx, listTop + rowSize, rowSize, '#ff8888', 'center', false);
+      drawText('Offline', cx, listTop + rowSize, rowSize, ERROR_COLOR, 'center', false);
     } else if (rows.length === 0) {
       drawText('No players yet', cx, listTop + rowSize, rowSize, THEME.textMute, 'center', false);
     } else {
@@ -3493,7 +4730,7 @@
     if (playerDetailStatus === 'loading') {
       drawText('Loading...', cx, listTop + rowSize, rowSize, THEME.textMute, 'center', false);
     } else if (playerDetailStatus === 'error') {
-      drawText('Offline', cx, listTop + rowSize, rowSize, '#ff8888', 'center', false);
+      drawText('Offline', cx, listTop + rowSize, rowSize, ERROR_COLOR, 'center', false);
     } else if (playerDetailRows.length === 0) {
       drawText('No scores yet', cx, listTop + rowSize, rowSize, THEME.textMute, 'center', false);
     } else {
@@ -3931,7 +5168,7 @@
     drawText(`Score: ${scoring.score}`, cx, scoreY,
       scoreSize, THEME.accent, 'center', false);
     if (gameOverSave.globalMessage) {
-      const color = gameOverSave.globalStatus === 'error' ? '#ff8888' : THEME.textMute;
+      const color = gameOverSave.globalStatus === 'error' ? ERROR_COLOR : THEME.textMute;
       drawText(gameOverSave.globalMessage, cx, globalY,
         statsSize, color, 'center', false);
     }
@@ -3949,13 +5186,91 @@
     drawButton(gameOverChangeRect, 'Change Character');
   }
 
+  function handleMatchParam(attemptsRemaining = 30) {
+    if (matchParamHandled || !VERSUS_ENABLED) return;
+    const code = new URLSearchParams(window.location.search).get('match');
+    if (!code) return;
+    const name = username.get();
+    if (!name) return;
+    if (!window.globalScores) {
+      if (attemptsRemaining > 0) setTimeout(() => handleMatchParam(attemptsRemaining - 1), 100);
+      return;
+    }
+    matchParamHandled = true;
+    window.globalScores.fetchMatchByCode(code).then(match => {
+      if (new Date(match.expires_at).getTime() < Date.now()) {
+        showToast('Match expired');
+        return;
+      }
+      if (!match.recipient_name && !isSameName(match.challenger_name, name)) {
+        openAcceptMatchOverlay(match);
+        return;
+      }
+      const side = getMatchSide(match);
+      if (side && !isMyMatchScoreDone(match)) {
+        if (side === 'recipient' && !match.recipient_character_id) {
+          openVersusRecipientPickOverlay(match);
+        } else {
+          startVersusMatch(match, side);
+        }
+      } else if (bothScoresDone(match)) {
+        versusCurrentMatch = match;
+        run.state = RUN_STATE.VERSUS_RESULT;
+        markResultSeen(match.id);
+      } else if (side) {
+        versusCurrentMatch = match;
+        run.state = RUN_STATE.VERSUS_WAITING;
+        startVersusPolling(match.id);
+      } else {
+        showToast('Match unavailable');
+      }
+    }).catch(() => showToast('Match unavailable'));
+  }
+
+  function forfeitStaleMatchIfReady(attemptsRemaining = 20) {
+    const stale = loadInProgressMatch();
+    if (!stale) return;
+    if (!window.globalScores) {
+      if (attemptsRemaining <= 0) return;
+      setTimeout(() => forfeitStaleMatchIfReady(attemptsRemaining - 1), 100);
+      return;
+    }
+    const finalScore = stale.scoreSoFar || 0;
+    window.globalScores
+      .submitMatchScore(stale.matchId, stale.side, finalScore)
+      .then(() => {
+        clearInProgressMatch();
+        showToast(`Match forfeited at ${finalScore}`);
+        if (run.state === RUN_STATE.VERSUS_HOME) fetchVersusHome(true);
+      })
+      .catch(() => {});
+  }
+
   // --- Init ---
+  window.addEventListener('beforeunload', (e) => {
+    if (run.state === RUN_STATE.PLAYING || run.state === RUN_STATE.VERSUS_PLAYING) {
+      e.preventDefault();
+      e.returnValue = '';
+      return '';
+    }
+  });
   window.addEventListener('resize', updateLayout);
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) lastTimestamp = null;
+    if (document.hidden) {
+      stopVersusPolling();
+    } else if (run.state === RUN_STATE.VERSUS_WAITING && versusCurrentMatch) {
+      startVersusPolling(versusCurrentMatch.id);
+    } else if (run.state === RUN_STATE.VERSUS_HOME) {
+      fetchVersusHome(true);
+      startVersusHomePolling();
+    }
   });
   updateLayout();
   fetchGlobalLeaderboardWhenReady();
+  forfeitStaleMatchIfReady();
+  refreshVersusBadge(true);
+  handleMatchParam();
   if (run.state === RUN_STATE.USERNAME) openUsernameOverlay(RUN_STATE.HOME);
   requestAnimationFrame(gameLoop);
 </script>

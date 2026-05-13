@@ -4,6 +4,13 @@ All notable changes to Shovel Toss. Format follows [Keep a Changelog](https://ke
 
 ## [Unreleased]
 
+### Added
+- Versus mode beta for async 9-throw head-to-head matches.
+- Leaderboard challenge buttons, invite-link generation, join-by-code, waiting, and result screens.
+- Supabase `matches` table migration and client API helpers for creating, joining, polling, and submitting matches.
+- Versus phase 2: per-player W/L/T record shown on the Versus home screen, level chosen by the challenger, character chosen by each player. Result screen now shows both players' portraits.
+- Supabase migration adds `level_id`, `challenger_character_id`, `recipient_character_id` to `matches`; trigger locks the new fields once set.
+
 ## [0.27.0] — 2026-05-08
 
 ### Added
