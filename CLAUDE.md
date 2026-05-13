@@ -54,7 +54,7 @@ Each character in `CHARACTERS[]` has a `hero.png` (portrait art) and `sprite-she
 
 ### Versus mode
 
-Async multiplayer via Supabase `matches` table. A match progresses through statuses: `pending → playing → complete`. `globalScores.createInviteMatch()` or `createDirectChallenge()` creates a match; `submitMatchScore()` writes the player's score and marks complete when both sides are done. The client polls every `VERSUS_POLL_MS` (30 s) via `startVersusPolling()`.
+Async multiplayer via Supabase `matches` table. A match progresses through statuses: `pending → playing → complete`. `globalScores.createDirectChallenge()` creates a match; `submitMatchScore()` writes the player's score and marks complete when both sides are done. The client polls every `VERSUS_POLL_MS` (30 s) via `startVersusPolling()`.
 
 Score submission to `high_scores` is **production-only** (blocked on non-prod hosts). Versus match writes work on local.
 

@@ -311,24 +311,6 @@ window.globalScores = {
     return names;
   },
 
-  async createInviteMatch(challengerName, opts = {}) {
-    const code = generateInviteCode();
-    const insert = {
-      invite_code: code,
-      challenger_name: cleanName(challengerName),
-      recipient_name: null,
-    };
-    if (opts.levelId) insert.level_id = String(opts.levelId).slice(0, 32);
-    if (opts.characterId) insert.challenger_character_id = String(opts.characterId).slice(0, 32);
-    const { data, error } = await getClient()
-      .from('matches')
-      .insert(insert)
-      .select('*')
-      .single();
-    if (error) throw error;
-    return data;
-  },
-
   async createDirectChallenge(challengerName, recipientName, opts = {}) {
     const code = generateInviteCode();
     const insert = {

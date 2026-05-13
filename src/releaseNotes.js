@@ -127,12 +127,8 @@ const RELEASE_NOTES = [
   }
 ];
 
-function getLatestNote() {
-  return RELEASE_NOTES[0] || null;
-}
-
 function getLatestNotes(count = 3) {
   return RELEASE_NOTES.slice(0, count);
 }
 
-window.releaseNotes = { getLatestNote, getLatestNotes };
+window.releaseNotes = { getLatestNotes };

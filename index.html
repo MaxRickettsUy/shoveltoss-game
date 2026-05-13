@@ -348,11 +348,6 @@
   champShovelImg.onload = () => { champShovelReady = true; };
   champShovelImg.src = 'assets/champ-shovel.png';
 
-  const githubImg = new Image();
-  let githubReady = false;
-  githubImg.onload = () => { githubReady = true; };
-  githubImg.src = 'assets/github_dark.svg';
-
   const LEVELS = [
     { id: 'lil-italy', label: 'Lil Italy',  background: 'assets/level/lil-italy.png' },
     { id: 'the-swamp', label: 'The Swamp', background: 'assets/level/theswamp.png' },
@@ -428,15 +423,11 @@
   let levelBackRect = null;
   let gameOverChangeRect = null;
   let gameOverLeaderboardRect = null;
-  let usernameNameRect = null;
   let usernameOverlayEl = null;
   let settingsGearRect = null;
   let devTestButtonRects = [];
   let selectHomeRect = null;
   let leaderboardBackRect = null;
-  let homeButtonRects = [];
-  let footerGithubRect = null;
-  let stubBackRect = null;
   let latestReleaseNotes = window.releaseNotes ? window.releaseNotes.getLatestNotes(3) : [];
   let whatsNewOverlayEl = null;
   let settingsOverlayEl = null;
@@ -497,7 +488,6 @@
   let playerDetailName = null;
   let playerDetailRows = [];
   let playerDetailStatus = 'idle';
-  let playerDetailError = '';
   let playerDetailBackRect = null;
   let playerDetailScrollY = 0;
   let playerDetailListTop = 0;
@@ -515,7 +505,6 @@
   let toastUntil = 0;
   let versusHomeBackRect = null;
   let versusChallengeByNameRect = null;
-  let versusRecordRect = null;
   let versusHistoryOpenRect = null;
   let versusHistoryBackRect = null;
   let versusHistoryRows = [];
@@ -529,7 +518,6 @@
   let versusResultBackRect = null;
   let versusRows = [];
   let versusRecord = { wins: 0, losses: 0, ties: 0, total: 0 };
-  let versusRecordFetchedFor = '';
   let versusStatus = 'idle';
   let versusRankRows = [];
   let versusRankStatus = 'idle';
@@ -540,7 +528,6 @@
   let versusPendingFetchedAt = 0;
   let versusCurrentMatch = null;
   let versusPollTimer = null;
-  let versusLastPolledMatchId = null;
   let matchParamHandled = false;
 
   // --- Constants ---
@@ -621,7 +608,6 @@
   const VERSUS_ENABLED = true;
   const VERSUS_THROWS_PER_PLAYER = 9;
   const VERSUS_POLL_MS = 30000;
-  const SOURCE_CODE_URL = 'https://github.com/MaxRickettsUy/shoveltoss-game';
   // When releasing user-visible changes, prepend a note in src/releaseNotes.js.
   const APP_VERSION_TAG = 'v0.28.0';
   const HOF_POINTS_LEADER = { key: 'pointsLeader', label: 'Most Points' };
@@ -883,7 +869,6 @@
   const leaderboard = {
     globalRows: [],
     globalStatus: 'idle',
-    globalError: '',
     allTimeTopRow: null,
     allTimeStatus: 'idle'
   };
@@ -1031,7 +1016,6 @@
     playerDetailName = name;
     playerDetailRows = [];
     playerDetailStatus = 'loading';
-    playerDetailError = '';
     playerDetailScrollY = 0;
     run.state = RUN_STATE.PLAYER_DETAIL;
     fetchPlayerDetail(name);
@@ -1039,7 +1023,6 @@
 
   async function fetchGlobalLeaderboard() {
     leaderboard.globalStatus = 'loading';
-    leaderboard.globalError = '';
     try {
       if (!window.globalScores) throw new Error('offline');
       leaderboard.globalRows = leaderboardScope === 'all'
@@ -1058,7 +1041,6 @@
     } catch {
       leaderboard.globalRows = [];
       leaderboard.globalStatus = 'error';
-      leaderboard.globalError = 'offline';
     }
   }
 
@@ -1138,7 +1120,6 @@
     } catch {
       playerDetailRows = [];
       playerDetailStatus = 'error';
-      playerDetailError = 'offline';
     }
   }
 
@@ -1170,9 +1151,7 @@
     try {
       const [pending, recent] = await Promise.all([
         window.globalScores.fetchPendingForUser(name),
-        window.globalScores.fetchRecentResultsForUser
-          ? window.globalScores.fetchRecentResultsForUser(name)
-          : Promise.resolve([]),
+        window.globalScores.fetchRecentResultsForUser(name),
       ]);
       const seenIds = new Set(pending.map(m => m.id));
       const unseenCompleted = recent.filter(m => !seenIds.has(m.id) && isUnseenCompletedMatch(m));
@@ -1200,7 +1179,6 @@
     try {
       const record = await window.globalScores.fetchVersusRecord(name);
       versusRecord = record;
-      versusRecordFetchedFor = name;
     } catch {}
   }
 
@@ -1341,7 +1319,6 @@
   function startVersusPolling(matchId) {
     if (!matchId) return;
     stopVersusPolling();
-    versusLastPolledMatchId = matchId;
     if (!document.hidden) {
       pollMatch(matchId);
       versusPollTimer = setInterval(() => pollMatch(matchId), VERSUS_POLL_MS);
@@ -1351,7 +1328,6 @@
   function stopVersusPolling() {
     if (versusPollTimer) clearInterval(versusPollTimer);
     versusPollTimer = null;
-    versusLastPolledMatchId = null;
   }
 
   function startVersusHomePolling() {
@@ -1408,7 +1384,6 @@
     }
     if (attemptsRemaining <= 0) {
       leaderboard.globalStatus = 'error';
-      leaderboard.globalError = 'offline';
       leaderboard.allTimeStatus = 'error';
       return;
     }
@@ -2599,50 +2574,9 @@
       && lastPointerY >= r.y && lastPointerY <= r.y + r.h;
   }
 
-  function openSourceCode() {
-    const opened = window.open(SOURCE_CODE_URL, '_blank', 'noopener');
-    if (!opened) window.location.href = SOURCE_CODE_URL;
-  }
-
   function onPressStart() {
     if (run.state === RUN_STATE.USERNAME) return;
     if (run.state === RUN_STATE.HOME) {
-      if (isLandingVisible()) return;
-      if (pointerInRect(usernameNameRect)) {
-        openUsernameOverlay(RUN_STATE.HOME);
-        return;
-      }
-      if (pointerInRect(footerGithubRect)) {
-        openSourceCode();
-        return;
-      }
-      for (let i = 0; i < homeButtonRects.length; i++) {
-        const btn = homeButtonRects[i];
-        if (pointerInRect(btn)) {
-          switch (btn.action) {
-            case 'play':
-              loadHeroImages();
-              run.state = RUN_STATE.SELECTING;
-              break;
-            case 'leaderboard':
-              openLeaderboard(RUN_STATE.HOME);
-              break;
-            case 'versus':
-              openVersusHome();
-              break;
-            case 'hall':
-              openHallOfFame();
-              break;
-            case 'stats':
-              openPlayerStats();
-              break;
-            case 'whatsNew':
-              openWhatsNewOverlay();
-              break;
-          }
-          return;
-        }
-      }
       return;
     }
     if (run.state === RUN_STATE.LEVEL_SELECT) {
@@ -2667,10 +2601,6 @@
         run.state = RUN_STATE.HOME;
         charSelectScrollY = 0;
         flippedCardId = null;
-        return;
-      }
-      if (pointerInRect(usernameNameRect)) {
-        openUsernameOverlay(RUN_STATE.SELECTING);
         return;
       }
       for (let i = 0; i < filterRects.length; i++) {
@@ -3101,12 +3031,10 @@
     lastTimestamp = timestamp;
 
     if (run.state === RUN_STATE.USERNAME) {
-      if (landingEl) showLanding();
-      else drawHome(timestamp);
+      showLanding();
       if (!usernameOverlayEl) openUsernameOverlay(RUN_STATE.HOME);
     } else if (run.state === RUN_STATE.HOME) {
-      if (landingEl) showLanding();
-      else drawHome(timestamp);
+      showLanding();
     } else if (run.state === RUN_STATE.SELECTING) {
       hideLanding();
       drawCharacterSelect(timestamp);
@@ -3981,105 +3909,6 @@
     drawToast(performance.now());
   }
 
-  function drawHome(timestamp) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = THEME.bgTop;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    const isPhoneLandscape = canvas.width > canvas.height && canvas.height <= 500;
-    const gameTitleSize = isPhoneLandscape
-      ? Math.max(26, Math.floor(canvas.height * 0.10))
-      : Math.max(34, Math.floor(canvas.width * 0.10));
-    const subtitleGap = isPhoneLandscape
-      ? Math.max(14, Math.floor(canvas.height * 0.04))
-      : Math.max(16, Math.floor(canvas.width * 0.042));
-    const homeTop = Math.max(4, safeTop * 0.45);
-    drawText('SHOVEL TOSS', canvas.width / 2, homeTop + gameTitleSize, gameTitleSize, THEME.text, 'center', true);
-
-    const name = username.get();
-    usernameNameRect = null;
-    if (name) {
-      const nameSize = isPhoneLandscape
-        ? Math.max(13, Math.floor(canvas.height * 0.04))
-        : Math.max(15, Math.floor(canvas.width * 0.04));
-      const nameText = `Player: ${name}`;
-      const nameY = homeTop + gameTitleSize + subtitleGap + 12;
-      drawText(nameText, canvas.width / 2, nameY, nameSize, THEME.accent, 'center', false);
-      const nameW = ctx.measureText(nameText).width;
-      const iconSize = nameSize * 0.9;
-      const iconX = canvas.width / 2 + nameW / 2 + iconSize;
-      ctx.save();
-      ctx.font = `900 ${Math.round(iconSize)}px "Font Awesome 6 Free", sans-serif`;
-      ctx.fillStyle = THEME.text;
-      ctx.textAlign = 'center';
-      ctx.fillText(faReady ? '' : '✏️', iconX, nameY);
-      ctx.restore();
-      usernameNameRect = { x: canvas.width / 2 - nameW / 2 - 10, y: nameY - nameSize - 8, w: nameW + iconSize * 2 + 20, h: nameSize + 14 };
-    }
-
-    const buttonW = Math.min(260, canvas.width * (isPhoneLandscape ? 0.34 : 0.68));
-    const buttonH = Math.max(isPhoneLandscape ? 34 : 42, canvas.height * (isPhoneLandscape ? 0.075 : 0.06));
-    const buttonGap = Math.max(isPhoneLandscape ? 8 : 12, canvas.height * 0.018);
-    const buttons = [
-      { label: '🪏 Solo Mode', action: 'play' },
-      ...(VERSUS_ENABLED ? [{ label: `⚔️ 1v1 Toss-Off${versusPendingCount > 0 ? ` (${versusPendingCount})` : ''}`, action: 'versus' }] : []),
-      { label: '👑 Leaderboard', action: 'leaderboard' },
-      { label: '🏛 Hall of Fame', action: 'hall' },
-      { label: '📊 Player Stats', action: 'stats' },
-      { label: "What's New?", action: 'whatsNew' },
-    ];
-    const totalButtonH = buttons.length * buttonH + (buttons.length - 1) * buttonGap;
-    const footerSize = isPhoneLandscape
-      ? Math.max(11, Math.floor(canvas.height * 0.03))
-      : Math.max(12, Math.floor(canvas.width * 0.032));
-    const footerY = canvas.height - (isPhoneLandscape ? 6 : 10);
-    const bottomLimit = footerY - footerSize - (isPhoneLandscape ? 14 : 24);
-    const minTop = name ? usernameNameRect.y + usernameNameRect.h + (isPhoneLandscape ? 10 : 24) : homeTop + gameTitleSize + subtitleGap + 18;
-    // Center the button stack within [minTop, bottomLimit]; clamp at minTop if the band is too short.
-    const buttonTop = Math.max(minTop, Math.floor((bottomLimit - totalButtonH + minTop) / 2));
-
-    homeButtonRects = [];
-    buttons.forEach((button, index) => {
-      const rect = {
-        x: canvas.width / 2 - buttonW / 2,
-        y: buttonTop + index * (buttonH + buttonGap),
-        w: buttonW,
-        h: buttonH,
-        action: button.action,
-        fontSize: isPhoneLandscape ? 13 : 16,
-        noStroke: true
-      };
-      if (button.action === 'whatsNew') {
-        rect.fillStyle = THEME.accent;
-        rect.textColor = THEME.bgTop;
-      }
-      homeButtonRects.push(rect);
-      drawButton(rect, button.label);
-    });
-
-    const footerFlag = '🇺🇸';
-    const iconSize = Math.max(14, Math.floor(footerSize * 1.05));
-    const gap = Math.max(7, Math.floor(footerSize * 0.45));
-    ctx.font = `${Math.round(footerSize)}px sans-serif`;
-    const versionW = ctx.measureText(APP_VERSION_TAG).width;
-    const flagW = ctx.measureText(footerFlag).width;
-    const totalW = versionW + gap + iconSize + gap + flagW;
-    const startX = canvas.width / 2 - totalW / 2;
-    const textY = footerY;
-    drawText(APP_VERSION_TAG, startX, textY, footerSize, THEME.textMute, 'left', false);
-    const iconX = startX + versionW + gap;
-    const iconY = textY - iconSize * 0.78;
-    if (githubReady) {
-      ctx.globalAlpha = 0.55;
-      ctx.drawImage(githubImg, iconX, iconY, iconSize, iconSize);
-      ctx.globalAlpha = 1;
-    }
-    drawText(footerFlag, iconX + iconSize + gap, textY, footerSize, THEME.textMute, 'left', false);
-    footerGithubRect = { x: iconX - 6, y: iconY - 6, w: iconSize + 12, h: iconSize + 12 };
-    refreshVersusBadge();
-    drawToast(timestamp);
-  }
-
   function formatVersusRecord(record) {
     const r = record || { wins: 0, losses: 0, ties: 0, total: 0 };
     if (!r.total) return 'Record: no matches yet';
@@ -4112,7 +3941,6 @@
     const recordY = titleY + smallSize + 16;
     const recordText = formatVersusRecord(versusRecord);
     drawText(recordText, cx, recordY, smallSize, THEME.accent, 'center', true);
-    versusRecordRect = null;
 
     const btnH = Math.max(32, canvas.height * 0.052);
     const btnW = Math.min(320, canvas.width - pad * 2);
@@ -4423,28 +4251,6 @@
     versusHistoryBackRect = { x: pad, y: canvas.height - pad - backH, w: canvas.width - pad * 2, h: backH };
     drawButton({ ...versusHistoryBackRect, fontSize: isPhoneLandscape ? 11 : 13 }, 'Back');
     drawToast(timestamp);
-  }
-
-  function drawStubScreen(title) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = THEME.bgTop;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    const cx = canvas.width / 2;
-    const isPhoneLandscape = canvas.width > canvas.height && canvas.height <= 500;
-    const titleSize = isPhoneLandscape
-      ? Math.max(24, Math.floor(canvas.height * 0.09))
-      : Math.max(30, Math.floor(canvas.width * 0.09));
-    const buttonH = Math.max(38, canvas.height * 0.06);
-    const pad = isPhoneLandscape ? 10 : 16;
-    drawText(title, cx, safeTop + titleSize + Math.floor(pad * 2), titleSize, THEME.text, 'center', true);
-    stubBackRect = {
-      x: pad,
-      y: canvas.height - pad - buttonH,
-      w: canvas.width - pad * 2,
-      h: buttonH
-    };
-    drawButton(stubBackRect, 'Back');
   }
 
   function drawHallOfFame(timestamp) {
@@ -4832,7 +4638,6 @@
     const cols = isPortrait ? 2 : 4;
     const visibleCharacters = getFilteredCharacters();
     const rows = Math.ceil(visibleCharacters.length / cols);
-    usernameNameRect = null;
 
     const titleY = selectHomeRect.y + selectHomeRect.h / 2 + titleSize * 0.35;
     drawText('Choose your character', canvas.width / 2, titleY, titleSize, THEME.text, 'center', true);
