@@ -885,6 +885,7 @@
   // --- Layout (recalculated on resize) ---
   let groundY, playerX, playerY;
   let pitLeft, pitRight, pitCenterX, wallX, wallTopY;
+  let pitScoreLeft, pitScoreRight;
   let meterX, meterY, meterWidth, meterHeight;
   let safeTop;
 
@@ -962,12 +963,16 @@
     const halfWidth = canvas.width * difficulty.pitWidth / 2;
     if (isLilItalyLevel()) {
       wallX = WALL_THICKNESS;
-      pitLeft = 0;
+      pitLeft = wallX;
       pitRight = pitCenterX + halfWidth;
+      pitScoreLeft = 0;
+      pitScoreRight = pitRight;
     } else {
       pitLeft  = pitCenterX - halfWidth;
       wallX    = canvas.width - WALL_THICKNESS;
-      pitRight = canvas.width;
+      pitRight = wallX;
+      pitScoreLeft = pitLeft;
+      pitScoreRight = canvas.width;
     }
     if (isPitReady()) {
       const pitImg = getActivePitImg();
@@ -1542,6 +1547,10 @@
 
   function crossedBoundary(prev, next, boundary) {
     return prev < boundary && next >= boundary;
+  }
+
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
   }
 
   function fireConfetti(shape, particleCount) {
@@ -2432,8 +2441,8 @@
       basePoints = PTS_MISS;
     } else {
       const norm = isLilItalyLevel()
-        ? (pitRight - result.x) / (pitRight - pitLeft)
-        : (result.x - pitLeft) / (pitRight - pitLeft);
+        ? (pitScoreRight - result.x) / (pitScoreRight - pitScoreLeft)
+        : (result.x - pitScoreLeft) / (pitScoreRight - pitScoreLeft);
       if (norm < ZONE_FRONT_WALL_MAX) {
         zone = 'front_wall'; basePoints = run.state === RUN_STATE.VERSUS_PLAYING ? 0 : PTS_FRONT_WALL;
       } else if (result.inSweetSpot) {
@@ -3115,10 +3124,14 @@
       // Landing detection
       if (t >= 1) {
         throw_.shovelY = groundY;
+        const shovelHitRadius = SHOVEL_RENDER_W / 2;
+        const shovelLeft = throw_.shovelX - shovelHitRadius;
+        const shovelRight = throw_.shovelX + shovelHitRadius;
+        const landedInPit = shovelRight >= pitScoreLeft && shovelLeft <= pitScoreRight;
 
         const result = {
-          x:           throw_.shovelX,
-          inPit:       throw_.shovelX >= pitLeft && throw_.shovelX <= pitRight,
+          x:           landedInPit ? clamp(throw_.shovelX, pitScoreLeft, pitScoreRight) : throw_.shovelX,
+          inPit:       landedInPit,
           inSweetSpot: throw_.inSweetSpot
         };
         if (result.inPit) {
@@ -3368,6 +3381,7 @@
     }
 
     drawDustPuff();
+    drawDevBoundaries();
 
     // Throw meter (visible while charging or flying)
     if (throw_.state === STATE.CHARGING || throw_.state === STATE.FLYING) {
@@ -3486,6 +3500,41 @@
     const speedY = labelAbove ? meterY - 4  : meterY + meterHeight + 30;
     drawText('POWER', meterX + meterWidth / 2, powerY, 14, THEME.text, 'center', false);
     drawText(`SPEED ${difficulty.meterSpeed.toFixed(2)}`, meterX + meterWidth / 2, speedY, 12, THEME.text, 'center', false);
+  }
+
+  function drawDevBoundaries() {
+    if (!isDevMode()) return;
+
+    ctx.save();
+    ctx.lineCap = 'butt';
+
+    ctx.fillStyle = 'rgba(0, 229, 255, 0.12)';
+    ctx.fillRect(pitScoreLeft, groundY - 18, pitScoreRight - pitScoreLeft, 18);
+    ctx.strokeStyle = 'rgba(0, 229, 255, 0.95)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 5]);
+    ctx.beginPath();
+    ctx.moveTo(pitScoreLeft, groundY - 34);
+    ctx.lineTo(pitScoreLeft, groundY + 18);
+    ctx.moveTo(pitScoreRight, groundY - 34);
+    ctx.lineTo(pitScoreRight, groundY + 18);
+    ctx.moveTo(pitScoreLeft, groundY);
+    ctx.lineTo(pitScoreRight, groundY);
+    ctx.stroke();
+
+    const wallStripX = isLilItalyLevel() ? 0 : wallX;
+    const wallStripW = isLilItalyLevel() ? wallX : canvas.width - wallX;
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(255, 64, 129, 0.16)';
+    ctx.fillRect(wallStripX, wallTopY, wallStripW, groundY - wallTopY);
+    ctx.strokeStyle = 'rgba(255, 64, 129, 0.95)';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(wallX, wallTopY);
+    ctx.lineTo(wallX, groundY);
+    ctx.stroke();
+
+    ctx.restore();
   }
 
   function drawButton(rect, label, active = false) {
