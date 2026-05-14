@@ -513,6 +513,9 @@
   let versusHistoryScrollY = 0;
   let versusHistoryListTop = 0;
   let versusHistoryListBottom = 0;
+  let versusHomeScrollY = 0;
+  let versusHomeListTop = 0;
+  let versusHomeListBottom = 0;
   let versusMatchRects = [];
   let versusWaitingBackRect = null;
   let versusResultBackRect = null;
@@ -1213,6 +1216,7 @@
       return;
     }
     run.state = RUN_STATE.VERSUS_HOME;
+    versusHomeScrollY = 0;
     stopVersusPolling();
     fetchVersusHome(true);
     startVersusHomePolling();
@@ -2918,6 +2922,7 @@
       || (run.state === RUN_STATE.HALL_OF_FAME && isInHallOfFameList(y))
       || (run.state === RUN_STATE.PLAYER_STATS && isInPlayerStatsList(y))
       || (run.state === RUN_STATE.PLAYER_DETAIL && isInPlayerDetailList(y))
+      || (run.state === RUN_STATE.VERSUS_HOME && y >= versusHomeListTop && y <= versusHomeListBottom)
       || (run.state === RUN_STATE.VERSUS_HISTORY && y >= versusHistoryListTop && y <= versusHistoryListBottom);
     leaderboardDragScrolling = false;
     leaderboardDragLastY = y;
@@ -2936,6 +2941,8 @@
       playerStatsScrollY -= dy;
     } else if (run.state === RUN_STATE.PLAYER_DETAIL) {
       playerDetailScrollY -= dy;
+    } else if (run.state === RUN_STATE.VERSUS_HOME) {
+      versusHomeScrollY -= dy;
     } else if (run.state === RUN_STATE.VERSUS_HISTORY) {
       versusHistoryScrollY -= dy;
     } else {
@@ -3015,6 +3022,8 @@
       playerStatsScrollY += e.deltaY;
     } else if (run.state === RUN_STATE.PLAYER_DETAIL) {
       playerDetailScrollY += e.deltaY;
+    } else if (run.state === RUN_STATE.VERSUS_HOME) {
+      versusHomeScrollY += e.deltaY;
     } else if (run.state === RUN_STATE.VERSUS_HISTORY) {
       versusHistoryScrollY += e.deltaY;
     } else {
@@ -4004,25 +4013,44 @@
     const backH = Math.max(30, canvas.height * 0.048);
     const listTop = btnY + btnH + pad;
     const listBottom = canvas.height - pad * 2 - backH;
+    const listH = Math.max(0, listBottom - listTop);
+    versusHomeListTop = listTop;
+    versusHomeListBottom = listBottom;
     versusMatchRects = [];
     versusRankRects = [];
-    let matchesEndY = listTop;
+    const challengeRowH = Math.max(64, rowSize * 3.2);
+    const challengeGap = 8;
+    const me = username.get();
+    const rankRows = (versusRankRows || []).filter(r => !isSameName(r.name, me));
+    const rankRowH = Math.max(28, rowSize * 1.4);
+    const rankGap = 4;
+    const headerSize = smallSize;
+    const challengeContentH = versusRows.length > 0
+      ? versusRows.length * challengeRowH + Math.max(0, versusRows.length - 1) * challengeGap
+      : rowSize * 1.5;
+    const rankContentH = rankRows.length > 0
+      ? pad + headerSize + 8 + rankRows.length * rankRowH + Math.max(0, rankRows.length - 1) * rankGap
+      : 0;
+    const totalContentH = challengeContentH + rankContentH;
+    const maxScroll = Math.max(0, totalContentH - listH);
+    versusHomeScrollY = Math.max(0, Math.min(versusHomeScrollY, maxScroll));
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, listTop, canvas.width, listH);
+    ctx.clip();
+
     if (versusStatus === 'loading') {
-      drawText('Loading...', cx, listTop + rowSize, rowSize, THEME.textMute, 'center', false);
-      matchesEndY = listTop + rowSize * 1.5;
+      drawText('Loading...', cx, listTop + rowSize - versusHomeScrollY, rowSize, THEME.textMute, 'center', false);
     } else if (versusStatus === 'error') {
-      drawText(versusError || 'offline', cx, listTop + rowSize, rowSize, ERROR_COLOR, 'center', false);
-      matchesEndY = listTop + rowSize * 1.5;
+      drawText(versusError || 'offline', cx, listTop + rowSize - versusHomeScrollY, rowSize, ERROR_COLOR, 'center', false);
     } else if (versusRows.length === 0) {
-      drawText('No challenges waiting', cx, listTop + rowSize, rowSize, THEME.textMute, 'center', false);
-      matchesEndY = listTop + rowSize * 1.5;
+      drawText('No challenges waiting', cx, listTop + rowSize - versusHomeScrollY, rowSize, THEME.textMute, 'center', false);
     } else {
-      const rowH = Math.max(64, rowSize * 3.2);
       versusRows.forEach((match, index) => {
-        const y = listTop + index * (rowH + 8);
-        if (y + rowH > listBottom) return;
-        matchesEndY = y + rowH;
-        const rect = { x: pad, y, w: canvas.width - pad * 2, h: rowH, match };
+        const y = listTop + index * (challengeRowH + challengeGap) - versusHomeScrollY;
+        if (y + challengeRowH < listTop || y > listBottom) return;
+        const rect = { x: pad, y, w: canvas.width - pad * 2, h: challengeRowH, match };
         versusMatchRects.push(rect);
         ctx.fillStyle = index % 2 === 0 ? THEME.surface2 : THEME.surface;
         ctx.beginPath();
@@ -4038,7 +4066,7 @@
         drawText(directionLabel, textX, labelY, smallSize, THEME.textMute, 'left', true);
         drawText(truncateText(getOpponentName(match), nameMaxW, rowSize, true), textX, nameY, rowSize, THEME.text, 'left', true);
         drawText(versusRowStatus(match), rect.x + rect.w - 12, nameY, smallSize, THEME.accent, 'right', false);
-        drawText(formatMatchAge(match), textX, y + rowH - 10, smallSize, THEME.textFaint, 'left', false);
+        drawText(formatMatchAge(match), textX, y + challengeRowH - 10, smallSize, THEME.textFaint, 'left', false);
 
         const showOpponentScore = bothScoresDone(match);
         const myScore = getMatchSide(match) === 'challenger' ? match.challenger_score : match.recipient_score;
@@ -4050,50 +4078,47 @@
           scoreText = `you: ${myScore}`;
         }
         if (scoreText) {
-          drawText(scoreText, rect.x + rect.w - 12, y + rowH - 10, smallSize, THEME.text, 'right', true);
+          drawText(scoreText, rect.x + rect.w - 12, y + challengeRowH - 10, smallSize, THEME.text, 'right', true);
         }
       });
     }
 
-    const me = username.get();
-    const rankRows = (versusRankRows || []).filter(r => !isSameName(r.name, me));
     if (rankRows.length > 0) {
-      const headerY = matchesEndY + pad;
-      const rankRowH = Math.max(28, rowSize * 1.4);
-      const headerSize = smallSize;
-      if (headerY + headerSize + rankRowH <= listBottom) {
+      const headerY = listTop + challengeContentH + pad - versusHomeScrollY;
+      if (headerY + headerSize >= listTop && headerY <= listBottom) {
         drawText('RANKED PLAYERS', pad, headerY + headerSize, headerSize, THEME.textMute, 'left', true);
         ctx.font = `bold ${Math.round(headerSize)}px sans-serif`;
         const rankedHeaderW = ctx.measureText('RANKED PLAYERS').width;
         drawText('(Click to challenge)', pad + rankedHeaderW + 8, headerY + headerSize, headerSize, THEME.textFaint, 'left', false);
-        const rowsTop = headerY + headerSize + 8;
-        rankRows.forEach((r, index) => {
-          const y = rowsTop + index * (rankRowH + 4);
-          if (y + rankRowH > listBottom) return;
-          const rect = { x: pad, y, w: canvas.width - pad * 2, h: rankRowH, name: r.name };
-          versusRankRects.push(rect);
-          ctx.fillStyle = index % 2 === 0 ? THEME.surface2 : THEME.surface;
-          ctx.beginPath();
-          ctx.roundRect(rect.x, rect.y, rect.w, rect.h, 6);
-          ctx.fill();
-          const textY = y + rankRowH / 2 + rowSize * 0.35;
-          const rankText = `${index + 1}.`;
-          ctx.font = `bold ${Math.round(rowSize)}px sans-serif`;
-          const rankW = ctx.measureText(rankText).width;
-          drawText(rankText, pad + 10, textY, rowSize, THEME.textMute, 'left', true);
-          const recordText = r.ties > 0
-            ? `${r.wins}W · ${r.losses}L · ${r.ties}T`
-            : `${r.wins}W · ${r.losses}L`;
-          ctx.font = `${Math.round(smallSize)}px sans-serif`;
-          const recordW = ctx.measureText(recordText).width;
-          const nameLeftX = pad + 10 + rankW + 10;
-          const nameMaxW = rect.w - (nameLeftX - rect.x) - recordW - 24;
-          const nameText = truncateText(r.name, nameMaxW, rowSize);
-          drawText(nameText, nameLeftX, textY, rowSize, THEME.text, 'left', false);
-          drawText(recordText, rect.x + rect.w - 12, textY, smallSize, THEME.accent, 'right', true);
-        });
       }
+      const rowsTop = headerY + headerSize + 8;
+      rankRows.forEach((r, index) => {
+        const y = rowsTop + index * (rankRowH + rankGap);
+        if (y + rankRowH < listTop || y > listBottom) return;
+        const rect = { x: pad, y, w: canvas.width - pad * 2, h: rankRowH, name: r.name };
+        versusRankRects.push(rect);
+        ctx.fillStyle = index % 2 === 0 ? THEME.surface2 : THEME.surface;
+        ctx.beginPath();
+        ctx.roundRect(rect.x, rect.y, rect.w, rect.h, 6);
+        ctx.fill();
+        const textY = y + rankRowH / 2 + rowSize * 0.35;
+        const rankText = `${index + 1}.`;
+        ctx.font = `bold ${Math.round(rowSize)}px sans-serif`;
+        const rankW = ctx.measureText(rankText).width;
+        drawText(rankText, pad + 10, textY, rowSize, THEME.textMute, 'left', true);
+        const recordText = r.ties > 0
+          ? `${r.wins}W · ${r.losses}L · ${r.ties}T`
+          : `${r.wins}W · ${r.losses}L`;
+        ctx.font = `${Math.round(smallSize)}px sans-serif`;
+        const recordW = ctx.measureText(recordText).width;
+        const nameLeftX = pad + 10 + rankW + 10;
+        const nameMaxW = rect.w - (nameLeftX - rect.x) - recordW - 24;
+        const nameText = truncateText(r.name, nameMaxW, rowSize);
+        drawText(nameText, nameLeftX, textY, rowSize, THEME.text, 'left', false);
+        drawText(recordText, rect.x + rect.w - 12, textY, smallSize, THEME.accent, 'right', true);
+      });
     }
+    ctx.restore();
 
     const bottomY = canvas.height - pad - backH;
     const bottomW = canvas.width - pad * 2;
