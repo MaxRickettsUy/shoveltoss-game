@@ -123,6 +123,14 @@ Legacy `index.html` is renamed to `legacy.html` and otherwise untouched during s
 - **Slices 1–4** build the Phaser app alongside the legacy app. `legacy.html` remains the user-facing game on production until cutover.
 - **Slice 5** swaps the production entry to the Phaser build and deletes `legacy.html` plus dead legacy code. Once Slice 5 lands, the migration is done.
 
+## Versioning & branching
+
+- **Tag `v1.0.0` on `main` before Slice 1 begins.** The migration is internal — same look, same feel, no user-visible feature change — so it should not be the headline of a major version bump. Tagging 1.0 against the JS legacy game also gives a forever-recoverable baseline if rollback is ever needed. If the roster or other pre-Phaser work is genuinely incomplete, finish it as small legacy patches (`v0.x.y`) first, then tag `v1.0.0`, then start Slice 1.
+- **One PR per slice, merged to `main`.** No long-lived `phaser-migration` branch — the side-by-side `legacy.html` design lets `main` carry both apps without breaking users, so a long branch only buys drift risk. Branch naming: `phaser/slice-1-bootstrap`, `phaser/slice-2-gameplay-scene`, etc.
+- **Tag every slice merge.** Slices 1–4 tag as `v1.1.0-alpha.1` through `v1.1.0-alpha.4` (or any internal pre-release scheme — these are invisible to users since the homepage still serves `legacy.html`). Slice 5 cutover tags `v1.1.0` proper, which is the user-visible release.
+- **Production deploy stays pinned to `legacy.html` as the homepage through Slices 1–4.** The Phaser build at `/index.html` is reachable in production for QA but not advertised. Slice 5 flips the deploy entry.
+- Pauses between slices are fine — slices are independently mergeable. Don't rebase a slice branch onto stale main work; rebase fresh before each PR.
+
 ## Slice list
 
 1. `phaser-migration-slice-1-bootstrap.md` — Phaser 4 + Vite + BootScene + HomeScene placeholder; `legacy.html` preserved.

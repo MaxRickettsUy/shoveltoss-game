@@ -106,18 +106,20 @@ const matches = await listMatchesForPlayer(name);
 
 ### Step 6 — Version bump and release note
 
-In `src/game/constants.ts`, bump `APP_VERSION_TAG` (e.g. `0.28.1` → `0.29.0`).
+In `src/game/constants.ts`, bump `APP_VERSION_TAG` to `1.1.0` (this is the user-visible Phaser cutover release; pre-Phaser legacy was tagged `v1.0.0`, and Slices 1–4 used internal `v1.1.0-alpha.*` tags — see the overview's "Versioning & branching" section).
 
 In `src/releaseNotes.ts`, prepend:
 
-```js
+```ts
 {
-  version: '0.29.0',
+  version: '1.1.0',
   date: '2026-MM-DD',  // implementation date
   title: 'Rebuilt on Phaser',
   body: 'Same game, same look — now running on Phaser 4 for a smoother experience and faster feature work.'
 }
 ```
+
+After the slice merges to `main`, tag the merge commit `v1.1.0` and flip the production deploy entry from `legacy.html` to `index.html`.
 
 ### Step 7 — Verify Vite build and types
 
