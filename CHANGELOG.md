@@ -4,6 +4,16 @@ All notable changes to Shovel Toss. Format follows [Keep a Changelog](https://ke
 
 ## [Unreleased]
 
+## [0.28.1] — 2026-05-14
+
+### Fixed
+- Pit boundary throws now score correctly when the shovel catches the edge; misses only happen when the shovel lands fully short of or beyond the pit.
+- 1v1 Toss-Off home content is now scrollable, so ranked players remain reachable when pending challenges fill the screen.
+- Restored the Umami analytics tag placement from the original analytics change.
+
+### Internal
+- Removed unused game code and archived older 1v1 planning docs.
+
 ## [0.28.0] — 2026-05-12
 
 ### Added

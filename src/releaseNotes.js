@@ -2,6 +2,15 @@
 // When releasing, prepend an entry here if users should see "What's New".
 const RELEASE_NOTES = [
   {
+    version: 'v0.28.1',
+    date: '2026-05-14',
+    headline: 'Pit and 1v1 fixes',
+    items: [
+      'Pit boundary throws now score correctly when the shovel catches the edge.',
+      'The 1v1 Toss-Off home screen now scrolls through pending challenges and ranked players.'
+    ]
+  },
+  {
     version: 'v0.28.0',
     date: '2026-05-12',
     headline: '1v1 Toss-Off is live',
