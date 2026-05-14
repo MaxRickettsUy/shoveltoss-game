@@ -2,6 +2,15 @@
 // When releasing, prepend an entry here if users should see "What's New".
 const RELEASE_NOTES = [
   {
+    version: 'v1.0.0',
+    date: '2026-05-13',
+    headline: 'Shovel Toss 1.0',
+    items: [
+      'Every gameplay feature on the original roadmap is shipped.',
+      'Behind the scenes: a rebuild on Phaser is coming as v1.1.'
+    ]
+  },
+  {
     version: 'v0.28.1',
     date: '2026-05-14',
     headline: 'Pit and 1v1 fixes',

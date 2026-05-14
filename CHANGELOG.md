@@ -4,6 +4,16 @@ All notable changes to Shovel Toss. Format follows [Keep a Changelog](https://ke
 
 ## [Unreleased]
 
+## [1.0.0] — 2026-05-13
+
+Marks the pre-Phaser baseline. Every gameplay feature on the original roadmap is shipped; the next major work is the Phaser 4 rebuild planned in `plans/phaser-migration/`, which will ship as v1.1.
+
+### Internal
+- Replaced the planner/workflow docs with an architect system prompt.
+- Refreshed `README.md` and `CLAUDE.md` to match the current state of the codebase.
+- Rewrote the Phaser migration plan as a Phaser-native, TypeScript-first, five-slice design with a v1.1.0 cutover target.
+- Reorganized active plans and dropped tracked `.DS_Store` plus stale MVP-era docs.
+
 ## [0.28.1] — 2026-05-14
 
 ### Fixed
