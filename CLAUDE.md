@@ -23,7 +23,7 @@ There are no build steps, no bundler, no test suite. The game is a single HTML f
 
 ### Single-file game
 
-Almost all game logic lives in `index.html` inside one large `<script>` tag (line 304 to ~4960). This is intentional — the game targets plain-browser delivery with no build toolchain. Do not extract it into separate modules unless the entire architecture is being migrated (see Phaser migration in plans).
+Almost all game logic lives in `index.html` inside one large `<script>` tag (line 304 to ~5155). This is intentional — the game targets plain-browser delivery with no build toolchain. Do not extract it into separate modules unless the entire architecture is being migrated (see `plans/phaser-migration/`).
 
 ### External modules (ES modules via `<script type="module">`)
 
@@ -37,7 +37,7 @@ Two parallel state machines inside `index.html`:
 
 **`RUN_STATE`** — top-level screen routing (what the player sees):
 `USERNAME → HOME → SELECTING → LEVEL_SELECT → PLAYING → GAME_OVER → LEADERBOARD`
-Plus: `HALL_OF_FAME`, `PLAYER_STATS`, `PLAYER_DETAIL`, `VERSUS_HOME`, `VERSUS_PLAYING`, `VERSUS_WAITING`, `VERSUS_RESULT`
+Plus: `HALL_OF_FAME`, `PLAYER_STATS`, `PLAYER_DETAIL`, `VERSUS_HOME`, `VERSUS_PLAYING`, `VERSUS_WAITING`, `VERSUS_RESULT`, `VERSUS_HISTORY`
 
 **`STATE`** — throw lifecycle within a single throw:
 `IDLE → CHARGING → FLYING → RESETTING → IDLE`
@@ -77,7 +77,7 @@ Score submission to `high_scores` is **production-only** (blocked on non-prod ho
 ### localStorage
 
 - `shoveltoss.username` — player name
-- `shoveltoss.settings` — `{ meterPosition, hideHowToPlay }`
+- `shoveltoss.settings` — `{ meterPosition, hideHowToPlay, hideVersusHowToPlay }`
 - `shoveltoss.challengesSentToday` — daily challenge rate-limiting
 
 ---

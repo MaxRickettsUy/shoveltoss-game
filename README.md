@@ -35,7 +35,7 @@ Right-click `index.html` → Open with Live Server.
 ## How to Play
 
 1. **First open** — enter a username (saved in `localStorage`, used for the global leaderboard).
-2. **Home** — pick `Play Game`, `Leaderboard`, `Hall of Fame`, `Player Stats`, or `What's New`. Tap the username to edit it.
+2. **Home** — pick `1v1 Toss-Off`, `Play Game`, `Leaderboard`, `Hall of Fame`, `Player Stats`, or `What's New`. Tap the username to edit it.
 3. **Character select** — tap a tile to pick a character. Use the `NEW` / `LADIES` / `CHAMPS` filters to narrow the roster, or flip a card to preview that character's top-5 scores.
 4. **Level select** — choose Lil Italy, The Swamp, or St Paul.
 5. **Throw** — hold anywhere to start the power meter. The fill oscillates and the gold sweet-spot band appears at a random position each throw. Release while the fill is inside the sweet spot for a `STICK`.
@@ -64,11 +64,15 @@ export const SUPABASE_URL = 'https://YOUR_PROJECT.supabase.co';
 export const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
 ```
 
-The game imports `@supabase/supabase-js` from `https://esm.sh/@supabase/supabase-js@2`, so no bundler is required. If config is missing or the request fails, the global status shows offline. The current global #1 gets a crown badge next to their HUD name. The leaderboard screen toggles between `All Time` and `Today` (since local midnight) and can be filtered by character.
+The game imports `@supabase/supabase-js` from `https://esm.sh/@supabase/supabase-js@2`, so no bundler is required. If config is missing or the request fails, the global status shows offline. The current global #1 gets a crown badge next to their HUD name. The leaderboard screen defaults to `Today` (since local midnight) and toggles to `All Time`; it can also be filtered by character.
 
 The Supabase anon key in `src/config.js` is intentionally public for this browser app. Access is gated by row-level security and database constraints in the migration.
 
 The weekly keep-alive workflow in `.github/workflows/supabase-keepalive.yml` fetches one score every Monday. Add repository secrets named `SUPABASE_URL` and `SUPABASE_ANON_KEY`.
+
+## 1v1 Toss-Off
+
+Async multiplayer over Supabase. From the home screen, tap `1v1 Toss-Off` to challenge another player to a 9-throw match on a chosen level and character. The opponent's run is played when they next open the game; the result lands back on your side via polling (every 30 s). Match writes work locally; only `high_scores` submissions are production-only.
 
 ## Controls
 
