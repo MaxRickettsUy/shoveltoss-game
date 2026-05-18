@@ -4,6 +4,11 @@ All notable changes to Shovel Toss. Format follows [Keep a Changelog](https://ke
 
 ## [Unreleased]
 
+## [1.0.1] — 2026-05-17
+
+### Added
+- Hall of Fame milestones for first to 666 points and first to 100, 500, 1k, 5k, and 10k total points.
+
 ## [1.0.0] — 2026-05-13
 
 Marks the pre-Phaser baseline. Every gameplay feature on the original roadmap is shipped; the next major work is the Phaser 4 rebuild planned in `plans/phaser-migration/`, which will ship as v1.1.

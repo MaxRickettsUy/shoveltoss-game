@@ -2,6 +2,15 @@
 // When releasing, prepend an entry here if users should see "What's New".
 const RELEASE_NOTES = [
   {
+    version: 'v1.0.1',
+    date: '2026-05-17',
+    headline: 'New Hall of Fame milestones',
+    items: [
+      'Hall of Fame now tracks first to 666 points in a single game.',
+      'New total-points milestones: first to 100, 500, 1k, 5k, and 10k.'
+    ]
+  },
+  {
     version: 'v1.0.0',
     date: '2026-05-13',
     headline: 'Shovel Toss 1.0',

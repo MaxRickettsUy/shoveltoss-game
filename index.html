@@ -612,7 +612,7 @@
   const VERSUS_THROWS_PER_PLAYER = 9;
   const VERSUS_POLL_MS = 30000;
   // When releasing user-visible changes, prepend a note in src/releaseNotes.js.
-  const APP_VERSION_TAG = 'v1.0.0';
+  const APP_VERSION_TAG = 'v1.0.1';
   const HOF_POINTS_LEADER = { key: 'pointsLeader', label: 'Most Points' };
   const HOF_TOTAL_POINTS_LEADER = { key: 'totalPointsLeader', label: 'Most Total Points All Time' };
   const HOF_GAMES_LEADER = { key: 'gamesLeader', label: 'Most Games All Time' };
@@ -628,6 +628,14 @@
     { key: 'oneFifty', label: 'First to 150 Points',  threshold: 150 },
     { key: 'twoHund',  label: 'First to 200 Points',  threshold: 200 },
     { key: 'fourTwenty', label: 'First to 420 Points', threshold: 420 },
+    { key: 'sixSixSix', label: 'First to 666 Points', threshold: 666 },
+  ];
+  const HOF_TOTAL_POINT_MILESTONES = [
+    { key: 'tp100',   label: 'First to 100 Total Points',   threshold: 100,   kind: 'totalPoints' },
+    { key: 'tp500',   label: 'First to 500 Total Points',   threshold: 500,   kind: 'totalPoints' },
+    { key: 'tp1000',  label: 'First to 1k Total Points',    threshold: 1000,  kind: 'totalPoints' },
+    { key: 'tp5000',  label: 'First to 5k Total Points',    threshold: 5000,  kind: 'totalPoints' },
+    { key: 'tp10000', label: 'First to 10k Total Points',   threshold: 10000, kind: 'totalPoints' },
   ];
   const HOF_GAME_MILESTONES = [
     { key: 'g10',  label: 'First to 10 Games',  threshold: 10,  kind: 'gameCount' },
@@ -1069,10 +1077,11 @@
     hallOfFameStatus = 'loading';
     try {
       if (!window.globalScores) throw new Error('offline');
-      const [pointsLeaders, totalPointsLeader, gamesLeader, gameCountMap, ...results] = await Promise.all([
+      const [pointsLeaders, totalPointsLeader, gamesLeader, totalPointMap, gameCountMap, ...results] = await Promise.all([
         window.globalScores.topN(1),
         window.globalScores.mostTotalPointsLeader(),
         window.globalScores.mostGamesLeader(),
+        window.globalScores.firstAtTotalPoints(HOF_TOTAL_POINT_MILESTONES.map(m => m.threshold)),
         window.globalScores.firstAtGameCounts(HOF_GAME_MILESTONES.map(m => m.threshold)),
         ...HOF_MILESTONES.map(m => window.globalScores.firstAtMilestone(m.threshold))
       ]);
@@ -1081,6 +1090,7 @@
         { milestone: HOF_TOTAL_POINTS_LEADER, row: totalPointsLeader },
         { milestone: HOF_GAMES_LEADER, row: gamesLeader },
         ...HOF_MILESTONES.map((m, i) => ({ milestone: m, row: results[i] })),
+        ...HOF_TOTAL_POINT_MILESTONES.map(m => ({ milestone: m, row: totalPointMap.get(m.threshold) || null })),
         ...HOF_GAME_MILESTONES.map(m => ({ milestone: m, row: gameCountMap.get(m.threshold) || null }))
       ];
       hallOfFameStatus = 'ready';

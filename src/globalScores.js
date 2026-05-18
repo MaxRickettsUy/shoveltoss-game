@@ -199,6 +199,40 @@ window.globalScores = {
     return result;
   },
 
+  async firstAtTotalPoints(thresholds) {
+    const result = new Map();
+    const remaining = new Set(thresholds || []);
+    if (remaining.size === 0) return result;
+    const totals = new Map();
+    const pageSize = 1000;
+    let from = 0;
+    while (remaining.size > 0) {
+      const { data, error } = await getClient()
+        .from('high_scores')
+        .select('id, name, character_name, score, created_at')
+        .order('created_at', { ascending: true })
+        .order('id', { ascending: true })
+        .range(from, from + pageSize - 1);
+      if (error) throw error;
+      const rows = data || [];
+      for (const row of rows) {
+        const name = cleanName(row.name);
+        const next = (totals.get(name) || 0) + (Number(row.score) || 0);
+        totals.set(name, next);
+        for (const threshold of Array.from(remaining)) {
+          if (next >= threshold) {
+            result.set(threshold, { ...row, name, score: next });
+            remaining.delete(threshold);
+          }
+        }
+        if (remaining.size === 0) break;
+      }
+      if (rows.length < pageSize) break;
+      from += pageSize;
+    }
+    return result;
+  },
+
   async mostTotalPointsLeader() {
     const pageSize = 1000;
     const totals = new Map();
