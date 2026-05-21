@@ -9,12 +9,19 @@
       @font-face { font-family: 'Archivo'; src: url('assets/fonts/archivo-regular.woff2') format('woff2'); font-weight: 400; font-display: swap; }
       @font-face { font-family: 'Archivo'; src: url('assets/fonts/archivo-bold.woff2') format('woff2'); font-weight: 700; font-display: swap; }
       html, body { margin: 0; padding: 0; background: #000; overflow: hidden; }
-      #game-root { width: 100vw; height: 100vh; }
+      #game-root {
+        width: 100vw;
+        height: 100vh;
+        display: grid;
+        place-items: center;
+        color: #ede8d8;
+        font-family: 'Archivo', system-ui, sans-serif;
+      }
       canvas { display: block; }
     </style>
   </head>
   <body>
-    <div id="game-root"></div>
+    <div id="game-root">Loading Shovel Toss...</div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

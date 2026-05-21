@@ -2,6 +2,9 @@ import Phaser from 'phaser';
 import BootScene from './scenes/BootScene';
 import HomeScene from './scenes/HomeScene';
 
+const root = document.getElementById('game-root');
+if (root) root.textContent = '';
+
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
   parent: 'game-root',
