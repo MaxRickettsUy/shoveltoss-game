@@ -1,21 +1,99 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { SUPABASE_ANON_KEY, SUPABASE_URL } from './config.js';
+import { SUPABASE_ANON_KEY, SUPABASE_URL } from './config';
+
+interface ScoreRow {
+  id: string | number;
+  name: string;
+  character_name?: string | null;
+  score: number;
+  created_at: string;
+}
+
+interface TotalRow {
+  name: string;
+  score: number;
+  created_at: string;
+}
+
+interface VersusStatsRow {
+  name: string;
+  wins: number;
+  losses: number;
+  ties: number;
+  total: number;
+}
+
+interface MatchRow {
+  id: string;
+  invite_code: string;
+  challenger_name: string;
+  recipient_name: string | null;
+  challenger_score: number | null;
+  recipient_score: number | null;
+  status: 'pending' | 'playing' | 'complete';
+  created_at: string;
+  expires_at: string;
+  level_id?: string | null;
+  challenger_character_id?: string | null;
+  recipient_character_id?: string | null;
+}
+
+interface ScoreQueryOptions {
+  characterName?: string;
+  sinceISO?: string;
+}
+
+interface ChallengeOptions {
+  levelId?: string;
+  characterId?: string;
+}
+
+export interface GlobalScoresApi {
+  isProduction(): boolean;
+  submit(name: unknown, score: number, characterName: unknown): Promise<string | number>;
+  topN(n?: number, opts?: ScoreQueryOptions): Promise<ScoreRow[]>;
+  topNPerPlayer(n?: number, opts?: ScoreQueryOptions): Promise<Array<ScoreRow & { rank: number }>>;
+  allScores(maxRows?: number): Promise<Array<Pick<ScoreRow, 'name' | 'score'>>>;
+  playerScores(name: unknown, maxRows?: number): Promise<ScoreRow[]>;
+  firstAtMilestone(threshold: number): Promise<ScoreRow | null>;
+  firstAtGameCounts(thresholds: number[]): Promise<Map<number, ScoreRow>>;
+  firstAtTotalPoints(thresholds: number[]): Promise<Map<number, ScoreRow>>;
+  mostTotalPointsLeader(): Promise<TotalRow | null>;
+  mostGamesLeader(): Promise<TotalRow | null>;
+  fetchVersusLeaderboard(maxRows?: number): Promise<VersusStatsRow[]>;
+  fetchKnownPlayers(maxRows?: number): Promise<string[]>;
+  createDirectChallenge(challengerName: unknown, recipientName: unknown, opts?: ChallengeOptions): Promise<MatchRow>;
+  fetchMatchByCode(code: unknown): Promise<MatchRow>;
+  fetchPendingForUser(name: unknown): Promise<MatchRow[]>;
+  joinMatch(matchId: string, recipientName: unknown, opts?: ChallengeOptions): Promise<MatchRow>;
+  setRecipientCharacter(matchId: string, characterId: unknown): Promise<MatchRow | null>;
+  fetchRecentResultsForUser(name: unknown, sinceMs?: number): Promise<MatchRow[]>;
+  fetchHistoryForUser(name: unknown): Promise<MatchRow[]>;
+  fetchVersusRecord(name: unknown): Promise<{ wins: number; losses: number; ties: number; total: number }>;
+  submitMatchScore(matchId: string, side: 'challenger' | 'recipient', score: number): Promise<MatchRow>;
+}
+
+declare global {
+  interface Window {
+    globalScores: GlobalScoresApi;
+  }
+}
 
 const PROD_APEX = 'shoveltoss.ing';
 
-function normalizeHost(h) {
+function normalizeHost(h: unknown): string {
   return String(h || '').toLowerCase().replace(/\.$/, '');
 }
 
-function isProductionHost() {
+function isProductionHost(): boolean {
   if (typeof window === 'undefined') return false;
   const host = normalizeHost(window.location.hostname);
   return host === PROD_APEX || host.endsWith('.' + PROD_APEX);
 }
 
-let client = null;
+let client: any = null;
 
-function cleanName(name) {
+function cleanName(name: unknown): string {
   const clean = String(name || '')
     .normalize('NFKC')
     .replace(/[\u0000-\u001F\u007F\u200B-\u200F\u202A-\u202E\uFEFF]/g, '')
@@ -24,19 +102,19 @@ function cleanName(name) {
   return clean || 'Player';
 }
 
-function generateInviteCode() {
+function generateInviteCode(): string {
   const alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
   let s = '';
   for (let i = 0; i < 8; i++) s += alphabet[Math.floor(Math.random() * alphabet.length)];
   return s;
 }
 
-function cleanCharacterName(characterName) {
+function cleanCharacterName(characterName: unknown): string {
   const clean = String(characterName || '').trim().slice(0, 20);
   return clean || 'Unknown';
 }
 
-function getClient() {
+function getClient(): any {
   if (client) return client;
 
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
@@ -47,14 +125,14 @@ function getClient() {
   return client;
 }
 
-window.globalScores = {
+export const globalScores: GlobalScoresApi = {
   isProduction() {
     return isProductionHost();
   },
 
   async submit(name, score, characterName) {
     if (!isProductionHost()) {
-      const err = new Error('disabled-non-prod');
+      const err = new Error('disabled-non-prod') as Error & { code: string };
       err.code = 'disabled-non-prod';
       throw err;
     }
@@ -168,10 +246,10 @@ window.globalScores = {
   },
 
   async firstAtGameCounts(thresholds) {
-    const result = new Map();
+    const result = new Map<number, ScoreRow>();
     const remaining = new Set(thresholds || []);
     if (remaining.size === 0) return result;
-    const counts = new Map();
+    const counts = new Map<string, number>();
     const pageSize = 1000;
     let from = 0;
     while (remaining.size > 0) {
@@ -200,10 +278,10 @@ window.globalScores = {
   },
 
   async firstAtTotalPoints(thresholds) {
-    const result = new Map();
+    const result = new Map<number, ScoreRow>();
     const remaining = new Set(thresholds || []);
     if (remaining.size === 0) return result;
-    const totals = new Map();
+    const totals = new Map<string, number>();
     const pageSize = 1000;
     let from = 0;
     while (remaining.size > 0) {
@@ -235,7 +313,7 @@ window.globalScores = {
 
   async mostTotalPointsLeader() {
     const pageSize = 1000;
-    const totals = new Map();
+    const totals = new Map<string, TotalRow>();
     let from = 0;
     while (true) {
       const { data, error } = await getClient()
@@ -246,7 +324,7 @@ window.globalScores = {
         .range(from, from + pageSize - 1);
       if (error) throw error;
       const rows = data || [];
-      rows.forEach(row => {
+      rows.forEach((row: ScoreRow) => {
         const name = cleanName(row.name);
         const current = totals.get(name) || { name, score: 0, created_at: row.created_at };
         current.score += Number(row.score) || 0;
@@ -256,12 +334,12 @@ window.globalScores = {
       from += pageSize;
     }
     return Array.from(totals.values())
-      .sort((a, b) => b.score - a.score || new Date(a.created_at) - new Date(b.created_at) || a.name.localeCompare(b.name))[0] || null;
+      .sort((a, b) => b.score - a.score || new Date(a.created_at).getTime() - new Date(b.created_at).getTime() || a.name.localeCompare(b.name))[0] || null;
   },
 
   async mostGamesLeader() {
     const pageSize = 1000;
-    const totals = new Map();
+    const totals = new Map<string, TotalRow>();
     let from = 0;
     while (true) {
       const { data, error } = await getClient()
@@ -272,7 +350,7 @@ window.globalScores = {
         .range(from, from + pageSize - 1);
       if (error) throw error;
       const rows = data || [];
-      rows.forEach(row => {
+      rows.forEach((row: ScoreRow) => {
         const name = cleanName(row.name);
         const current = totals.get(name) || { name, score: 0, created_at: row.created_at };
         current.score += 1;
@@ -282,7 +360,7 @@ window.globalScores = {
       from += pageSize;
     }
     return Array.from(totals.values())
-      .sort((a, b) => b.score - a.score || new Date(a.created_at) - new Date(b.created_at) || a.name.localeCompare(b.name))[0] || null;
+      .sort((a, b) => b.score - a.score || new Date(a.created_at).getTime() - new Date(b.created_at).getTime() || a.name.localeCompare(b.name))[0] || null;
   },
 
   async fetchVersusLeaderboard(maxRows = 5000) {
@@ -294,8 +372,8 @@ window.globalScores = {
       .not('recipient_score', 'is', null)
       .limit(maxRows);
     if (error) throw error;
-    const stats = new Map();
-    const bump = (raw) => {
+    const stats = new Map<string, VersusStatsRow>();
+    const bump = (raw: unknown) => {
       const name = cleanName(raw);
       const key = name.toLowerCase();
       let row = stats.get(key);
@@ -332,8 +410,8 @@ window.globalScores = {
       .order('id', { ascending: false })
       .limit(maxRows);
     if (error) throw error;
-    const seen = new Set();
-    const names = [];
+    const seen = new Set<string>();
+    const names: string[] = [];
     for (const row of data || []) {
       const n = cleanName(row.name);
       const key = n.toLowerCase();
@@ -347,7 +425,13 @@ window.globalScores = {
 
   async createDirectChallenge(challengerName, recipientName, opts = {}) {
     const code = generateInviteCode();
-    const insert = {
+    const insert: {
+      invite_code: string;
+      challenger_name: string;
+      recipient_name: string;
+      level_id?: string;
+      challenger_character_id?: string;
+    } = {
       invite_code: code,
       challenger_name: cleanName(challengerName),
       recipient_name: cleanName(recipientName),
@@ -388,7 +472,11 @@ window.globalScores = {
   },
 
   async joinMatch(matchId, recipientName, opts = {}) {
-    const update = { recipient_name: cleanName(recipientName), status: 'playing' };
+    const update: {
+      recipient_name: string;
+      status: 'playing';
+      recipient_character_id?: string;
+    } = { recipient_name: cleanName(recipientName), status: 'playing' };
     if (opts.characterId) update.recipient_character_id = String(opts.characterId).slice(0, 32);
     const { data, error } = await getClient()
       .from('matches')
@@ -464,7 +552,13 @@ window.globalScores = {
   },
 
   async submitMatchScore(matchId, side, score) {
-    const update = side === 'challenger'
+    const update: {
+      challenger_score?: number;
+      challenger_finished_at?: string;
+      recipient_score?: number;
+      recipient_finished_at?: string;
+      status?: 'playing' | 'complete';
+    } = side === 'challenger'
       ? { challenger_score: score, challenger_finished_at: new Date().toISOString() }
       : { recipient_score: score, recipient_finished_at: new Date().toISOString() };
     const { data: row, error: readErr } = await getClient()
@@ -486,3 +580,5 @@ window.globalScores = {
     return data;
   }
 };
+
+window.globalScores = globalScores;
