@@ -1,7 +1,6 @@
 import Phaser from 'phaser';
 import { CHARACTERS } from '../game/characters';
 import { LEVELS } from '../game/levels';
-import { MISSES_PER_RUN } from '../game/constants';
 import { getStoredSettings, getStoredUsername } from '../game/storage';
 import { setRegistryValue } from '../game/state';
 
@@ -66,7 +65,7 @@ export default class BootScene extends Phaser.Scene {
     setRegistryValue(this.game, 'settings', getStoredSettings());
     setRegistryValue(this.game, 'activeMatch', null);
     setRegistryValue(this.game, 'score', 0);
-    setRegistryValue(this.game, 'misses', MISSES_PER_RUN);
+    setRegistryValue(this.game, 'misses', 0);
 
     await waitForFonts();
     this.scene.start('HomeScene');

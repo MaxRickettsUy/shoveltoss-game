@@ -23,12 +23,13 @@ export function onRegistryChange<K extends RegistryKey>(
   key: K,
   fn: (value: RegistryState[K], previousValue: RegistryState[K]) => void,
   context?: unknown
-): void {
-  game.registry.events.on(
-    `changedata-${String(key)}`,
-    (_parent: unknown, value: RegistryState[K], previousValue: RegistryState[K]) => fn(value, previousValue),
-    context
-  );
+): () => void {
+  const eventName = `changedata-${String(key)}`;
+  const handler = (_parent: unknown, value: RegistryState[K], previousValue: RegistryState[K]) => fn(value, previousValue);
+  game.registry.events.on(eventName, handler, context);
+  return () => {
+    game.registry.events.off(eventName, handler, context);
+  };
 }
 
 export function offRegistryChange<K extends RegistryKey>(
