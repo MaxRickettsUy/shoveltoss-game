@@ -59,7 +59,8 @@ export default class BootScene extends Phaser.Scene {
   }
 
   async create(): Promise<void> {
-    setRegistryValue(this.game, 'username', getStoredUsername() || null);
+    const username = getStoredUsername() || null;
+    setRegistryValue(this.game, 'username', username);
     setRegistryValue(this.game, 'selectedCharacterId', null);
     setRegistryValue(this.game, 'selectedLevelId', null);
     setRegistryValue(this.game, 'settings', getStoredSettings());
@@ -68,7 +69,7 @@ export default class BootScene extends Phaser.Scene {
     setRegistryValue(this.game, 'misses', 0);
 
     await waitForFonts();
-    this.scene.start('HomeScene');
+    this.scene.start(username ? 'HomeScene' : 'UsernameScene');
   }
 }
 

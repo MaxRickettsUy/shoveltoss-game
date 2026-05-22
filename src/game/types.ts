@@ -12,10 +12,28 @@ export interface RegistryState {
   misses: number;
 }
 
+export type OverlayKind = 'whatsNew' | 'settings';
+
 export interface Settings {
   meterPosition?: 'top' | 'middle' | 'bottom';
   hideHowToPlay?: boolean;
   hideVersusHowToPlay?: boolean;
+}
+
+export interface LeaderboardRow {
+  id?: string | number;
+  rank?: number;
+  name: string;
+  character_name?: string | null;
+  score: number;
+  created_at?: string;
+}
+
+export interface PlayerStat {
+  name: string;
+  games: number;
+  totalPoints: number;
+  bestScore: number;
 }
 
 export interface MatchSnapshot {

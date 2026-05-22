@@ -24,7 +24,7 @@ import {
   VERSUS_THROWS_PER_PLAYER
 } from '../game/constants';
 import { LEVELS } from '../game/levels';
-import { setRegistryValue } from '../game/state';
+import { getRegistryValue, setRegistryValue } from '../game/state';
 import { computeLayout, computeOutcome } from '../game/throw';
 import type { GameSceneData, ThrowOutcome, ThrowState } from '../game/types';
 import Meter from '../ui/Meter';
@@ -283,10 +283,17 @@ export default class GameScene extends Phaser.Scene {
 
   private sizeBackground(): void {
     const texture = this.textures.get(`level:${this.levelId}`).getSourceImage() as HTMLImageElement;
-    const scale = Math.max(this.scale.width / texture.naturalWidth, this.scale.height / texture.naturalHeight);
+    const isPortrait = this.scale.height > this.scale.width;
+    const coverScale = Math.max(this.scale.width / texture.naturalWidth, this.scale.height / texture.naturalHeight);
+    const scale = isPortrait ? coverScale * 0.72 : coverScale;
+    const displayWidth = texture.naturalWidth * scale;
+    const displayHeight = texture.naturalHeight * scale;
+    const y = isPortrait
+      ? this.scale.height - displayHeight / 2
+      : this.scale.height / 2;
     this.background
-      .setPosition(this.scale.width / 2, this.scale.height / 2)
-      .setDisplaySize(texture.naturalWidth * scale, texture.naturalHeight * scale);
+      .setPosition(this.scale.width / 2, y)
+      .setDisplaySize(displayWidth, displayHeight);
   }
 
   private onResize(): void {
@@ -321,6 +328,10 @@ export default class GameScene extends Phaser.Scene {
     const safeTop = Math.max(20, this.scale.height * 0.04);
     const hudFontSize = Math.max(24, Math.floor(this.scale.width * 0.07));
     const subFontSize = Math.max(16, Math.floor(this.scale.width * 0.045));
+    const meterHeight = Math.max(36, this.scale.height * METER_HEIGHT_FRACTION);
+    const position = getRegistryValue(this.game, 'settings')?.meterPosition ?? 'top';
+    if (position === 'middle') return (this.scale.height - meterHeight) / 2;
+    if (position === 'bottom') return this.scale.height - meterHeight - 44;
     return safeTop + hudFontSize + subFontSize + 30;
   }
 

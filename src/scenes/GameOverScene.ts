@@ -1,8 +1,11 @@
 import Phaser from 'phaser';
 import { CHARACTERS } from '../game/characters';
 import { LEVELS } from '../game/levels';
-import { THEME } from '../game/constants';
+import { globalScores } from '../globalScores';
+import { getRegistryValue } from '../game/state';
 import type { GameOverSceneData, GameSceneData } from '../game/types';
+import Button from '../ui/Button';
+import { UI } from '../ui/theme';
 
 export default class GameOverScene extends Phaser.Scene {
   private finalScore = 0;
@@ -19,48 +22,62 @@ export default class GameOverScene extends Phaser.Scene {
     this.levelId = data.levelId;
   }
 
-  create(): void {
+  async create(): Promise<void> {
     const { width, height } = this.scale;
     this.add.rectangle(0, 0, width, height, 0x000000, 0.6).setOrigin(0);
     this.add
       .text(width / 2, height / 2 - 104, 'Game Over', {
-        fontFamily: 'Bungee, Impact, sans-serif',
+        fontFamily: UI.titleFont,
         fontSize: '72px',
-        color: THEME.accent
+        color: UI.colors.accent
       })
       .setOrigin(0.5);
     this.add
       .text(width / 2, height / 2 - 26, `Final score: ${this.finalScore}`, {
-        fontFamily: 'Archivo, system-ui, sans-serif',
+        fontFamily: UI.font,
         fontSize: '32px',
-        color: THEME.text
+        color: UI.colors.text
+      })
+      .setOrigin(0.5);
+    const status = this.add
+      .text(width / 2, height / 2 + 20, 'Submitting...', {
+        fontFamily: UI.font,
+        fontSize: '18px',
+        color: UI.colors.textMute
       })
       .setOrigin(0.5);
 
-    this.addButton(width / 2, height / 2 + 54, 'Play again', () => {
+    await this.submitScore(status);
+
+    new Button(this, width / 2, height / 2 + 78, {
+      label: 'Play again',
+      variant: 'primary',
+      width: 240,
+      onClick: () => {
       this.scene.start('GameScene', {
         characterId: this.characterId,
         levelId: this.levelId,
         mode: 'solo'
       } satisfies GameSceneData);
-    });
-    this.addButton(width / 2, height / 2 + 126, 'Home', () => this.scene.start('HomeScene'));
+    }});
+    new Button(this, width / 2, height / 2 + 140, { label: 'View leaderboard', width: 240, onClick: () => this.scene.start('LeaderboardScene') });
+    new Button(this, width / 2, height / 2 + 202, { label: 'Home', width: 240, onClick: () => this.scene.start('HomeScene') });
   }
 
-  private addButton(x: number, y: number, label: string, onClick: () => void): void {
-    const button = this.add
-      .text(x, y, label, {
-        fontFamily: 'Archivo, system-ui, sans-serif',
-        fontSize: '24px',
-        fontStyle: '700',
-        color: THEME.text,
-        backgroundColor: THEME.surface,
-        padding: { x: 28, y: 14 }
-      })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-    button.on('pointerover', () => button.setBackgroundColor(THEME.secondary));
-    button.on('pointerout', () => button.setBackgroundColor(THEME.surface));
-    button.on('pointerdown', onClick);
+  private async submitScore(status: Phaser.GameObjects.Text): Promise<void> {
+    const username = getRegistryValue(this.game, 'username');
+    if (!username || this.finalScore <= 0) {
+      status.setText(this.finalScore <= 0 ? 'Score not saved' : 'No username saved');
+      return;
+    }
+    try {
+      await globalScores.submit(username, this.finalScore, this.characterId);
+      const rows = await globalScores.topN(100);
+      const rank = rows.findIndex((row) => row.name === username && row.score === this.finalScore && row.character_name === this.characterId) + 1;
+      status.setText(rank > 0 ? `Global rank: #${rank}` : 'Score saved');
+    } catch (err) {
+      const code = (err as { code?: string }).code;
+      status.setText(code === 'disabled-non-prod' ? 'Score not saved (local dev)' : 'Could not submit score');
+    }
   }
 }
