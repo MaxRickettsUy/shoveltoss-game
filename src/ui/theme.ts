@@ -11,6 +11,8 @@ export const UI = {
 export function fitText(value: unknown, maxChars: number): string {
   const text = String(value ?? '');
   if (text.length <= maxChars) return text;
+  if (maxChars <= 0) return '';
+  if (maxChars < 3) return '.'.repeat(maxChars);
   return `${text.slice(0, Math.max(0, maxChars - 3))}...`;
 }
 
