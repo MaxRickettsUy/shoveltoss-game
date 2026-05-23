@@ -21,6 +21,7 @@ import type { ThrowInput, ThrowOutcome, ThrowZone } from './types';
 
 const PIT_RIGHT_NATURAL = { width: 1285, height: 814 };
 const PIT_LEFT_NATURAL = { width: 1296, height: 831 };
+const EPSILON = 0.000001;
 
 export interface ThrowLayout {
   groundY: number;
@@ -38,9 +39,10 @@ export interface ThrowLayout {
 
 export function computeOutcome(input: ThrowInput): ThrowOutcome {
   const layout = computeLayout(input.levelId, input.width, input.height);
-  const sweetCenter = input.sweetSpotCenter ?? 0.5;
-  const sweetSpot = input.accuracy >= sweetCenter - SWEET_SPOT_WIDTH / 2 && input.accuracy <= sweetCenter + SWEET_SPOT_WIDTH / 2;
-  const throwMultiplier = computeThrowMultiplier(input.accuracy, sweetCenter);
+  const accuracy = clamp(input.accuracy, 0, 1);
+  const sweetCenter = clamp(input.sweetSpotCenter ?? 0.5, EPSILON, 1 - EPSILON);
+  const sweetSpot = accuracy >= sweetCenter - SWEET_SPOT_WIDTH / 2 && accuracy <= sweetCenter + SWEET_SPOT_WIDTH / 2;
+  const throwMultiplier = computeThrowMultiplier(accuracy, sweetCenter);
   const pitDistance = layout.pitCenterX - layout.playerX;
   let landingX = layout.playerX + pitDistance * throwMultiplier;
 
@@ -123,11 +125,17 @@ export function computeLayout(levelId: string, width: number, height: number): T
 
 function computeThrowMultiplier(fill: number, sweetCenter: number): number {
   if (fill < sweetCenter) {
-    return THROW_MULT_MIN + (fill / sweetCenter) * (1 - THROW_MULT_MIN);
+    const denominator = sweetCenter;
+    if (denominator === 0) return 1;
+    const multiplier = THROW_MULT_MIN + (fill / denominator) * (1 - THROW_MULT_MIN);
+    return Number.isFinite(multiplier) ? multiplier : 1;
   }
 
-  const overPower = (fill - sweetCenter) / (1 - sweetCenter);
-  return 1 + overPower * overPower * (THROW_MULT_MAX - 1);
+  const denominator = 1 - sweetCenter;
+  if (denominator === 0) return 1;
+  const overPower = (fill - sweetCenter) / denominator;
+  const multiplier = 1 + overPower * overPower * (THROW_MULT_MAX - 1);
+  return Number.isFinite(multiplier) ? multiplier : 1;
 }
 
 function crossesWallBeforeLanding(layout: ThrowLayout, landingX: number, launchOffsetY: number): boolean {
