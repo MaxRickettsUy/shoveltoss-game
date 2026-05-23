@@ -47,7 +47,7 @@ export default class GameOverScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    await this.submitScore(status);
+    void this.submitScore(status);
 
     new Button(this, width / 2, height / 2 + 78, {
       label: 'Play again',
