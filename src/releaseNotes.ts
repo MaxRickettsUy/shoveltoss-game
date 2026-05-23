@@ -1,6 +1,13 @@
 // Newest first. Add user-facing notes for releases with visible changes.
 // When releasing, prepend an entry here if users should see "What's New".
-const RELEASE_NOTES = [
+interface ReleaseNote {
+  version: string;
+  date: string;
+  headline: string;
+  items: string[];
+}
+
+const RELEASE_NOTES: ReleaseNote[] = [
   {
     version: 'v1.0.1',
     date: '2026-05-17',
@@ -154,8 +161,14 @@ const RELEASE_NOTES = [
   }
 ];
 
-function getLatestNotes(count = 3) {
+function getLatestNotes(count = 3): ReleaseNote[] {
   return RELEASE_NOTES.slice(0, count);
+}
+
+interface Window {
+  releaseNotes: {
+    getLatestNotes: typeof getLatestNotes;
+  };
 }
 
 window.releaseNotes = { getLatestNotes };
