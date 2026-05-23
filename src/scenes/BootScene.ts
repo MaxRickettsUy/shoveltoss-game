@@ -74,9 +74,9 @@ export default class BootScene extends Phaser.Scene {
 }
 
 async function waitForFonts(): Promise<void> {
-  if (!document.fonts?.ready) return;
+  const fontsReady = document.fonts?.ready ?? new Promise<never>(() => {});
   await Promise.race([
-    document.fonts.ready,
+    fontsReady,
     new Promise<void>((resolve) => {
       window.setTimeout(resolve, 1500);
     })
