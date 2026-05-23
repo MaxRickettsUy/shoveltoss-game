@@ -18,6 +18,30 @@ const listenersMap = new Map<
   Map<RegistryCallback, Map<unknown, RegistryChangeHandler<RegistryKey>>>
 >();
 
+function removeStoredListener(
+  eventName: string,
+  registryCallback: RegistryCallback,
+  context: unknown
+): RegistryChangeHandler<RegistryKey> | undefined {
+  const keyListeners = listenersMap.get(eventName);
+  const contextListeners = keyListeners?.get(registryCallback);
+  const handler = contextListeners?.get(context);
+
+  if (!keyListeners || !contextListeners || !handler) {
+    return undefined;
+  }
+
+  contextListeners.delete(context);
+  if (contextListeners.size === 0) {
+    keyListeners.delete(registryCallback);
+  }
+  if (keyListeners.size === 0) {
+    listenersMap.delete(eventName);
+  }
+
+  return handler;
+}
+
 export function getRegistryValue<K extends RegistryKey>(
   game: Phaser.Game,
   key: K
@@ -43,23 +67,20 @@ export function onRegistryChange<K extends RegistryKey>(
   const registryCallback = fn as RegistryCallback;
   const keyListeners = listenersMap.get(eventName) ?? new Map();
   const contextListeners = keyListeners.get(registryCallback) ?? new Map();
-  const handler: RegistryChangeHandler<K> = (_parent, value, previousValue) => fn.call(context, value, previousValue);
+  const existingHandler = contextListeners.get(context);
+  const handler: RegistryChangeHandler<K> = existingHandler ?? ((_parent: unknown, value: RegistryState[K], previousValue: RegistryState[K]) => fn.call(context, value, previousValue));
 
-  contextListeners.set(context, handler as RegistryChangeHandler<RegistryKey>);
-  keyListeners.set(registryCallback, contextListeners);
-  listenersMap.set(eventName, keyListeners);
+  if (!existingHandler) {
+    contextListeners.set(context, handler as RegistryChangeHandler<RegistryKey>);
+    keyListeners.set(registryCallback, contextListeners);
+    listenersMap.set(eventName, keyListeners);
+    game.registry.events.on(eventName, handler, context);
+  }
 
-  game.registry.events.on(eventName, handler, context);
   return () => {
-    game.registry.events.off(eventName, handler, context);
     if (contextListeners.get(context) === handler) {
-      contextListeners.delete(context);
-      if (contextListeners.size === 0) {
-        keyListeners.delete(registryCallback);
-      }
-      if (keyListeners.size === 0) {
-        listenersMap.delete(eventName);
-      }
+      removeStoredListener(eventName, registryCallback, context);
+      game.registry.events.off(eventName, handler, context);
     }
   };
 }
@@ -72,20 +93,11 @@ export function offRegistryChange<K extends RegistryKey>(
 ): void {
   const eventName = `changedata-${String(key)}`;
   const registryCallback = fn as RegistryCallback;
-  const keyListeners = listenersMap.get(eventName);
-  const contextListeners = keyListeners?.get(registryCallback);
-  const handler = contextListeners?.get(context);
+  const handler = removeStoredListener(eventName, registryCallback, context);
 
-  if (!keyListeners || !contextListeners || !handler) {
+  if (!handler) {
     return;
   }
 
   game.registry.events.off(eventName, handler, context);
-  contextListeners.delete(context);
-  if (contextListeners.size === 0) {
-    keyListeners.delete(registryCallback);
-  }
-  if (keyListeners.size === 0) {
-    listenersMap.delete(eventName);
-  }
 }
