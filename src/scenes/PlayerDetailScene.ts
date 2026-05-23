@@ -42,7 +42,6 @@ export default class PlayerDetailScene extends Phaser.Scene {
   private async loadRows(): Promise<void> {
     try {
       const rows = await globalScores.playerScores(this.playerName, 100);
-      this.statusText?.destroy();
       const total = rows.reduce((sum, row) => sum + (Number(row.score) || 0), 0);
       const best = rows.reduce((max, row) => Math.max(max, Number(row.score) || 0), 0);
       this.add.text(this.scale.width / 2, 112, `${rows.length} games   ${total} total   best ${best}`, {
@@ -61,6 +60,7 @@ export default class PlayerDetailScene extends Phaser.Scene {
       this.statusText?.setText('No scores yet');
       return;
     }
+    this.statusText?.destroy();
     const list = new List<LeaderboardRow>(this, 24, 150, {
       width: this.scale.width - 48,
       height: this.scale.height - 238,
