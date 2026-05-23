@@ -35,11 +35,11 @@ export default class LeaderboardScene extends Phaser.Scene {
   private async loadRows(): Promise<void> {
     try {
       const rows = await globalScores.topN(100);
-      this.statusText?.destroy();
       if (rows.length === 0) {
         this.showMessage('No scores yet');
         return;
       }
+      this.statusText?.destroy();
       this.renderList(rows);
     } catch {
       this.showMessage('Could not load leaderboard');
