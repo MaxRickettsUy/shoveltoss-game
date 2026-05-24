@@ -1,6 +1,7 @@
 export type CharacterId = string;
 export type LevelId = string;
 export type GameMode = 'solo' | 'versus';
+export type VersusRole = 'challenger' | 'recipient';
 
 export interface RegistryState {
   username: string | null;
@@ -12,7 +13,7 @@ export interface RegistryState {
   misses: number;
 }
 
-export type OverlayKind = 'whatsNew' | 'settings';
+export type OverlayKind = 'whatsNew' | 'settings' | 'versusHowTo';
 
 export interface Settings {
   meterPosition?: 'top' | 'middle' | 'bottom';
@@ -48,6 +49,7 @@ export interface MatchSnapshot {
   levelId: LevelId;
   challengerCharacterId: CharacterId | null;
   recipientCharacterId: CharacterId | null;
+  createdAt?: string;
 }
 
 export interface ThrowInput {
@@ -80,6 +82,15 @@ export interface GameSceneData {
   levelId: LevelId;
   throwsRemaining?: number;
   matchId?: string;
+}
+
+export interface VersusGameSceneData {
+  matchId?: string;
+  inviteCode?: string;
+  role: VersusRole;
+  opponentName?: string;
+  characterId: CharacterId;
+  levelId?: LevelId;
 }
 
 export interface GameOverSceneData {

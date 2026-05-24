@@ -114,6 +114,17 @@ function cleanCharacterName(characterName: unknown): string {
   return clean || 'Unknown';
 }
 
+function uniqueMatches(rows: MatchRow[][]): MatchRow[] {
+  const seen = new Set<string>();
+  const matches: MatchRow[] = [];
+  for (const row of rows.flat()) {
+    if (seen.has(row.id)) continue;
+    seen.add(row.id);
+    matches.push(row);
+  }
+  return matches;
+}
+
 function getClient(): any {
   if (client) return client;
 
@@ -131,11 +142,6 @@ export const globalScores: GlobalScoresApi = {
   },
 
   async submit(name, score, characterName) {
-    if (!isProductionHost()) {
-      const err = new Error('disabled-non-prod') as Error & { code: string };
-      err.code = 'disabled-non-prod';
-      throw err;
-    }
     const { data, error } = await getClient()
       .from('high_scores')
       .insert({ name: cleanName(name), score, character_name: cleanCharacterName(characterName) })
@@ -459,16 +465,21 @@ export const globalScores: GlobalScoresApi = {
 
   async fetchPendingForUser(name) {
     const clean = cleanName(name);
-    const { data, error } = await getClient()
+    const base = () => getClient()
       .from('matches')
       .select('*')
-      .or(`recipient_name.eq.${clean},challenger_name.eq.${clean}`)
       .not('recipient_name', 'is', null)
       .in('status', ['pending', 'playing'])
       .gt('expires_at', new Date().toISOString())
       .order('created_at', { ascending: false });
-    if (error) throw error;
-    return data || [];
+    const [recipient, challenger] = await Promise.all([
+      base().ilike('recipient_name', clean),
+      base().ilike('challenger_name', clean)
+    ]);
+    if (recipient.error) throw recipient.error;
+    if (challenger.error) throw challenger.error;
+    return uniqueMatches([recipient.data || [], challenger.data || []])
+      .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
   },
 
   async joinMatch(matchId, recipientName, opts = {}) {
@@ -506,43 +517,61 @@ export const globalScores: GlobalScoresApi = {
   async fetchRecentResultsForUser(name, sinceMs = 14 * 24 * 60 * 60 * 1000) {
     const clean = cleanName(name);
     const since = new Date(Date.now() - sinceMs).toISOString();
-    const { data, error } = await getClient()
+    const base = () => getClient()
       .from('matches')
       .select('*')
-      .or(`recipient_name.eq.${clean},challenger_name.eq.${clean}`)
       .eq('status', 'complete')
       .gt('created_at', since)
       .order('created_at', { ascending: false })
       .limit(50);
-    if (error) throw error;
-    return data || [];
+    const [recipient, challenger] = await Promise.all([
+      base().ilike('recipient_name', clean),
+      base().ilike('challenger_name', clean)
+    ]);
+    if (recipient.error) throw recipient.error;
+    if (challenger.error) throw challenger.error;
+    return uniqueMatches([recipient.data || [], challenger.data || []])
+      .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
+      .slice(0, 50);
   },
 
   async fetchHistoryForUser(name) {
     const clean = cleanName(name);
-    const { data, error } = await getClient()
+    const base = () => getClient()
       .from('matches')
       .select('*')
-      .or(`recipient_name.eq.${clean},challenger_name.eq.${clean}`)
       .eq('status', 'complete')
       .order('created_at', { ascending: false })
       .limit(50);
-    if (error) throw error;
-    return data || [];
+    const [recipient, challenger] = await Promise.all([
+      base().ilike('recipient_name', clean),
+      base().ilike('challenger_name', clean)
+    ]);
+    if (recipient.error) throw recipient.error;
+    if (challenger.error) throw challenger.error;
+    return uniqueMatches([recipient.data || [], challenger.data || []])
+      .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
+      .slice(0, 50);
   },
 
   async fetchVersusRecord(name) {
     const cleaned = cleanName(name);
-    const { data, error } = await getClient()
+    const base = () => getClient()
       .from('matches')
-      .select('challenger_name,recipient_name,challenger_score,recipient_score')
-      .or(`challenger_name.eq.${cleaned},recipient_name.eq.${cleaned}`)
+      .select('*')
       .eq('status', 'complete');
-    if (error) throw error;
+    const [recipient, challenger] = await Promise.all([
+      base().ilike('recipient_name', cleaned),
+      base().ilike('challenger_name', cleaned)
+    ]);
+    if (recipient.error) throw recipient.error;
+    if (challenger.error) throw challenger.error;
+    const data = uniqueMatches([recipient.data || [], challenger.data || []]);
     let wins = 0, losses = 0, ties = 0;
     for (const m of data || []) {
-      const mine = m.challenger_name === cleaned ? m.challenger_score : m.recipient_score;
-      const theirs = m.challenger_name === cleaned ? m.recipient_score : m.challenger_score;
+      const isChallenger = m.challenger_name.toLowerCase() === cleaned.toLowerCase();
+      const mine = isChallenger ? m.challenger_score : m.recipient_score;
+      const theirs = isChallenger ? m.recipient_score : m.challenger_score;
       if (mine == null || theirs == null) continue;
       if (mine > theirs) wins++;
       else if (mine < theirs) losses++;

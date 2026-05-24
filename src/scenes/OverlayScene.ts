@@ -14,6 +14,7 @@ interface OverlayData {
 export default class OverlayScene extends Phaser.Scene {
   private kind: OverlayKind = 'whatsNew';
   private meterButtons: Button[] = [];
+  private pausedScenes: string[] = [];
 
   constructor() {
     super('OverlayScene');
@@ -24,8 +25,10 @@ export default class OverlayScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.scene.bringToTop();
+    this.pauseOtherScenes();
     const { width, height } = this.scale;
-    this.add.rectangle(0, 0, width, height, 0x000000, 0.64).setOrigin(0).setInteractive();
+    this.add.rectangle(0, 0, width, height, 0x000000, 0.64).setOrigin(0);
     const panelW = Math.min(520, width - 36);
     const panelH = Math.min(620, height - 70);
     const panel = this.add.container(width / 2, height / 2);
@@ -37,14 +40,32 @@ export default class OverlayScene extends Phaser.Scene {
     panel.add(bg);
 
     if (this.kind === 'settings') this.renderSettings(panel, panelW, panelH);
+    else if (this.kind === 'versusHowTo') this.renderVersusHowTo(panel, panelW, panelH);
     else this.renderWhatsNew(panel, panelW, panelH);
 
     new Button(this, width / 2, height / 2 + panelH / 2 - 38, {
       label: 'Close',
       width: Math.min(220, panelW - 48),
       height: 44,
-      onClick: () => this.scene.stop()
+      onClick: () => this.scene.stop('OverlayScene')
     });
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.resumePausedScenes, this);
+  }
+
+  private pauseOtherScenes(): void {
+    this.pausedScenes = [];
+    for (const scene of this.scene.manager.getScenes(true)) {
+      if (scene.scene.key === this.scene.key) continue;
+      this.pausedScenes.push(scene.scene.key);
+      this.scene.pause(scene.scene.key);
+    }
+  }
+
+  private resumePausedScenes(): void {
+    for (const key of this.pausedScenes) {
+      this.scene.resume(key);
+    }
+    this.pausedScenes = [];
   }
 
   private renderWhatsNew(panel: Phaser.GameObjects.Container, panelW: number, panelH: number): void {
@@ -113,6 +134,34 @@ export default class OverlayScene extends Phaser.Scene {
     this.addToggle(panel, panelW, -panelH / 2 + 230, 'Hide how to play', settings.hideHowToPlay, 'hideHowToPlay');
     this.addToggle(panel, panelW, -panelH / 2 + 286, 'Hide versus how to play', settings.hideVersusHowToPlay, 'hideVersusHowToPlay');
     setStoredSettings(settings);
+  }
+
+  private renderVersusHowTo(panel: Phaser.GameObjects.Container, panelW: number, panelH: number): void {
+    panel.add(this.add.text(0, -panelH / 2 + 42, 'How Versus Works', {
+      fontFamily: UI.titleFont,
+      fontSize: '28px',
+      color: UI.colors.accent
+    }).setOrigin(0.5));
+
+    const lines = [
+      'Send a 9-throw challenge to another player by username.',
+      'The challenger picks the level. Each player picks their own character.',
+      'Scores stay hidden until both players finish.',
+      'Open challenges expire, and each player can send 10 challenges per day.'
+    ];
+    let y = -panelH / 2 + 96;
+    for (const line of lines) {
+      panel.add(this.add.text(-panelW / 2 + 30, y, line, {
+        fontFamily: UI.font,
+        fontSize: '16px',
+        color: UI.colors.text,
+        wordWrap: { width: panelW - 60 }
+      }).setOrigin(0, 0));
+      y += 66;
+    }
+
+    const settings = { ...DEFAULT_SETTINGS, ...(getRegistryValue(this.game, 'settings') || {}) };
+    this.addToggle(panel, panelW, panelH / 2 - 94, "Don't show again", settings.hideVersusHowToPlay, 'hideVersusHowToPlay');
   }
 
   private addToggle(

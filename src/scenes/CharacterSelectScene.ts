@@ -7,11 +7,13 @@ import { fitText, UI } from '../ui/theme';
 
 interface CharacterSelectData {
   next?: string;
+  init?: Record<string, unknown>;
 }
 
 export default class CharacterSelectScene extends Phaser.Scene {
   private selectedIndex = 0;
   private nextScene = 'LevelSelectScene';
+  private nextInit: Record<string, unknown> = {};
   private cards: Phaser.GameObjects.Container[] = [];
   private navButtons: Button[] = [];
 
@@ -19,8 +21,9 @@ export default class CharacterSelectScene extends Phaser.Scene {
     super('CharacterSelectScene');
   }
 
-  init(data: CharacterSelectData): void {
+  init(data: CharacterSelectData = {}): void {
     this.nextScene = data.next || 'LevelSelectScene';
+    this.nextInit = data.init || {};
   }
 
   create(): void {
@@ -141,6 +144,6 @@ export default class CharacterSelectScene extends Phaser.Scene {
   private confirm(): void {
     const character = CHARACTERS[this.selectedIndex] ?? CHARACTERS[0];
     setRegistryValue(this.game, 'selectedCharacterId', character.id);
-    this.scene.start(this.nextScene);
+    this.scene.start(this.nextScene, { ...this.nextInit, characterId: character.id });
   }
 }
