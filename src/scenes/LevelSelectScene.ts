@@ -16,7 +16,8 @@ export default class LevelSelectScene extends Phaser.Scene {
 
   init(data: ({ next?: string } & Record<string, unknown>) = {}): void {
     this.nextScene = data.next || 'GameScene';
-    const { next: _next, ...rest } = data;
+    const rest: Record<string, unknown> = { ...data };
+    delete rest.next;
     this.nextInit = rest;
   }
 

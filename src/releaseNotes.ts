@@ -1,5 +1,7 @@
 // Newest first. Add user-facing notes for releases with visible changes.
 // When releasing, prepend an entry here if users should see "What's New".
+export {};
+
 interface ReleaseNote {
   version: string;
   date: string;
@@ -173,10 +175,12 @@ function getLatestNotes(count = 3): ReleaseNote[] {
   return RELEASE_NOTES.slice(0, count);
 }
 
-interface Window {
-  releaseNotes: {
-    getLatestNotes: typeof getLatestNotes;
-  };
+declare global {
+  interface Window {
+    releaseNotes: {
+      getLatestNotes: typeof getLatestNotes;
+    };
+  }
 }
 
 window.releaseNotes = { getLatestNotes };

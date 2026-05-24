@@ -27,7 +27,9 @@ export function getChallengeCountRecord(): ChallengeCountRecord {
     if (parsed.date === today) {
       return { date: today, count: normalizeCount(parsed.count) };
     }
-  } catch {}
+  } catch {
+    // Ignore corrupt localStorage and reset the daily counter below.
+  }
   return { date: today, count: 0 };
 }
 
@@ -40,7 +42,9 @@ export function recordChallengeSent(): void {
   record.count = Math.min(DAILY_CHALLENGE_LIMIT, record.count + 1);
   try {
     localStorage.setItem(STORAGE_KEYS.challengeCount, JSON.stringify(record));
-  } catch {}
+  } catch {
+    // Ignore storage failures; rate limiting still works in memory for this call.
+  }
 }
 
 export function challengesRemainingToday(): number {

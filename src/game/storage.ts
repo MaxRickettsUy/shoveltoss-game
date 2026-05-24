@@ -4,6 +4,7 @@ import type { Settings } from './types';
 export function sanitizeUsername(raw: unknown): string {
   return String(raw || '')
     .normalize('NFKC')
+    // eslint-disable-next-line no-control-regex -- Strip invisible/control characters from persisted usernames.
     .replace(/[\u0000-\u001F\u007F\u200B-\u200F\u202A-\u202E\uFEFF]/g, '')
     .trim()
     .slice(0, 20);

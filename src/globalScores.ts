@@ -90,6 +90,7 @@ let client: any = null;
 function cleanName(name: unknown): string {
   const clean = String(name || '')
     .normalize('NFKC')
+    // eslint-disable-next-line no-control-regex -- Strip invisible/control characters from leaderboard names.
     .replace(/[\u0000-\u001F\u007F\u200B-\u200F\u202A-\u202E\uFEFF]/g, '')
     .trim()
     .slice(0, 20);
