@@ -7,8 +7,17 @@ import { UI } from '../ui/theme';
 import { drawSceneBackground } from './helpers';
 
 export default class LevelSelectScene extends Phaser.Scene {
+  private nextScene = 'GameScene';
+  private nextInit: Record<string, unknown> = {};
+
   constructor() {
     super('LevelSelectScene');
+  }
+
+  init(data: ({ next?: string } & Record<string, unknown>) = {}): void {
+    this.nextScene = data.next || 'GameScene';
+    const { next: _next, ...rest } = data;
+    this.nextInit = rest;
   }
 
   create(): void {
@@ -21,7 +30,10 @@ export default class LevelSelectScene extends Phaser.Scene {
       label: 'Back',
       width: halfW,
       height: 48,
-      onClick: () => this.scene.start('CharacterSelectScene')
+      onClick: () => this.scene.start('CharacterSelectScene', {
+        next: 'LevelSelectScene',
+        init: { ...this.nextInit, next: this.nextScene }
+      })
     });
     new Button(this, this.scale.width / 2 + halfW / 2 + 8, bottomY, {
       label: 'Home',
@@ -80,10 +92,11 @@ export default class LevelSelectScene extends Phaser.Scene {
       return;
     }
     setRegistryValue(this.game, 'selectedLevelId', levelId);
-    this.scene.start('GameScene', {
+    this.scene.start(this.nextScene, {
+      ...this.nextInit,
       characterId,
       levelId,
-      mode: 'solo'
-    } satisfies GameSceneData);
+      mode: this.nextScene === 'GameScene' ? 'solo' : undefined
+    } satisfies Partial<GameSceneData>);
   }
 }

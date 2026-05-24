@@ -77,7 +77,7 @@ export default class GameOverScene extends Phaser.Scene {
       status.setText(rank > 0 ? `Global rank: #${rank}` : 'Score saved');
     } catch (err) {
       const code = (err as { code?: string }).code;
-      status.setText(code === 'disabled-non-prod' ? 'Score not saved (local dev)' : 'Could not submit score');
+      status.setText(code === 'disabled-non-prod' ? 'Score not saved' : 'Could not submit score');
     }
   }
 }

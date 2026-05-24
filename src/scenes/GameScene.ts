@@ -194,6 +194,14 @@ export default class GameScene extends Phaser.Scene {
     this.resetTimer = this.time.delayedCall(RESET_DELAY, () => {
       if (done) {
         this.scene.stop('HUDScene');
+        if (this.mode === 'versus') {
+          this.events.emit('runComplete', {
+            score: this.score,
+            characterId: this.characterId,
+            levelId: this.levelId
+          });
+          return;
+        }
         this.scene.start('GameOverScene', {
           score: this.score,
           characterId: this.characterId,

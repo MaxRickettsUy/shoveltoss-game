@@ -41,7 +41,7 @@ export default class HomeScene extends Phaser.Scene {
     new Button(this, width / 2, startY + gap, {
       label: '1v1 Toss-Off',
       width: buttonW,
-      onClick: () => this.showToast('Coming in next slice')
+      onClick: () => this.scene.start('VersusHomeScene')
     });
     new Button(this, width / 2, startY + gap * 2, { label: 'Leaderboard', width: buttonW, onClick: () => this.scene.start('LeaderboardScene') });
     new Button(this, width / 2, startY + gap * 3, { label: 'Hall of Fame', width: buttonW, onClick: () => this.scene.start('HallOfFameScene') });
