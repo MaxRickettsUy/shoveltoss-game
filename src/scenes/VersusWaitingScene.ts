@@ -111,8 +111,10 @@ export default class VersusWaitingScene extends Phaser.Scene {
 
   private async copyText(text: string): Promise<void> {
     try {
-      await navigator.clipboard?.writeText(text);
-      return;
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        await navigator.clipboard.writeText(text);
+        return;
+      }
     } catch {
       // Fall back below for browsers that block the async clipboard API.
     }

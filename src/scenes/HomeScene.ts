@@ -25,7 +25,8 @@ export default class HomeScene extends Phaser.Scene {
       buttonH + (compact ? 8 : 10),
       buttonH + (compact ? 12 : 16)
     );
-    const startY = Math.min(earliestStartY, lastRowY - gap * 5);
+    const topSafeMargin = Math.max(height * 0.36, compact ? 220 : 260);
+    const startY = Math.max(Math.min(earliestStartY, lastRowY - gap * 5), topSafeMargin);
     new Button(this, width / 2, startY, {
       label: 'Play',
       variant: 'primary',
