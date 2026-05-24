@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { globalScores } from '../globalScores';
 import { getRegistryValue, setRegistryValue } from '../game/state';
 import type { MatchSnapshot } from '../game/types';
 import { canSendChallengeToday, recordChallengeSent } from '../game/versusRateLimit';
@@ -71,7 +72,7 @@ export default class VersusResultScene extends Phaser.Scene {
     if (!canSendChallengeToday()) return;
     const username = getRegistryValue(this.game, 'username') || 'Player';
     try {
-      const row = await window.globalScores.createDirectChallenge(username, opponent);
+      const row = await globalScores.createDirectChallenge(username, opponent);
       recordChallengeSent();
       const match = normalizeMatch(row);
       setRegistryValue(this.game, 'activeMatch', match);

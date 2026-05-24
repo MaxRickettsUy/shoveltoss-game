@@ -73,12 +73,6 @@ export interface GlobalScoresApi {
   submitMatchScore(matchId: string, side: 'challenger' | 'recipient', score: number): Promise<MatchRow>;
 }
 
-declare global {
-  interface Window {
-    globalScores: GlobalScoresApi;
-  }
-}
-
 const PROD_APEX = 'shoveltoss.ing';
 
 function normalizeHost(h: unknown): string {
@@ -96,6 +90,7 @@ let client: any = null;
 function cleanName(name: unknown): string {
   const clean = String(name || '')
     .normalize('NFKC')
+    // eslint-disable-next-line no-control-regex -- Strip invisible/control characters from leaderboard names.
     .replace(/[\u0000-\u001F\u007F\u200B-\u200F\u202A-\u202E\uFEFF]/g, '')
     .trim()
     .slice(0, 20);
@@ -609,5 +604,3 @@ export const globalScores: GlobalScoresApi = {
     return data;
   }
 };
-
-window.globalScores = globalScores;

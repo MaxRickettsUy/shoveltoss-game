@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { globalScores } from '../globalScores';
 import { getRegistryValue, setRegistryValue } from '../game/state';
 import type { MatchSnapshot } from '../game/types';
 import { canSendChallengeToday, challengesRemainingToday } from '../game/versusRateLimit';
@@ -236,7 +237,7 @@ export default class VersusHomeScene extends Phaser.Scene {
     const username = getRegistryValue(this.game, 'username');
     let players: string[] = [];
     try {
-      players = (await window.globalScores.fetchKnownPlayers()).filter((name) => !versusPoller.isSameName(name, username));
+      players = (await globalScores.fetchKnownPlayers()).filter((name) => !versusPoller.isSameName(name, username));
     } catch (error) {
       console.error('Failed to load challenge players', error);
     }
@@ -312,7 +313,7 @@ export default class VersusHomeScene extends Phaser.Scene {
   }
 
   private async fetchRankedRecords(username: string): Promise<VersusRankRow[]> {
-    const records = await window.globalScores.fetchVersusLeaderboard();
+    const records = await globalScores.fetchVersusLeaderboard();
     if (!records.some((row) => versusPoller.isSameName(row.name, username))) {
       records.push({ name: username, wins: 0, losses: 0, ties: 0, total: 0 });
     }
