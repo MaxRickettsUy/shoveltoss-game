@@ -31,20 +31,11 @@ export default class CharacterSelectScene extends Phaser.Scene {
     this.addResponsiveTitle();
     this.renderCards();
 
-    const bottomY = this.scale.height - 62;
-    const halfW = Math.min(150, (this.scale.width - 70) / 2);
-    new Button(this, this.scale.width / 2 - halfW / 2 - 8, bottomY, {
+    new Button(this, this.scale.width / 2, this.scale.height - 62, {
       label: 'Home',
-      width: halfW,
+      width: Math.min(240, this.scale.width - 52),
       height: 50,
       onClick: () => this.scene.start('HomeScene')
-    });
-    new Button(this, this.scale.width / 2 + halfW / 2 + 8, bottomY, {
-      label: 'Confirm',
-      variant: 'primary',
-      width: halfW,
-      height: 50,
-      onClick: () => this.confirm()
     });
   }
 
@@ -119,7 +110,7 @@ export default class CharacterSelectScene extends Phaser.Scene {
       card.add([bg, hero, name, tagText, hit]);
       hit.on('pointerdown', () => {
         this.selectedIndex = index;
-        this.renderCards();
+        this.confirm();
       });
       this.cards.push(card);
     }

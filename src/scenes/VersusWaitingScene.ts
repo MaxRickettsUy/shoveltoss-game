@@ -10,6 +10,7 @@ export default class VersusWaitingScene extends Phaser.Scene {
   private match: MatchSnapshot | null = null;
   private unsubscribe: (() => void) | null = null;
   private pollErrorText: Phaser.GameObjects.Text | null = null;
+  private shareStatusText: Phaser.GameObjects.Text | null = null;
 
   constructor() {
     super('VersusWaitingScene');
@@ -51,7 +52,7 @@ export default class VersusWaitingScene extends Phaser.Scene {
     new Button(this, this.scale.width / 2, this.scale.height - 106, {
       label: 'Share challenge',
       width: buttonW,
-      onClick: () => void navigator.clipboard?.writeText(this.match?.inviteCode || '')
+      onClick: () => void this.shareChallenge()
     });
     new Button(this, this.scale.width / 2, this.scale.height - 48, {
       label: 'Home',
@@ -80,6 +81,57 @@ export default class VersusWaitingScene extends Phaser.Scene {
   private showPollError(): void {
     if (this.pollErrorText) return;
     this.pollErrorText = this.add.text(this.scale.width / 2, this.scale.height - 154, 'Connection issue. Retrying...', {
+      fontFamily: UI.font,
+      fontSize: '15px',
+      color: UI.colors.textMute
+    }).setOrigin(0.5);
+  }
+
+  private async shareChallenge(): Promise<void> {
+    const code = this.match?.inviteCode;
+    if (!code) {
+      this.showShareStatus('No invite code yet');
+      return;
+    }
+
+    const text = `I challenged you to a 1v1 Toss-Off in Shovel Toss. Invite code: ${code}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'Shovel Toss challenge', text });
+        this.showShareStatus('Challenge shared');
+        return;
+      }
+      await this.copyText(text);
+      this.showShareStatus(`Copied invite code: ${code}`);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      this.showShareStatus(`Invite code: ${code}`);
+    }
+  }
+
+  private async copyText(text: string): Promise<void> {
+    try {
+      await navigator.clipboard?.writeText(text);
+      return;
+    } catch {
+      // Fall back below for browsers that block the async clipboard API.
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    textarea.setAttribute('readonly', 'true');
+    document.body.appendChild(textarea);
+    textarea.select();
+    const copied = document.execCommand('copy');
+    textarea.remove();
+    if (!copied) throw new Error('copy-failed');
+  }
+
+  private showShareStatus(message: string): void {
+    this.shareStatusText?.destroy();
+    this.shareStatusText = this.add.text(this.scale.width / 2, this.scale.height - 154, message, {
       fontFamily: UI.font,
       fontSize: '15px',
       color: UI.colors.textMute

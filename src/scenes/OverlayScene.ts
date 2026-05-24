@@ -104,8 +104,22 @@ export default class OverlayScene extends Phaser.Scene {
       color: UI.colors.accent
     }).setOrigin(0.5));
 
+    const username = getRegistryValue(this.game, 'username') || 'Player';
+    panel.add(this.add.text(-panelW / 2 + 28, -panelH / 2 + 100, `Player: ${username}`, {
+      fontFamily: UI.font,
+      fontSize: '18px',
+      color: UI.colors.text
+    }).setOrigin(0, 0.5));
+    new Button(this, this.scale.width / 2 + panelW / 2 - 92, this.scale.height / 2 - panelH / 2 + 100, {
+      label: 'Edit',
+      width: 128,
+      height: 42,
+      fontSize: 15,
+      onClick: () => this.scene.start('UsernameScene')
+    });
+
     const settings = { ...DEFAULT_SETTINGS, ...(getRegistryValue(this.game, 'settings') || {}) };
-    const meterLabel = this.add.text(0, -panelH / 2 + 100, `Meter: ${settings.meterPosition}`, {
+    const meterLabel = this.add.text(0, -panelH / 2 + 164, `Meter: ${settings.meterPosition}`, {
       fontFamily: UI.font,
       fontSize: '18px',
       color: UI.colors.text
@@ -115,7 +129,7 @@ export default class OverlayScene extends Phaser.Scene {
     const positions: Required<Settings>['meterPosition'][] = ['top', 'middle', 'bottom'];
     const renderMeterButtons = (active: Required<Settings>['meterPosition']) => {
       for (const button of this.meterButtons) button.destroy();
-      this.meterButtons = positions.map((pos, index) => new Button(this, this.scale.width / 2 + (index - 1) * 112, this.scale.height / 2 - panelH / 2 + 148, {
+      this.meterButtons = positions.map((pos, index) => new Button(this, this.scale.width / 2 + (index - 1) * 112, this.scale.height / 2 - panelH / 2 + 212, {
           label: pos,
           width: 104,
           height: 42,
@@ -131,8 +145,8 @@ export default class OverlayScene extends Phaser.Scene {
     };
     renderMeterButtons(settings.meterPosition);
 
-    this.addToggle(panel, panelW, -panelH / 2 + 230, 'Hide how to play', settings.hideHowToPlay, 'hideHowToPlay');
-    this.addToggle(panel, panelW, -panelH / 2 + 286, 'Hide versus how to play', settings.hideVersusHowToPlay, 'hideVersusHowToPlay');
+    this.addToggle(panel, panelW, -panelH / 2 + 294, 'Hide how to play', settings.hideHowToPlay, 'hideHowToPlay');
+    this.addToggle(panel, panelW, -panelH / 2 + 350, 'Hide versus how to play', settings.hideVersusHowToPlay, 'hideVersusHowToPlay');
     setStoredSettings(settings);
   }
 
@@ -173,17 +187,38 @@ export default class OverlayScene extends Phaser.Scene {
     key: 'hideHowToPlay' | 'hideVersusHowToPlay'
   ): void {
     let value = initial;
-    const text = this.add.text(-panelW / 2 + 28, y, `${value ? '[x]' : '[ ]'} ${label}`, {
+    const boxSize = 22;
+    const box = this.add.graphics();
+    const text = this.add.text(-panelW / 2 + 62, y, label, {
       fontFamily: UI.font,
       fontSize: '17px',
       color: UI.colors.text
-    }).setOrigin(0, 0.5).setInteractive({ useHandCursor: true });
-    text.on('pointerdown', () => {
+    }).setOrigin(0, 0.5);
+    const hit = this.add.zone(-panelW / 2 + 28, y, panelW - 56, 42).setOrigin(0, 0.5).setInteractive({ useHandCursor: true });
+    const drawBox = () => {
+      box.clear();
+      box.fillStyle(Phaser.Display.Color.HexStringToColor(value ? UI.colors.accent : UI.colors.surface2).color, 1);
+      box.fillRoundedRect(-panelW / 2 + 28, y - boxSize / 2, boxSize, boxSize, 4);
+      box.lineStyle(2, Phaser.Display.Color.HexStringToColor(value ? UI.colors.accent2 : UI.colors.secondary).color, 1);
+      box.strokeRoundedRect(-panelW / 2 + 28, y - boxSize / 2, boxSize, boxSize, 4);
+      if (value) {
+        box.lineStyle(3, Phaser.Display.Color.HexStringToColor(UI.colors.bgBottom).color, 1);
+        box.beginPath();
+        box.moveTo(-panelW / 2 + 33, y);
+        box.lineTo(-panelW / 2 + 38, y + 6);
+        box.lineTo(-panelW / 2 + 47, y - 7);
+        box.strokePath();
+      }
+    };
+    const toggle = () => {
       value = !value;
       const next = updateStoredSetting(key, value);
       setRegistryValue(this.game, 'settings', next);
-      text.setText(`${value ? '[x]' : '[ ]'} ${label}`);
-    });
-    panel.add(text);
+      drawBox();
+    };
+    hit.on('pointerdown', toggle);
+    text.setInteractive({ useHandCursor: true }).on('pointerdown', toggle);
+    drawBox();
+    panel.add([box, text, hit]);
   }
 }

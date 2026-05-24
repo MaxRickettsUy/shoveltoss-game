@@ -10,6 +10,7 @@ export interface ListOptions<T> {
 export default class List<T> extends Phaser.GameObjects.Container {
   private readonly content: Phaser.GameObjects.Container;
   private readonly hit: Phaser.GameObjects.Zone;
+  private readonly maskShape: Phaser.GameObjects.Graphics;
   private dragStartY = 0;
   private contentStartY = 0;
   private maxScroll = 0;
@@ -18,6 +19,10 @@ export default class List<T> extends Phaser.GameObjects.Container {
     super(scene, x, y);
     scene.add.existing(this);
     this.content = scene.add.container(0, 0);
+    this.maskShape = scene.make.graphics({ x: 0, y: 0 }, false);
+    this.maskShape.fillStyle(0xffffff);
+    this.maskShape.fillRect(x, y, opts.width, opts.height);
+    this.content.setMask(this.maskShape.createGeometryMask());
     this.hit = scene.add.zone(0, opts.height / 2, opts.width, opts.height).setOrigin(0, 0.5);
     this.add([this.hit, this.content]);
     this.hit.setInteractive({ draggable: true });
@@ -28,7 +33,7 @@ export default class List<T> extends Phaser.GameObjects.Container {
     this.hit.on('drag', (_pointer: Phaser.Input.Pointer, _dragX: number, dragY: number) => {
       this.setScroll(this.contentStartY + dragY - this.dragStartY);
     });
-    this.hit.on('wheel', (_pointer: Phaser.Input.Pointer, _dx: number, dy: number) => {
+    this.hit.on('wheel', (_pointer: Phaser.Input.Pointer, _over: Phaser.GameObjects.GameObject[], _dx: number, dy: number) => {
       this.setScroll(this.content.y - dy);
     });
   }
@@ -46,5 +51,10 @@ export default class List<T> extends Phaser.GameObjects.Container {
 
   private setScroll(y: number): void {
     this.content.y = Phaser.Math.Clamp(y, -this.maxScroll, 0);
+  }
+
+  destroy(fromScene?: boolean): void {
+    this.maskShape.destroy();
+    super.destroy(fromScene);
   }
 }

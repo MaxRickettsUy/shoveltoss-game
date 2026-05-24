@@ -55,12 +55,13 @@ export default class HallOfFameScene extends Phaser.Scene {
   }
 
   private renderList(rows: readonly FameRow[]): void {
+    const listW = this.scale.width - 48;
     const list = new List<FameRow>(this, 24, 116, {
-      width: this.scale.width - 48,
+      width: listW,
       height: this.scale.height - 206,
       rowHeight: 66,
       renderRow: (row, data, index) => {
-        row.add(this.add.rectangle(0, 0, this.scale.width - 48, 62, index % 2 ? 0x171b15 : 0x2c3328, 0.82).setOrigin(0));
+        row.add(this.add.rectangle(0, 0, listW, 62, index % 2 ? 0x171b15 : 0x2c3328, 0.82).setOrigin(0));
         row.add(this.add.text(12, 20, data.milestone, { fontFamily: UI.font, fontSize: '17px', fontStyle: '700', color: UI.colors.text }).setOrigin(0, 0.5));
         const detail = data.row ? `${fitText(data.row.name, 16)} - ${data.row.score}` : 'No one yet';
         row.add(this.add.text(12, 44, detail, { fontFamily: UI.font, fontSize: '15px', color: data.row ? UI.colors.accent : UI.colors.textMute }).setOrigin(0, 0.5));
