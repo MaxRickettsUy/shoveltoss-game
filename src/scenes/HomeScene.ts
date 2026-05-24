@@ -12,20 +12,20 @@ export default class HomeScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     drawSceneBackground(this);
-    addTitle(this, 'SHOVEL\nTOSS', Math.max(104, height * 0.2)).setLineSpacing(-12);
+    addTitle(this, 'SHOVEL\nTOSS', Math.max(72, height * 0.13)).setLineSpacing(-12);
 
     const compact = height < 620;
     const buttonW = Math.min(320, width - 52);
     const buttonH = compact ? 44 : 54;
     const ghostH = compact ? 40 : 46;
-    const earliestStartY = Math.max(height * 0.43, height * 0.36);
+    const earliestStartY = Math.max(height * 0.33, height * 0.3);
     const lastRowY = height - (compact ? 70 : 74);
     const gap = Phaser.Math.Clamp(
       (lastRowY - earliestStartY) / 5,
       buttonH + (compact ? 8 : 10),
       buttonH + (compact ? 12 : 16)
     );
-    const topSafeMargin = Math.max(height * 0.36, compact ? 220 : 260);
+    const topSafeMargin = Math.max(height * 0.26, compact ? 182 : 210);
     const startY = Math.max(Math.min(earliestStartY, lastRowY - gap * 5), topSafeMargin);
     new Button(this, width / 2, startY, {
       label: 'Play',
