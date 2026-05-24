@@ -47,17 +47,18 @@ export default class LeaderboardScene extends Phaser.Scene {
   }
 
   private renderList(rows: readonly LeaderboardRow[]): void {
+    const listW = this.scale.width - 48;
     const list = new List<LeaderboardRow>(this, 24, 116, {
-      width: this.scale.width - 48,
+      width: listW,
       height: this.scale.height - 206,
-      rowHeight: 54,
+      rowHeight: 64,
       renderRow: (row, data, index) => {
-        row.add(this.add.rectangle(0, 0, this.scale.width - 48, 50, index % 2 ? 0x171b15 : 0x2c3328, 0.82).setOrigin(0));
-        row.add(this.add.text(10, 25, `${index + 1}.`, { fontFamily: UI.font, fontSize: '18px', color: UI.colors.textMute }).setOrigin(0, 0.5));
-        row.add(this.add.text(58, 25, fitText(data.name, 15), { fontFamily: UI.font, fontSize: '18px', color: UI.colors.text }).setOrigin(0, 0.5));
-        row.add(this.add.text(this.scale.width * 0.46, 25, fitText(data.character_name || 'Unknown', 12), { fontFamily: UI.font, fontSize: '15px', color: UI.colors.textMute }).setOrigin(0, 0.5));
-        row.add(this.add.text(this.scale.width - 142, 25, formatDate(data.created_at), { fontFamily: UI.font, fontSize: '14px', color: UI.colors.textMute }).setOrigin(1, 0.5));
-        row.add(this.add.text(this.scale.width - 70, 25, String(data.score), { fontFamily: UI.font, fontSize: '20px', fontStyle: '700', color: UI.colors.accent }).setOrigin(1, 0.5));
+        row.add(this.add.rectangle(0, 0, listW, 60, index % 2 ? 0x171b15 : 0x2c3328, 0.82).setOrigin(0));
+        row.add(this.add.text(10, 20, `${index + 1}.`, { fontFamily: UI.font, fontSize: '18px', color: UI.colors.textMute }).setOrigin(0, 0.5));
+        row.add(this.add.text(58, 20, fitText(data.name, this.scale.width < 440 ? 11 : 16), { fontFamily: UI.font, fontSize: '18px', color: UI.colors.text }).setOrigin(0, 0.5));
+        row.add(this.add.text(listW - 16, 20, String(data.score), { fontFamily: UI.font, fontSize: '20px', fontStyle: '700', color: UI.colors.accent }).setOrigin(1, 0.5));
+        row.add(this.add.text(58, 44, fitText(data.character_name || 'Unknown', this.scale.width < 440 ? 12 : 18), { fontFamily: UI.font, fontSize: '14px', color: UI.colors.textMute }).setOrigin(0, 0.5));
+        row.add(this.add.text(listW - 16, 44, formatDate(data.created_at), { fontFamily: UI.font, fontSize: '14px', color: UI.colors.textMute }).setOrigin(1, 0.5));
       }
     });
     list.setItems(rows);

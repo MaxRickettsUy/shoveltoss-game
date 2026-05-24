@@ -35,6 +35,7 @@ export default class Button extends Phaser.GameObjects.Container {
         color: UI.colors.text,
         align: 'center'
       })
+      .setPadding(0, 2, 0, 6)
       .setOrigin(0.5);
     this.hit = scene.add.zone(0, 0, this.widthValue, this.heightValue).setOrigin(0.5);
 

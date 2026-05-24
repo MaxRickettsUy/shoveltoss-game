@@ -19,5 +19,5 @@ export function fitText(value: unknown, maxChars: number): string {
 export function formatDate(value: unknown): string {
   const date = new Date(String(value || ''));
   if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }

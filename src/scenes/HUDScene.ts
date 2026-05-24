@@ -12,10 +12,14 @@ interface HUDSceneData {
 
 export default class HUDScene extends Phaser.Scene {
   private scoreText!: Phaser.GameObjects.Text;
+  private throwsText?: Phaser.GameObjects.Text;
   private lives: Phaser.GameObjects.Image[] = [];
   private unsubScore?: () => void;
   private unsubMisses?: () => void;
+  private unsubThrows?: () => void;
   private characterId: CharacterId = '';
+  private mode: GameMode = 'solo';
+  private throwsRemaining = Infinity;
 
   constructor() {
     super('HUDScene');
@@ -23,6 +27,8 @@ export default class HUDScene extends Phaser.Scene {
 
   init(data: HUDSceneData): void {
     this.characterId = data.characterId;
+    this.mode = data.mode;
+    this.throwsRemaining = data.throwsRemaining;
   }
 
   create(): void {
@@ -39,10 +45,31 @@ export default class HUDScene extends Phaser.Scene {
       })
       .setOrigin(0, 1);
 
-    this.renderLives(getRegistryValue(this.game, 'misses') ?? 0, safeTop + hudFontSize + subFontSize + 8);
+    if (this.mode === 'solo') {
+      this.renderLives(getRegistryValue(this.game, 'misses') ?? 0, safeTop + hudFontSize + subFontSize + 8);
+    }
+    if (this.mode === 'versus') {
+      this.throwsText = this.add
+        .text(this.scale.width - 20, safeTop + hudFontSize, this.formatThrows(getRegistryValue(this.game, 'throwsRemaining') ?? this.throwsRemaining), {
+          fontFamily: 'Archivo, system-ui, sans-serif',
+          fontSize: `${subFontSize}px`,
+          fontStyle: '700',
+          color: THEME.text
+        })
+        .setOrigin(1, 1);
+      this.unsubThrows = onRegistryChange(this.game, 'throwsRemaining', (value) => {
+        this.throwsText?.setText(this.formatThrows(value));
+      });
+    }
     this.unsubScore = onRegistryChange(this.game, 'score', (value) => this.scoreText.setText(String(value)));
-    this.unsubMisses = onRegistryChange(this.game, 'misses', (value) => this.renderLives(value, safeTop + hudFontSize + subFontSize + 8));
+    if (this.mode === 'solo') {
+      this.unsubMisses = onRegistryChange(this.game, 'misses', (value) => this.renderLives(value, safeTop + hudFontSize + subFontSize + 8));
+    }
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.shutdown, this);
+  }
+
+  private formatThrows(value: number): string {
+    return `Throws left: ${Number.isFinite(value) ? value : 0}`;
   }
 
   private renderLives(misses: number, y = Math.max(20, this.scale.height * 0.04) + 96): void {
@@ -69,5 +96,6 @@ export default class HUDScene extends Phaser.Scene {
   private shutdown(): void {
     this.unsubScore?.();
     this.unsubMisses?.();
+    this.unsubThrows?.();
   }
 }

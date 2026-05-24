@@ -68,6 +68,7 @@ export default class GameScene extends Phaser.Scene {
     this.throwState = 'IDLE';
     setRegistryValue(this.game, 'score', this.score);
     setRegistryValue(this.game, 'misses', this.misses);
+    setRegistryValue(this.game, 'throwsRemaining', this.throwsRemaining);
   }
 
   create(): void {
@@ -188,9 +189,12 @@ export default class GameScene extends Phaser.Scene {
     if (Number.isFinite(this.throwsRemaining)) this.throwsRemaining = Math.max(0, this.throwsRemaining - 1);
     setRegistryValue(this.game, 'score', this.score);
     setRegistryValue(this.game, 'misses', this.misses);
+    setRegistryValue(this.game, 'throwsRemaining', this.throwsRemaining);
 
     this.showFeedback(outcome);
-    const done = this.misses >= MISSES_PER_RUN || this.throwsRemaining === 0;
+    const done = this.mode === 'versus'
+      ? this.throwsRemaining === 0
+      : this.misses >= MISSES_PER_RUN;
     this.resetTimer = this.time.delayedCall(RESET_DELAY, () => {
       if (done) {
         this.scene.stop('HUDScene');

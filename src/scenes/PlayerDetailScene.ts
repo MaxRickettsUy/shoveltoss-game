@@ -61,15 +61,16 @@ export default class PlayerDetailScene extends Phaser.Scene {
       return;
     }
     this.statusText?.destroy();
+    const listW = this.scale.width - 48;
     const list = new List<LeaderboardRow>(this, 24, 150, {
-      width: this.scale.width - 48,
+      width: listW,
       height: this.scale.height - 238,
-      rowHeight: 54,
+      rowHeight: 60,
       renderRow: (row, data, index) => {
-        row.add(this.add.rectangle(0, 0, this.scale.width - 48, 50, index % 2 ? 0x171b15 : 0x2c3328, 0.82).setOrigin(0));
-        row.add(this.add.text(12, 25, fitText(data.character_name || 'Unknown', 16), { fontFamily: UI.font, fontSize: '16px', color: UI.colors.text }).setOrigin(0, 0.5));
-        row.add(this.add.text(this.scale.width - 160, 25, formatDate(data.created_at), { fontFamily: UI.font, fontSize: '14px', color: UI.colors.textMute }).setOrigin(1, 0.5));
-        row.add(this.add.text(this.scale.width - 70, 25, String(data.score), { fontFamily: UI.font, fontSize: '20px', fontStyle: '700', color: UI.colors.accent }).setOrigin(1, 0.5));
+        row.add(this.add.rectangle(0, 0, listW, 56, index % 2 ? 0x171b15 : 0x2c3328, 0.82).setOrigin(0));
+        row.add(this.add.text(12, 20, fitText(data.character_name || 'Unknown', this.scale.width < 440 ? 14 : 20), { fontFamily: UI.font, fontSize: '16px', color: UI.colors.text }).setOrigin(0, 0.5));
+        row.add(this.add.text(listW - 16, 20, String(data.score), { fontFamily: UI.font, fontSize: '20px', fontStyle: '700', color: UI.colors.accent }).setOrigin(1, 0.5));
+        row.add(this.add.text(12, 42, formatDate(data.created_at), { fontFamily: UI.font, fontSize: '14px', color: UI.colors.textMute }).setOrigin(0, 0.5));
       }
     });
     list.setItems(rows);

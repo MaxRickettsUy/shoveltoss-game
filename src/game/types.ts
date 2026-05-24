@@ -11,6 +11,7 @@ export interface RegistryState {
   activeMatch: MatchSnapshot | null;
   score: number;
   misses: number;
+  throwsRemaining: number;
 }
 
 export type OverlayKind = 'whatsNew' | 'settings' | 'versusHowTo';
