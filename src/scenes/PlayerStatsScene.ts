@@ -65,9 +65,9 @@ export default class PlayerStatsScene extends Phaser.Scene {
       rowHeight: 58,
       renderRow: (row, data, index) => {
         row.add(this.add.rectangle(0, 0, this.scale.width - 48, 54, index % 2 ? 0x171b15 : 0x2c3328, 0.82).setOrigin(0));
-        row.add(this.add.text(12, 28, fitText(data.name, 18), { fontFamily: UI.font, fontSize: '18px', fontStyle: '700', color: UI.colors.text }).setOrigin(0, 0.5));
-        row.add(this.add.text(this.scale.width - 220, 28, `${data.games} games`, { fontFamily: UI.font, fontSize: '14px', color: UI.colors.textMute }).setOrigin(0, 0.5));
-        row.add(this.add.text(this.scale.width - 70, 28, String(data.totalPoints), { fontFamily: UI.font, fontSize: '18px', fontStyle: '700', color: UI.colors.accent }).setOrigin(1, 0.5));
+        row.add(this.add.text(12, 28, fitText(data.name, 18), { fontFamily: UI.font, fontSize: '18px', fontStyle: '700', color: UI.colors.text }).setPadding(0, 1, 0, 4).setOrigin(0, 0.5));
+        row.add(this.add.text(this.scale.width - 220, 28, `${data.games} games`, { fontFamily: UI.font, fontSize: '14px', color: UI.colors.textMute }).setPadding(0, 1, 0, 4).setOrigin(0, 0.5));
+        row.add(this.add.text(this.scale.width - 70, 28, String(data.totalPoints), { fontFamily: UI.font, fontSize: '18px', fontStyle: '700', color: UI.colors.accent }).setPadding(0, 1, 0, 4).setOrigin(1, 0.5));
         row.setSize(this.scale.width - 48, 54);
         row.setInteractive(new Phaser.Geom.Rectangle(0, 0, this.scale.width - 48, 54), Phaser.Geom.Rectangle.Contains);
         row.on('pointerdown', () => this.scene.start('PlayerDetailScene', { playerName: data.name }));
