@@ -1,4 +1,5 @@
 import type Phaser from 'phaser';
+import { globalScores } from '../globalScores';
 import { VERSUS_POLL_MS } from './constants';
 import { LEVELS } from './levels';
 import { setRegistryValue } from './state';
@@ -75,20 +76,20 @@ export function hasOpponentScore(match: MatchSnapshot, username: string | null |
 }
 
 export async function fetchMatch(match: MatchSnapshot): Promise<MatchSnapshot> {
-  const row = await window.globalScores.fetchMatchByCode(match.inviteCode);
+  const row = await globalScores.fetchMatchByCode(match.inviteCode);
   return normalizeMatch(row);
 }
 
 export async function fetchMatchesForPlayer(username: string): Promise<MatchSnapshot[]> {
   const [pending, recent] = await Promise.all([
-    window.globalScores.fetchPendingForUser(username),
-    window.globalScores.fetchRecentResultsForUser(username)
+    globalScores.fetchPendingForUser(username),
+    globalScores.fetchRecentResultsForUser(username)
   ]);
   return [...pending, ...recent].map(normalizeMatch);
 }
 
 export async function fetchHistoryForPlayer(username: string): Promise<MatchSnapshot[]> {
-  const rows = await window.globalScores.fetchHistoryForUser(username);
+  const rows = await globalScores.fetchHistoryForUser(username);
   return rows.map(normalizeMatch);
 }
 

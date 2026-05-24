@@ -67,7 +67,7 @@ export const PROD_APEX = 'shoveltoss.ing';
 export const VERSUS_ENABLED = true;
 export const VERSUS_THROWS_PER_PLAYER = 9;
 export const VERSUS_POLL_MS = 30000;
-export const APP_VERSION_TAG = 'v1.0.1';
+export const APP_VERSION_TAG = 'v1.1.0';
 
 export const THEME = {
   bgTop: '#22281f',

@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+  appType: 'mpa',
   server: {
     host: '0.0.0.0',
     port: 3000,
@@ -8,12 +9,6 @@ export default defineConfig({
   },
   build: {
     target: 'es2020',
-    outDir: 'dist',
-    rollupOptions: {
-      input: {
-        main: 'index.html',
-        legacy: 'legacy.html'
-      }
-    }
+    outDir: 'dist'
   }
 });

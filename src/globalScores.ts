@@ -73,12 +73,6 @@ export interface GlobalScoresApi {
   submitMatchScore(matchId: string, side: 'challenger' | 'recipient', score: number): Promise<MatchRow>;
 }
 
-declare global {
-  interface Window {
-    globalScores: GlobalScoresApi;
-  }
-}
-
 const PROD_APEX = 'shoveltoss.ing';
 
 function normalizeHost(h: unknown): string {
@@ -609,5 +603,3 @@ export const globalScores: GlobalScoresApi = {
     return data;
   }
 };
-
-window.globalScores = globalScores;

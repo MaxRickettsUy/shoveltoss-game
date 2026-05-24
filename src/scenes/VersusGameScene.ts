@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { globalScores } from '../globalScores';
 import { VERSUS_THROWS_PER_PLAYER } from '../game/constants';
 import { getRegistryValue, setRegistryValue } from '../game/state';
 import type { MatchSnapshot, VersusGameSceneData, VersusRole } from '../game/types';
@@ -24,7 +25,7 @@ export default class VersusGameScene extends Phaser.Scene {
     try {
       this.match = await this.resolveMatch();
       if (this.sceneData.role === 'recipient') {
-        const row = await window.globalScores.setRecipientCharacter(this.match.matchId, this.sceneData.characterId);
+        const row = await globalScores.setRecipientCharacter(this.match.matchId, this.sceneData.characterId);
         if (row) this.match = normalizeMatch(row);
       }
       setRegistryValue(this.game, 'activeMatch', this.match);
@@ -68,7 +69,7 @@ export default class VersusGameScene extends Phaser.Scene {
     if (this.sceneData.role === 'challenger' && this.sceneData.opponentName) {
       if (!canSendChallengeToday()) throw new Error('daily-limit');
       const username = getRegistryValue(this.game, 'username') || 'Player';
-      const row = await window.globalScores.createDirectChallenge(username, this.sceneData.opponentName, {
+      const row = await globalScores.createDirectChallenge(username, this.sceneData.opponentName, {
         levelId: this.sceneData.levelId,
         characterId: this.sceneData.characterId
       });
@@ -84,7 +85,7 @@ export default class VersusGameScene extends Phaser.Scene {
   private async onRunComplete({ score }: { score: number }): Promise<void> {
     if (!this.match) return;
     try {
-      const row = await window.globalScores.submitMatchScore(this.match.matchId, this.sceneData.role as VersusRole, score);
+      const row = await globalScores.submitMatchScore(this.match.matchId, this.sceneData.role as VersusRole, score);
       const updated = normalizeMatch(row);
       setRegistryValue(this.game, 'activeMatch', updated);
       this.scene.stop('GameScene');

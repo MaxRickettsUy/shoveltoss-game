@@ -9,6 +9,14 @@ interface ReleaseNote {
 
 const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: 'v1.1.0',
+    date: '2026-05-24',
+    headline: 'Rebuilt on Phaser',
+    items: [
+      'Same game, same look - now running on Phaser 4 for a smoother experience and faster feature work.'
+    ]
+  },
+  {
     version: 'v1.0.1',
     date: '2026-05-17',
     headline: 'New Hall of Fame milestones',
