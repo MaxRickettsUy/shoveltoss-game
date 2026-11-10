@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.119.0';
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from './config.js';
 
 const PROD_APEX = 'shoveltoss.ing';
@@ -137,14 +137,24 @@ window.globalScores = {
     return output.slice(0, n);
   },
 
-  async allScores(maxRows = 5000) {
-    const { data, error } = await getClient()
-      .from('high_scores')
-      .select('name, score')
-      .order('id', { ascending: true })
-      .limit(maxRows);
-    if (error) throw error;
-    return data || [];
+  async allScores() {
+    const pageSize = 1000;
+    const output = [];
+    let from = 0;
+    while (true) {
+      const { data, error } = await getClient()
+        .from('high_scores')
+        .select('name, score')
+        .order('created_at', { ascending: true })
+        .order('id', { ascending: true })
+        .range(from, from + pageSize - 1);
+      if (error) throw error;
+      const rows = data || [];
+      output.push(...rows);
+      if (rows.length < pageSize) break;
+      from += pageSize;
+    }
+    return output;
   },
 
   async playerScores(name, maxRows = 1000) {
@@ -173,14 +183,15 @@ window.globalScores = {
     return (data && data[0]) || null;
   },
 
-  async firstAtGameCounts(thresholds) {
-    const result = new Map();
-    const remaining = new Set(thresholds || []);
-    if (remaining.size === 0) return result;
-    const counts = new Map();
+  async hallOfFameAggregates(totalPointThresholds = [], gameCountThresholds = []) {
     const pageSize = 1000;
+    const players = new Map();
+    const firstAtTotalPoints = new Map();
+    const firstAtGameCounts = new Map();
+    const remainingPoints = new Set(totalPointThresholds);
+    const remainingGames = new Set(gameCountThresholds);
     let from = 0;
-    while (remaining.size > 0) {
+    while (true) {
       const { data, error } = await getClient()
         .from('high_scores')
         .select('id, name, character_name, score, created_at')
@@ -191,104 +202,34 @@ window.globalScores = {
       const rows = data || [];
       for (const row of rows) {
         const name = cleanName(row.name);
-        const next = (counts.get(name) || 0) + 1;
-        counts.set(name, next);
-        if (remaining.has(next)) {
-          result.set(next, row);
-          remaining.delete(next);
-          if (remaining.size === 0) break;
+        const current = players.get(name) || { name, points: 0, games: 0, created_at: row.created_at };
+        current.points += Number(row.score) || 0;
+        current.games += 1;
+        players.set(name, current);
+        if (remainingGames.has(current.games)) {
+          firstAtGameCounts.set(current.games, row);
+          remainingGames.delete(current.games);
         }
-      }
-      if (rows.length < pageSize) break;
-      from += pageSize;
-    }
-    return result;
-  },
-
-  async firstAtTotalPoints(thresholds) {
-    const result = new Map();
-    const remaining = new Set(thresholds || []);
-    if (remaining.size === 0) return result;
-    const totals = new Map();
-    const pageSize = 1000;
-    let from = 0;
-    while (remaining.size > 0) {
-      const { data, error } = await getClient()
-        .from('high_scores')
-        .select('id, name, character_name, score, created_at')
-        .order('created_at', { ascending: true })
-        .order('id', { ascending: true })
-        .range(from, from + pageSize - 1);
-      if (error) throw error;
-      const rows = data || [];
-      for (const row of rows) {
-        const name = cleanName(row.name);
-        const next = (totals.get(name) || 0) + (Number(row.score) || 0);
-        totals.set(name, next);
-        for (const threshold of Array.from(remaining)) {
-          if (next >= threshold) {
-            result.set(threshold, { ...row, name, score: next });
-            remaining.delete(threshold);
+        for (const threshold of Array.from(remainingPoints)) {
+          if (current.points >= threshold) {
+            firstAtTotalPoints.set(threshold, { ...row, name, score: current.points });
+            remainingPoints.delete(threshold);
           }
         }
-        if (remaining.size === 0) break;
       }
       if (rows.length < pageSize) break;
       from += pageSize;
     }
-    return result;
-  },
-
-  async mostTotalPointsLeader() {
-    const pageSize = 1000;
-    const totals = new Map();
-    let from = 0;
-    while (true) {
-      const { data, error } = await getClient()
-        .from('high_scores')
-        .select('id, name, score, created_at')
-        .order('created_at', { ascending: true })
-        .order('id', { ascending: true })
-        .range(from, from + pageSize - 1);
-      if (error) throw error;
-      const rows = data || [];
-      rows.forEach(row => {
-        const name = cleanName(row.name);
-        const current = totals.get(name) || { name, score: 0, created_at: row.created_at };
-        current.score += Number(row.score) || 0;
-        totals.set(name, current);
-      });
-      if (rows.length < pageSize) break;
-      from += pageSize;
-    }
-    return Array.from(totals.values())
+    const all = Array.from(players.values());
+    const leaderBy = key => all
+      .map(p => ({ name: p.name, score: p[key], created_at: p.created_at }))
       .sort((a, b) => b.score - a.score || new Date(a.created_at) - new Date(b.created_at) || a.name.localeCompare(b.name))[0] || null;
-  },
-
-  async mostGamesLeader() {
-    const pageSize = 1000;
-    const totals = new Map();
-    let from = 0;
-    while (true) {
-      const { data, error } = await getClient()
-        .from('high_scores')
-        .select('id, name, created_at')
-        .order('created_at', { ascending: true })
-        .order('id', { ascending: true })
-        .range(from, from + pageSize - 1);
-      if (error) throw error;
-      const rows = data || [];
-      rows.forEach(row => {
-        const name = cleanName(row.name);
-        const current = totals.get(name) || { name, score: 0, created_at: row.created_at };
-        current.score += 1;
-        totals.set(name, current);
-      });
-      if (rows.length < pageSize) break;
-      from += pageSize;
-    }
-    return Array.from(totals.values())
-      .sort((a, b) => b.score - a.score || new Date(a.created_at) - new Date(b.created_at) || a.name.localeCompare(b.name))[0] || null;
+    return {
+      totalPointsLeader: leaderBy('points'),
+      gamesLeader: leaderBy('games'),
+      firstAtTotalPoints,
+      firstAtGameCounts,
+    };
   },
 
   async fetchVersusLeaderboard(maxRows = 5000) {
@@ -335,7 +276,7 @@ window.globalScores = {
     const { data, error } = await getClient()
       .from('high_scores')
       .select('name')
-      .order('id', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(maxRows);
     if (error) throw error;
     const seen = new Set();

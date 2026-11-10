@@ -103,4 +103,4 @@ Plans in `/plans/` are temporary artifacts, not living documents. Do not treat t
 - `assets/pit.png` / `assets/pit-left.png` — pit imagery (right-facing and left-facing)
 - Fonts: `assets/fonts/bungee-regular.woff2`, `assets/fonts/archivo-regular.woff2`, `assets/fonts/archivo-bold.woff2`
 
-Adding a character: add an entry to `CHARACTERS[]` in `index.html`. Add to `CHAMPION_IDS`, `NEW_CHARACTER_IDS`, or `LADY_CHARACTER_IDS` as appropriate.
+Adding a character: add an entry to `CHARACTERS[]` in `index.html`. Add to `CHAMPION_IDS`, `NEW_CHARACTER_IDS`, or `LADY_CHARACTER_IDS` as appropriate. Also add a migration that extends the `character_name` roster list in both `high_scores_character_name_roster_check` and the insert policy on `high_scores` — otherwise every global score for the new character is rejected.

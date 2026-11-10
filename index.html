@@ -1077,14 +1077,15 @@
     hallOfFameStatus = 'loading';
     try {
       if (!window.globalScores) throw new Error('offline');
-      const [pointsLeaders, totalPointsLeader, gamesLeader, totalPointMap, gameCountMap, ...results] = await Promise.all([
+      const [pointsLeaders, aggregates, ...results] = await Promise.all([
         window.globalScores.topN(1),
-        window.globalScores.mostTotalPointsLeader(),
-        window.globalScores.mostGamesLeader(),
-        window.globalScores.firstAtTotalPoints(HOF_TOTAL_POINT_MILESTONES.map(m => m.threshold)),
-        window.globalScores.firstAtGameCounts(HOF_GAME_MILESTONES.map(m => m.threshold)),
+        window.globalScores.hallOfFameAggregates(
+          HOF_TOTAL_POINT_MILESTONES.map(m => m.threshold),
+          HOF_GAME_MILESTONES.map(m => m.threshold)
+        ),
         ...HOF_MILESTONES.map(m => window.globalScores.firstAtMilestone(m.threshold))
       ]);
+      const { totalPointsLeader, gamesLeader, firstAtTotalPoints: totalPointMap, firstAtGameCounts: gameCountMap } = aggregates;
       hallOfFameRows = [
         { milestone: HOF_POINTS_LEADER, row: pointsLeaders[0] || null },
         { milestone: HOF_TOTAL_POINTS_LEADER, row: totalPointsLeader },
@@ -1283,7 +1284,7 @@
       backgroundImg.onload = () => { backgroundReady = true; };
     }
     updateLayout();
-    resetRun();
+    resetRun({ showHowToPlay: false });
     run.versusContext = {
       matchId: match.id,
       side,
@@ -1322,8 +1323,15 @@
   async function pollMatch(matchId) {
     if (!matchId || !window.globalScores) return;
     try {
-      const match = await window.globalScores.fetchMatchByCode(versusCurrentMatch?.invite_code || '');
+      let match = await window.globalScores.fetchMatchByCode(versusCurrentMatch?.invite_code || '');
       if (match.id !== matchId) return;
+      const unsubmitted = loadInProgressMatch();
+      if (unsubmitted && unsubmitted.matchId === matchId) {
+        if (!isMyMatchScoreDone(match)) {
+          match = await window.globalScores.submitMatchScore(matchId, unsubmitted.side, unsubmitted.scoreSoFar || 0);
+        }
+        clearInProgressMatch();
+      }
       versusCurrentMatch = match;
       if (bothScoresDone(match)) {
         stopVersusPolling();
@@ -1682,6 +1690,10 @@
     const name = username.get();
     if (!name) return;
     gameOverSave.completed = true;
+    if (!window.globalScores) {
+      gameOverSave.globalStatus = 'error';
+      return;
+    }
     if (!window.globalScores.isProduction()) {
       gameOverSave.globalStatus = 'ready';
       gameOverSave.globalMessage = 'Global save disabled (dev)';
@@ -2413,7 +2425,7 @@
     return helpRow;
   }
 
-  function resetRun() {
+  function resetRun({ showHowToPlay = true } = {}) {
     run.throwCount       = 0;
     run.missesRemaining  = MISSES_PER_RUN;
     run.state            = RUN_STATE.PLAYING;
@@ -2440,7 +2452,7 @@
     throw_.angle            = 0;
     throw_.landedInPit      = false;
     resetDifficultyRamp();
-    if (!settings.get('hideHowToPlay')) {
+    if (showHowToPlay && !settings.get('hideHowToPlay')) {
       openHowToPlayOverlay();
     }
   }
