@@ -2,6 +2,16 @@
 // When releasing, prepend an entry here if users should see "What's New".
 const RELEASE_NOTES = [
   {
+    version: 'v1.0.2',
+    date: '2026-11-09',
+    headline: '1v1 and stats fixes',
+    items: [
+      '1v1 Toss-Off now works for player names with commas or parentheses.',
+      'Your final 1v1 throw can no longer be taken twice, and scores that fail to upload now retry automatically.',
+      'Player Stats now counts every game, and Hall of Fame loads faster.'
+    ]
+  },
+  {
     version: 'v1.0.1',
     date: '2026-05-17',
     headline: 'New Hall of Fame milestones',

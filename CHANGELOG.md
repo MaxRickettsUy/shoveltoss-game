@@ -4,6 +4,25 @@ All notable changes to Shovel Toss. Format follows [Keep a Changelog](https://ke
 
 ## [Unreleased]
 
+## [1.0.2] — 2026-11-09
+
+### Fixed
+- 1v1 Toss-Off queries no longer break for player names containing commas or parentheses.
+- The final 1v1 throw can no longer be repeated while the score submits, which caused a duplicate submit and a false "Could not submit score" error.
+- A 1v1 score that fails to upload is now retried from the waiting screen; stale polls can no longer submit a restarted run's partial score.
+- Matches where both players finish at the same moment are now marked complete and count toward records, history, and the versus leaderboard.
+- Player Stats now includes every game instead of a 5,000-row sample, and the challenge picker lists the most recent players first.
+- The solo How to Play overlay no longer opens when starting a 1v1 match.
+- Game over no longer throws if the Supabase client failed to load.
+
+### Security
+- Match rows now reject changes to player names, invite codes, and creation time, and can't have their expiry extended. Requires migration `20261109000000_harden_match_updates.sql`.
+
+### Internal
+- Hall of Fame aggregates are computed in one table scan instead of four.
+- Pinned `@supabase/supabase-js` to 2.119.0.
+- Documented the database character roster constraint in `CLAUDE.md`.
+
 ## [1.0.1] — 2026-05-17
 
 ### Added
