@@ -1299,6 +1299,8 @@
     const context = run.versusContext;
     if (!context || !window.globalScores) return;
     context.scoreSoFar = scoring.score;
+    context.readyToSubmit = true;
+    saveInProgressMatch(context);
     try {
       const match = await window.globalScores.submitMatchScore(context.matchId, context.side, scoring.score);
       clearInProgressMatch();
@@ -1325,8 +1327,9 @@
     try {
       let match = await window.globalScores.fetchMatchByCode(versusCurrentMatch?.invite_code || '');
       if (match.id !== matchId) return;
+      if (run.state !== RUN_STATE.VERSUS_WAITING || versusCurrentMatch?.id !== matchId) return;
       const unsubmitted = loadInProgressMatch();
-      if (unsubmitted && unsubmitted.matchId === matchId) {
+      if (unsubmitted && unsubmitted.matchId === matchId && unsubmitted.readyToSubmit) {
         if (!isMyMatchScoreDone(match)) {
           match = await window.globalScores.submitMatchScore(matchId, unsubmitted.side, unsubmitted.scoreSoFar || 0);
         }
@@ -1551,6 +1554,7 @@
         matchId: ctx.matchId,
         side: ctx.side,
         scoreSoFar: ctx.scoreSoFar || 0,
+        readyToSubmit: !!ctx.readyToSubmit,
       }));
     } catch {}
   }
