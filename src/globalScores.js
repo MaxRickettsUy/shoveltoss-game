@@ -24,6 +24,12 @@ function cleanName(name) {
   return clean || 'Player';
 }
 
+// Quote a value for use inside a PostgREST .or() filter string, so commas,
+// parentheses and quotes in player names don't break the query.
+function filterValue(value) {
+  return '"' + String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+}
+
 function generateInviteCode() {
   const alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
   let s = '';
@@ -378,7 +384,7 @@ window.globalScores = {
     const { data, error } = await getClient()
       .from('matches')
       .select('*')
-      .or(`recipient_name.eq.${clean},challenger_name.eq.${clean}`)
+      .or(`recipient_name.eq.${filterValue(clean)},challenger_name.eq.${filterValue(clean)}`)
       .not('recipient_name', 'is', null)
       .in('status', ['pending', 'playing'])
       .gt('expires_at', new Date().toISOString())
@@ -421,7 +427,7 @@ window.globalScores = {
     const { data, error } = await getClient()
       .from('matches')
       .select('*')
-      .or(`recipient_name.eq.${clean},challenger_name.eq.${clean}`)
+      .or(`recipient_name.eq.${filterValue(clean)},challenger_name.eq.${filterValue(clean)}`)
       .eq('status', 'complete')
       .gt('created_at', since)
       .order('created_at', { ascending: false })
@@ -435,7 +441,7 @@ window.globalScores = {
     const { data, error } = await getClient()
       .from('matches')
       .select('*')
-      .or(`recipient_name.eq.${clean},challenger_name.eq.${clean}`)
+      .or(`recipient_name.eq.${filterValue(clean)},challenger_name.eq.${filterValue(clean)}`)
       .eq('status', 'complete')
       .order('created_at', { ascending: false })
       .limit(50);
@@ -448,7 +454,7 @@ window.globalScores = {
     const { data, error } = await getClient()
       .from('matches')
       .select('challenger_name,recipient_name,challenger_score,recipient_score')
-      .or(`challenger_name.eq.${cleaned},recipient_name.eq.${cleaned}`)
+      .or(`challenger_name.eq.${filterValue(cleaned)},recipient_name.eq.${filterValue(cleaned)}`)
       .eq('status', 'complete');
     if (error) throw error;
     let wins = 0, losses = 0, ties = 0;

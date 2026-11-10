@@ -2833,6 +2833,7 @@
       }
     }
     if (throw_.state !== STATE.IDLE) return;
+    if (run.state === RUN_STATE.VERSUS_PLAYING && run.versusContext && run.versusContext.throwsRemaining <= 0) return;
     throw_.state     = STATE.CHARGING;
     throw_.meterFill = 0;
     throw_.meterDir  = 1;
